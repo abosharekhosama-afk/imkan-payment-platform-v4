@@ -1,0 +1,32 @@
+{
+  "name": "payment-platform",
+  "version": "3.4.1",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/api",
+    "build": "npm run build -ws",
+    "test": "npx vitest run --config vitest.config.ts",
+    "test:web": "npm run test -w apps/web",
+    "db:migrate": "npm run db:migrate -w apps/api",
+    "db:migrate:pg": "npm run db:migrate:pg -w apps/api",
+    "test:foundation:pg": "node scripts/verify-foundation-pg.mjs",
+    "test:pg": "node scripts/verify-foundation-pg.mjs",
+    "ops:pg-backup": "node scripts/ops/pg-backup.mjs",
+    "ops:pg-restore": "node scripts/ops/pg-restore.mjs",
+    "ops:pg-backup-drill": "node scripts/ops/pg-backup-restore-verify.mjs",
+    "db:seed": "npm run db:seed -w apps/api",
+    "e2e:smoke": "bash scripts/e2e-smoke.sh",
+    "e2e:v4:stack": "node scripts/e2e-v4-stack.mjs",
+    "e2e:v4": "npm run test:e2e -w apps/web",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

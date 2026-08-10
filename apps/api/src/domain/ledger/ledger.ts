@@ -1,0 +1,2 @@
+export type Entry={accountId:string;side:'DEBIT'|'CREDIT';amountMinor:bigint;currency:string};
+export function assertBalanced(entries:Entry[]){if(!entries.length) throw new Error('Ledger transaction requires entries');const debit=entries.filter(e=>e.side==='DEBIT').reduce((s,e)=>s+e.amountMinor,0n);const credit=entries.filter(e=>e.side==='CREDIT').reduce((s,e)=>s+e.amountMinor,0n);if(debit!==credit) throw new Error('LEDGER_UNBALANCED');const currencies=new Set(entries.map(e=>e.currency));if(currencies.size!==1) throw new Error('LEDGER_MULTI_CURRENCY');}

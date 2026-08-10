@@ -1,0 +1,16 @@
+﻿-- Phase 3: processor-ready token vault, payment-method confirmation and capture lifecycle.
+ALTER TABLE payment_method_sessions MODIFY COLUMN customer_id CHAR(36) NULL;
+ALTER TABLE payment_method_sessions ADD COLUMN provider_token_encrypted TEXT NULL;
+ALTER TABLE payment_method_sessions ADD COLUMN provider_payment_method_id VARCHAR(255) NULL;
+ALTER TABLE payment_methods ADD COLUMN provider_token_encrypted TEXT NULL;
+ALTER TABLE payment_methods ADD COLUMN provider_payment_method_id VARCHAR(255) NULL;
+ALTER TABLE payment_methods ADD COLUMN tokenization_status VARCHAR(32) NOT NULL DEFAULT 'READY';
+ALTER TABLE payment_attempts ADD COLUMN authorization_status VARCHAR(32) NULL;
+ALTER TABLE payment_attempts ADD COLUMN capture_status VARCHAR(32) NULL;
+ALTER TABLE payment_attempts ADD COLUMN action_required_json JSON NULL;
+ALTER TABLE payments ADD COLUMN capture_status VARCHAR(32) NOT NULL DEFAULT 'CAPTURED';
+CREATE INDEX idx_payment_method_sessions_status_expires ON payment_method_sessions(status,expires_at);
+
+-- New records write a vault hash into the legacy NOT NULL provider_token column;
+-- the encrypted column is the source for provider calls.
+

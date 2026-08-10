@@ -1,0 +1,30 @@
+# Mock / Simulation → Real — Migration Matrix
+
+**Date:** 2026-08-09  
+**Rule:** Mock ≠ Production. Every entry below is either replaced by a real component on the V4 side, kept as an explicitly-labeled test-mode facility, or retired with the legacy freeze.
+
+| Mock/Simulation | وظيفته (function) | مكانه (location) | البديل الحقيقي (real replacement) | Provider/External dependency | المطلوب قبل التفعيل (required before activation) | Status |
+|---|---|---|---|---|---|---|
+| **SandboxProvider** | Simulates authorize/capture/refund/tokenize (FAIL/3DS magic tokens, fake `sbx_*` ids) | `apps/api/src/infrastructure/providers/sandbox.ts` (default via `PAYMENT_PROVIDER=sandbox`) | Real provider adapters behind the V4 router (Phase 5); sandbox remains as a **permanent, clearly-isolated test-mode adapter** | Provider agreements + sandbox credentials | Router/adapter layer, DEC-009 capability evidence, `PROVIDER_CHECKLIST.md` complete | ⚠️ MOCK (default path) |
+| **Simulated settlements** | Aggregates succeeded payments into `sbx_st_*` settlements | `apps/api/src/application/financial/service.ts` | Settlement ingestion from real provider/bank rails (Phase 7) | Provider settlement API/files | DEC-008 (cutoffs), provider settlement capability verified | ⚠️ SIMULATION |
+| **Simulated payouts** | Instant `PAID` payouts (`sbx_po_*`) + balance decrement | same | Real payout rail via provider/bank adapter with payout lifecycle (REQUESTED→…→PAID) | Bank/payout rail agreement | Payout adapter + beneficiary controls + payout eligibility rules | ⚠️ SIMULATION |
+| **Local reconciliation** | Compares own payments vs own settlement_items | same | Reconciliation against external provider/bank reports | Provider reports | Settlement ingestion first | ⚠️ SIMULATION |
+| **Renewal worker without provider** | Subscription renewals always take FAILED/PAST_DUE path | `apps/api/src/application/billing/worker.ts` | V4 Billing phase renewal engine wired to the provider router | Provider recurring/tokenization capability | DEC-007 + Phase 6 | 🟡 BROKEN-BY-DEFAULT (legacy, freeze) |
+| **internal-manual KYB provider** | Returns `NOT_AVAILABLE`; decisions by platform manual review | `apps/api/src/merchant/verification-providers.ts` | Real KYB vendor adapter behind the same interface | KYB vendor contract (DEC-010) | Vendor decision + adapter + sandbox evidence | ⚠️ STUB (documented, by design) |
+| **internal-manual bank verification** | Same pattern for payout accounts | same | Bank-account verification rail (micro-deposit / open-banking / provider API) | Bank/provider rail | Rail selection + adapter | ⚠️ STUB (documented) |
+| **Outbox worker stub handlers** | Marks `email.*`/`kyb.*`/`bank_account.*` events PROCESSED without delivery | `apps/api/src/foundation/outbox-worker.ts` | Real email/notification adapter (DEC-017) + Books worker + merchant webhook dispatcher on V4 side | Email vendor; Books target (DEC-016) | Vendor decisions, adapter docs | ⚠️ STUB (documented, DEC-017) |
+| **Dev auth bypass** | Non-prod missing-auth fallback to `x-tenant-id`/demo tenant | legacy `interfaces/http/routes.ts` | None — must never exist on `/api/v1` (it doesn't) | — | Verify disabled in any prod build; retire with legacy freeze | ⚠️ DEV-ONLY |
+| **`EXPOSE_DEV_TOKENS`** | Returns one-time tokens (email verify/reset) in API responses in dev | `apps/api/src/config.ts` + foundation identity | Real email delivery (DEC-017) | Email vendor | Vendor + adapter | ⚠️ DEV-ONLY (prod-guarded) |
+| **Dev fallback secrets** (`dev-only-*` keys) | Local dev crypto keys | `.env.example`, `config.ts` | Secret-manager-provisioned keys; `requiredInProduction` already refuses fallbacks at prod boot | Secrets infrastructure | Prod secret provisioning procedure | ⚠️ DEV-ONLY (prod-guarded) |
+| **Demo seed data** | Demo tenant/merchant/user (`ChangeMe!123`), fee rule | `apps/api/src/scripts/seed.ts`, MySQL migration 010 | Real onboarding through V4 registration + KYB | — | Nothing (sandbox-only); exclude from prod provisioning | ⚠️ DEV SEED |
+| **UI demo constants** | Hardcoded tenant/merchant/customer UUIDs, prefilled login, `card_sbx_4242` token, placeholder dashboard strings, static KYB timeline | `apps/web/src/main.tsx` | V4 portal UI bound to `/api/v1` sessions/orgs (per-phase DoD) | — | Phase 4+ UI work | ⚠️ PROTOTYPE UI |
+| **PayTabs callback `signature_valid: true`** | Handler records validity without verifying | `apps/api/src/application/payments/provider-callback.ts` (route unregistered) | V4 webhook pipeline with mandatory signature verification + replay protection | PayTabs webhook secret | Never wire as-is; rebuild in Phase 5 webhook subsystem | 🟡 DEAD CODE (trap — freeze/annotate) |
+| **Zoho Books client (unwired)** | Real OAuth client with no registered routes | `apps/api/src/infrastructure/integrations/zoho-books.ts` | V4 Books connector behind `BooksConnector` interface (Phase 9) | DEC-016 + Zoho credentials | Books worker + connector design | 🟡 REAL-BUT-DEAD (port later) |
+| **Remote provider/KYC/risk/settlement/payout shells** | Generic HTTP adapters activated only by env URLs | `infrastructure/providers/remote.ts`, `real-rails.ts` | Concrete named-provider adapters in V4 architecture | Named provider selection | DEC-009 per provider | 🟡 SHELL (no concrete target) |
+| **Static "Sandbox" labels in UI** | Cosmetic environment badge | `apps/web/src/main.tsx` | Real sandbox/live mode switch (DEC-012) with credential isolation | — | DEC-012 policy | ⚠️ COSMETIC |
+
+## Notes
+
+1. **Allowed to remain permanently:** sandbox provider as an isolated test-mode adapter, dev-only token exposure and dev secrets (both prod-guarded) — these follow spec `00` §14 sandbox/live separation and are not production paths.
+2. **Must be replaced before production:** everything in the money path (provider, settlements, payouts, reconciliation), email transport, KYB/bank verification rails.
+3. **Must never be ported to V4:** dev auth bypass, hardcoded signature validity, float conversion at provider boundaries (`Number(amount)/100` in the legacy PayTabs adapter).

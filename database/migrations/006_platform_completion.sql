@@ -1,0 +1,84 @@
+﻿-- Phase 4-14: financial operations, risk, disputes, compliance, billing, reporting, RBAC and payment pages.
+CREATE TABLE IF NOT EXISTS fee_rules (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36), provider VARCHAR(64) NOT NULL DEFAULT 'sandbox', percent_bps INT NOT NULL DEFAULT 0, fixed_minor DECIMAL(30,0) NOT NULL DEFAULT 0, currency CHAR(3), status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE', created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(merchant_id)
+);
+CREATE TABLE IF NOT EXISTS risk_rules (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, name VARCHAR(255) NOT NULL, rule_type VARCHAR(64) NOT NULL, threshold_decimal DECIMAL(30,6), action VARCHAR(32) NOT NULL, priority INT NOT NULL DEFAULT 100, enabled BOOLEAN NOT NULL DEFAULT TRUE, config_json JSON, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(enabled)
+);
+CREATE TABLE IF NOT EXISTS risk_assessments (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, payment_attempt_id CHAR(36), payment_id CHAR(36), score INT NOT NULL DEFAULT 0, status VARCHAR(32) NOT NULL, reasons_json JSON, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(payment_id), INDEX(payment_attempt_id)
+);
+CREATE TABLE IF NOT EXISTS disputes (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36) NOT NULL, payment_id CHAR(36) NOT NULL, provider_dispute_id VARCHAR(255), amount_minor DECIMAL(30,0) NOT NULL, currency CHAR(3) NOT NULL, reason VARCHAR(128), status VARCHAR(32) NOT NULL DEFAULT 'OPEN', response_due_at TIMESTAMP(6), outcome VARCHAR(32), opened_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), closed_at TIMESTAMP(6), INDEX(tenant_id), INDEX(payment_id), INDEX(status)
+);
+CREATE TABLE IF NOT EXISTS dispute_evidence (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, dispute_id CHAR(36) NOT NULL, evidence_type VARCHAR(64) NOT NULL, content TEXT NOT NULL, submitted_at TIMESTAMP(6), status VARCHAR(32) NOT NULL DEFAULT 'DRAFT', created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(dispute_id)
+);
+CREATE TABLE IF NOT EXISTS dispute_events (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, dispute_id CHAR(36) NOT NULL, event_type VARCHAR(64) NOT NULL, payload_json JSON, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(dispute_id)
+);
+CREATE TABLE IF NOT EXISTS bank_accounts (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36) NOT NULL, provider VARCHAR(64) NOT NULL DEFAULT 'sandbox', account_holder_name VARCHAR(255), country CHAR(2), currency CHAR(3), bank_name VARCHAR(255), account_last4 CHAR(4), provider_token_encrypted TEXT, status VARCHAR(32) NOT NULL DEFAULT 'PENDING', verified_at TIMESTAMP(6), created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(merchant_id)
+);
+CREATE TABLE IF NOT EXISTS payout_attempts (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, payout_id CHAR(36) NOT NULL, attempt INT NOT NULL, provider_reference VARCHAR(255), status VARCHAR(32) NOT NULL, response_json JSON, error_message TEXT, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(payout_id)
+);
+CREATE TABLE IF NOT EXISTS settlement_items (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, settlement_id CHAR(36) NOT NULL, payment_id CHAR(36), refund_id CHAR(36), amount_minor DECIMAL(30,0) NOT NULL, fee_minor DECIMAL(30,0) NOT NULL DEFAULT 0, currency CHAR(3) NOT NULL, match_status VARCHAR(32) NOT NULL DEFAULT 'MATCHED', created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(settlement_id), INDEX(payment_id)
+);
+CREATE TABLE IF NOT EXISTS reconciliation_runs (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, provider VARCHAR(64) NOT NULL, period_start DATE NOT NULL, period_end DATE NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'RUNNING', matched_count INT NOT NULL DEFAULT 0, exception_count INT NOT NULL DEFAULT 0, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), completed_at TIMESTAMP(6), INDEX(tenant_id), INDEX(status)
+);
+CREATE TABLE IF NOT EXISTS reconciliation_exceptions (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, run_id CHAR(36) NOT NULL, exception_type VARCHAR(64) NOT NULL, source_type VARCHAR(64) NOT NULL, source_id VARCHAR(255), expected_minor DECIMAL(30,0), actual_minor DECIMAL(30,0), difference_minor DECIMAL(30,0), currency CHAR(3), status VARCHAR(32) NOT NULL DEFAULT 'OPEN', assigned_to CHAR(36), resolution TEXT, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), resolved_at TIMESTAMP(6), INDEX(tenant_id), INDEX(run_id), INDEX(status)
+);
+CREATE TABLE IF NOT EXISTS kyc_cases (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36) NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'NOT_STARTED', business_name VARCHAR(255), business_type VARCHAR(128), country CHAR(2), registration_number VARCHAR(128), website VARCHAR(512), risk_level VARCHAR(32), reviewed_at TIMESTAMP(6), created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), UNIQUE KEY uq_kyc_merchant(merchant_id), INDEX(tenant_id), INDEX(status)
+);
+CREATE TABLE IF NOT EXISTS kyc_documents (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, kyc_case_id CHAR(36) NOT NULL, document_type VARCHAR(64) NOT NULL, document_ref VARCHAR(512) NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'PENDING', rejection_reason TEXT, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(kyc_case_id)
+);
+CREATE TABLE IF NOT EXISTS kyc_beneficial_owners (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, kyc_case_id CHAR(36) NOT NULL, full_name VARCHAR(255) NOT NULL, date_of_birth DATE, ownership_bps INT, country CHAR(2), created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(kyc_case_id)
+);
+CREATE TABLE IF NOT EXISTS permissions (
+ id CHAR(36) PRIMARY KEY, code VARCHAR(128) NOT NULL UNIQUE, description VARCHAR(255)
+);
+CREATE TABLE IF NOT EXISTS role_permissions (
+ role_id CHAR(36) NOT NULL, permission_id CHAR(36) NOT NULL, PRIMARY KEY(role_id,permission_id)
+);
+ALTER TABLE roles ADD COLUMN description VARCHAR(255) NULL;
+ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN mfa_secret_encrypted TEXT NULL;
+ALTER TABLE api_keys ADD COLUMN scopes_json JSON NULL;
+CREATE TABLE IF NOT EXISTS user_sessions (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, user_id CHAR(36) NOT NULL, token_hash CHAR(64) NOT NULL, expires_at TIMESTAMP(6) NOT NULL, revoked_at TIMESTAMP(6), ip VARCHAR(64), user_agent TEXT, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), UNIQUE KEY uq_session_token(token_hash), INDEX(tenant_id), INDEX(user_id)
+);
+CREATE TABLE IF NOT EXISTS mfa_challenges (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, user_id CHAR(36) NOT NULL, challenge_hash CHAR(64) NOT NULL, expires_at TIMESTAMP(6) NOT NULL, used_at TIMESTAMP(6), created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(user_id)
+);
+CREATE TABLE IF NOT EXISTS payment_pages (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36) NOT NULL, public_token VARCHAR(128) NOT NULL, title VARCHAR(255) NOT NULL, description TEXT, logo_url TEXT, amount_minor DECIMAL(30,0) NOT NULL, currency CHAR(3) NOT NULL, customer_fields_json JSON, payment_methods_json JSON, success_url TEXT, cancel_url TEXT, status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE', expires_at TIMESTAMP(6), created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), UNIQUE KEY uq_page_token(public_token), INDEX(tenant_id), INDEX(merchant_id)
+);
+CREATE TABLE IF NOT EXISTS products (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36) NOT NULL, name VARCHAR(255) NOT NULL, description TEXT, status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE', created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(merchant_id)
+);
+CREATE TABLE IF NOT EXISTS prices (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, product_id CHAR(36) NOT NULL, currency CHAR(3) NOT NULL, unit_amount_minor DECIMAL(30,0) NOT NULL, interval_unit VARCHAR(32), interval_count INT, status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE', created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(product_id)
+);
+CREATE TABLE IF NOT EXISTS subscriptions (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36) NOT NULL, customer_id CHAR(36) NOT NULL, price_id CHAR(36) NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE', current_period_start TIMESTAMP(6) NOT NULL, current_period_end TIMESTAMP(6) NOT NULL, cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE, next_billing_at TIMESTAMP(6), created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(customer_id), INDEX(status)
+);
+CREATE TABLE IF NOT EXISTS invoices (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, merchant_id CHAR(36) NOT NULL, customer_id CHAR(36) NOT NULL, subscription_id CHAR(36), number VARCHAR(64) NOT NULL, currency CHAR(3) NOT NULL, subtotal_minor DECIMAL(30,0) NOT NULL, tax_minor DECIMAL(30,0) NOT NULL DEFAULT 0, total_minor DECIMAL(30,0) NOT NULL, status VARCHAR(32) NOT NULL DEFAULT 'OPEN', due_at TIMESTAMP(6), paid_at TIMESTAMP(6), created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), UNIQUE KEY uq_invoice_number(tenant_id,number), INDEX(tenant_id), INDEX(customer_id), INDEX(status)
+);
+CREATE TABLE IF NOT EXISTS invoice_items (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, invoice_id CHAR(36) NOT NULL, description VARCHAR(255) NOT NULL, quantity DECIMAL(20,6) NOT NULL DEFAULT 1, unit_amount_minor DECIMAL(30,0) NOT NULL, amount_minor DECIMAL(30,0) NOT NULL, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(invoice_id)
+);
+CREATE TABLE IF NOT EXISTS report_exports (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, report_type VARCHAR(64) NOT NULL, format VARCHAR(16) NOT NULL, filters_json JSON, status VARCHAR(32) NOT NULL DEFAULT 'READY', content_text LONGTEXT, created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), INDEX(tenant_id), INDEX(report_type)
+);
+CREATE TABLE IF NOT EXISTS notification_events (
+ id CHAR(36) PRIMARY KEY, tenant_id CHAR(36) NOT NULL, channel VARCHAR(32) NOT NULL, recipient VARCHAR(320), event_type VARCHAR(128) NOT NULL, payload_json JSON, status VARCHAR(32) NOT NULL DEFAULT 'QUEUED', created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), sent_at TIMESTAMP(6), INDEX(tenant_id), INDEX(status)
+);
+

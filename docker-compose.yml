@@ -1,0 +1,42 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: payment-platform-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: payment_platform
+      MYSQL_USER: payment
+      MYSQL_PASSWORD: payment
+      MYSQL_ROOT_PASSWORD: root
+    ports: ["3306:3306"]
+    volumes: ["mysql_data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD","mysqladmin","ping","-h","localhost","-uroot","-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  postgres:
+    image: postgres:16-alpine
+    container_name: imkan-payments-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: imkan_payments
+      POSTGRES_USER: imkan
+      POSTGRES_PASSWORD: imkan
+    ports: ["5432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imkan -d imkan_payments"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    container_name: payment-platform-redis
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    volumes: ["redis_data:/data"]
+volumes:
+  mysql_data:
+  postgres_data:
+  redis_data:

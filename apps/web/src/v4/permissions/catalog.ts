@@ -1,0 +1,70 @@
+/**
+ * Frontend mirror of API permission catalog (UX only — backend is authoritative).
+ * Keep codes in sync with apps/api/src/foundation/permissions-catalog.ts
+ */
+
+export const P = {
+  ORG_READ: 'org.read',
+  ORG_MANAGE: 'org.manage',
+  USERS_READ: 'users.read',
+  USERS_MANAGE: 'users.manage',
+  USERS_INVITE: 'users.invite',
+  ROLES_READ: 'roles.read',
+  ROLES_MANAGE: 'roles.manage',
+  AUDIT_READ: 'audit.read',
+  SECURITY_READ: 'security.read',
+  SECURITY_MANAGE: 'security.manage',
+  ERRORS_READ: 'errors.read',
+  SETTINGS_READ: 'settings.read',
+  SETTINGS_MANAGE: 'settings.manage',
+  MERCHANT_READ: 'merchant.read',
+  MERCHANT_MANAGE: 'merchant.manage',
+  KYB_READ: 'kyb.read',
+  KYB_SUBMIT: 'kyb.submit',
+  KYB_MANAGE: 'kyb.manage',
+  DOCUMENTS_READ: 'documents.read',
+  BANK_READ: 'bank.read',
+  BANK_MANAGE: 'bank.manage',
+  PAYMENTS_READ: 'payments.read',
+  PAYMENTS_MANAGE: 'payments.manage',
+  PAYMENTS_CANCEL: 'payments.cancel',
+  PAYMENT_LINKS_READ: 'payment_links.read',
+  PAYMENT_LINKS_MANAGE: 'payment_links.manage',
+  PAYMENT_CONFIG_READ: 'payment_config.read',
+  PAYMENT_CONFIG_MANAGE: 'payment_config.manage',
+  PROVIDERS_READ: 'providers.read',
+  PROVIDERS_MANAGE: 'providers.manage',
+  API_KEYS_READ: 'api_keys.read',
+  API_KEYS_MANAGE: 'api_keys.manage',
+  WEBHOOKS_READ: 'webhooks.read',
+  EVENTS_READ: 'events.read',
+  DEVELOPER_READ: 'developer.read',
+  DEVELOPER_MANAGE: 'developer.manage',
+  CUSTOMERS_READ: 'customers.read',
+  CUSTOMERS_MANAGE: 'customers.manage',
+  PRODUCTS_READ: 'products.read',
+  PRODUCTS_MANAGE: 'products.manage',
+  PRICES_READ: 'prices.read',
+  PRICES_MANAGE: 'prices.manage',
+  SUBSCRIPTIONS_READ: 'subscriptions.read',
+  SUBSCRIPTIONS_MANAGE: 'subscriptions.manage',
+  SUBSCRIPTIONS_PAUSE: 'subscriptions.pause',
+  SUBSCRIPTIONS_RESUME: 'subscriptions.resume',
+  SUBSCRIPTIONS_CANCEL: 'subscriptions.cancel',
+  INVOICES_READ: 'invoices.read',
+  INVOICES_MANAGE: 'invoices.manage',
+  INVOICES_PAY: 'invoices.pay',
+  BILLING_READ: 'billing.read',
+  BILLING_MANAGE: 'billing.manage',
+  PLATFORM_ADMIN: 'platform.admin',
+  BALANCES_READ: 'balances.read',
+  SETTLEMENTS_READ: 'settlements.read',
+  PAYOUTS_READ: 'payouts.read',
+  DISPUTES_READ: 'disputes.read',
+} as const;
+
+export function hasAnyPermission(granted: string[] | undefined, ...required: string[]): boolean {
+  if (!granted?.length) return false;
+  if (granted.includes(P.PLATFORM_ADMIN)) return true;
+  return required.some((r) => granted.includes(r));
+}

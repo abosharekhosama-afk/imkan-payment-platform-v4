@@ -1,0 +1,10 @@
+{
+  "name": "@payment-platform/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "build": "node -e \"console.log('Contracts: type-only package, no build required')\""
+  }
+}

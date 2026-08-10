@@ -1,0 +1,1 @@
+import {describe,it,expect} from 'vitest';import {transition} from '../apps/api/src/domain/payments/state.js';describe('payment state',()=>{it('allows pending to success',()=>expect(transition('PENDING','SUCCEEDED')).toBe('SUCCEEDED'));it('blocks invalid transition',()=>expect(()=>transition('FAILED','SUCCEEDED')).toThrow());});

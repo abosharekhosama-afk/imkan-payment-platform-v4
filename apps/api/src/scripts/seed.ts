@@ -1,0 +1,15 @@
+import crypto from 'node:crypto';
+import {pool} from '../infrastructure/db/mysql.js';
+const tenant='550e8400-e29b-41d4-a716-446655440000',merchant='550e8400-e29b-41d4-a716-446655440001',customer='550e8400-e29b-41d4-a716-446655440002';
+const {hashPassword}=await import('../security.js');
+await pool.query('INSERT IGNORE INTO tenants(id,name,status) VALUES(?,?,?)',[tenant,'Demo Tenant','ACTIVE']);
+await pool.query('INSERT IGNORE INTO merchants(id,tenant_id,legal_name,display_name,country,default_currency,status,onboarding_status) VALUES(?,?,?,?,?,?,?,?)',[merchant,tenant,'Demo Merchant LLC','Demo Merchant','US','USD','ACTIVE','APPROVED']);
+await pool.query('INSERT IGNORE INTO customers(id,tenant_id,merchant_id,name,email,status) VALUES(?,?,?,?,?,?)',[customer,tenant,merchant,'Demo Customer','customer@example.test','ACTIVE']);
+await pool.query('INSERT IGNORE INTO bank_accounts(id,tenant_id,merchant_id,provider,account_holder_name,country,currency,bank_name,account_last4,status,verified_at) VALUES(?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP(6))',[crypto.randomUUID(),tenant,merchant,'sandbox','Demo Merchant LLC','US','USD','Sandbox Bank','4242','VERIFIED']);
+const permissionCodes=['payments.read','payments.create','payments.refund','customers.read','customers.write','payouts.read','payouts.create','settlements.read','reports.read','api_keys.manage','webhooks.manage','settings.manage','risk.read','disputes.manage','compliance.manage','billing.manage'];
+for(const code of permissionCodes) await pool.query('INSERT IGNORE INTO permissions(id,code,description) VALUES(?,?,?)',[crypto.randomUUID(),code,code]);
+const roleId='550e8400-e29b-41d4-a716-446655440010';await pool.query('INSERT IGNORE INTO roles(id,tenant_id,name,description) VALUES(?,?,?,?)',[roleId,tenant,'Owner','Full merchant access']);
+const [perms]:any=await pool.query('SELECT id FROM permissions');for(const p of perms) await pool.query('INSERT IGNORE INTO role_permissions(role_id,permission_id) VALUES(?,?)',[roleId,p.id]);
+await pool.query('INSERT IGNORE INTO fee_rules(id,tenant_id,merchant_id,provider,percent_bps,fixed_minor,currency,status) VALUES(?,?,?,?,?,?,?,?)',[crypto.randomUUID(),tenant,merchant,'sandbox',290,30,'USD','ACTIVE']);
+await pool.query('INSERT IGNORE INTO risk_rules(id,tenant_id,name,rule_type,threshold_decimal,action,priority,enabled,config_json) VALUES(?,?,?,?,?,?,?,?,?)',[crypto.randomUUID(),tenant,'High amount','AMOUNT',100000,'REVIEW',10,true,JSON.stringify({currency:'USD'})]);
+const user='550e8400-e29b-41d4-a716-446655440020'; await pool.query("INSERT IGNORE INTO users(id,tenant_id,email,name,status,password_hash) VALUES(?,?,?,?,?,?)",[user,tenant,'admin@example.test','Demo Admin','ACTIVE',hashPassword('ChangeMe!123')]); await pool.query('INSERT IGNORE INTO user_roles(user_id,role_id) VALUES(?,?)',[user,roleId]); console.log({tenant,merchant,customer,user,development_password:'ChangeMe!123'});await pool.end();

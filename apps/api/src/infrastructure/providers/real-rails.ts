@@ -1,0 +1,10 @@
+export interface KycProvider { verifyBusiness(input:any):Promise<any>; verifyIdentity(input:any):Promise<any>; }
+export interface RiskProvider { assess(input:any):Promise<{decision:'ALLOW'|'REVIEW'|'BLOCK';score:number;provider:string;signals?:any}>; }
+export interface SettlementProvider { fetchSettlements(input:any):Promise<any[]>; }
+export interface PayoutProvider { createPayout(input:any):Promise<{providerReference:string;status:string}>; }
+
+async function remote(path:string,body:any,base:string,key:string){const r=await fetch(`${base.replace(/\/$/,'')}${path}`,{method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${key}`},body:JSON.stringify(body)});const text=await r.text();let j:any={};try{j=JSON.parse(text)}catch{}if(!r.ok)throw Object.assign(new Error(j.message||`REMOTE_${r.status}`),{code:'REMOTE_PROVIDER_ERROR',statusCode:502});return j;}
+export class RemoteKycProvider implements KycProvider{constructor(private base=process.env.KYC_PROVIDER_URL||'',private key=process.env.KYC_PROVIDER_KEY||''){} async verifyBusiness(i:any){return remote('/v1/business-verifications',i,this.base,this.key)} async verifyIdentity(i:any){return remote('/v1/identity-verifications',i,this.base,this.key)}}
+export class RemoteRiskProvider implements RiskProvider{constructor(private base=process.env.RISK_PROVIDER_URL||'',private key=process.env.RISK_PROVIDER_KEY||''){} async assess(i:any){return remote('/v1/risk/assessments',i,this.base,this.key)}}
+export class RemoteSettlementProvider implements SettlementProvider{constructor(private base=process.env.SETTLEMENT_PROVIDER_URL||'',private key=process.env.SETTLEMENT_PROVIDER_KEY||''){} async fetchSettlements(i:any){const r=await remote('/v1/settlements/search',i,this.base,this.key);return r.settlements||r.data||[]}}
+export class RemotePayoutProvider implements PayoutProvider{constructor(private base=process.env.PAYOUT_PROVIDER_URL||'',private key=process.env.PAYOUT_PROVIDER_KEY||''){} async createPayout(i:any){return remote('/v1/payouts',i,this.base,this.key)}}
