@@ -4,8 +4,10 @@ import {v4} from '../api/endpoints';
 import {Alert, Button, Field, LoadingState, PageHeader} from '../design-system/components';
 import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function PaymentConfigPage() {
+  const {t} = useI18n();
   const {token, hasPermission} = useAuth();
   const canManage = hasPermission('payment_config.manage');
   const {push} = useToast();
@@ -51,48 +53,48 @@ export function PaymentConfigPage() {
   return (
     <div>
       <PageHeader
-        title="Payment configuration"
-        description="Checkout branding for V4 payment links (Sandbox)."
-        crumbs={[{label: 'Payments'}, {label: 'Payment Config'}]}
+        title={t('paymentConfig.title')}
+        description={t('paymentConfig.description')}
+        crumbs={[{label: t('section.payments')}, {label: t('nav.paymentConfig')}]}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <form className="v4-card" onSubmit={save} style={{maxWidth: 560}}>
         <fieldset disabled={!canManage} style={{border: 0, margin: 0, padding: 0}}>
-        <Field label="Company display name">
-          <input
-            value={form.company_display_name}
-            onChange={(e) => setForm({...form, company_display_name: e.target.value})}
-          />
-        </Field>
-        <Field label="Primary color">
-          <input
-            value={form.brand_primary_color}
-            onChange={(e) => setForm({...form, brand_primary_color: e.target.value})}
-          />
-        </Field>
-        <Field label="Secondary color">
-          <input
-            value={form.brand_secondary_color}
-            onChange={(e) => setForm({...form, brand_secondary_color: e.target.value})}
-          />
-        </Field>
-        <Field label="Support email">
-          <input
-            type="email"
-            value={form.support_email}
-            onChange={(e) => setForm({...form, support_email: e.target.value})}
-          />
-        </Field>
-        <Field label="Description">
-          <textarea
-            rows={3}
-            value={form.description}
-            onChange={(e) => setForm({...form, description: e.target.value})}
-          />
-        </Field>
+          <Field label={t('paymentConfig.companyDisplayName')}>
+            <input
+              value={form.company_display_name}
+              onChange={(e) => setForm({...form, company_display_name: e.target.value})}
+            />
+          </Field>
+          <Field label={t('paymentConfig.primaryColor')}>
+            <input
+              value={form.brand_primary_color}
+              onChange={(e) => setForm({...form, brand_primary_color: e.target.value})}
+            />
+          </Field>
+          <Field label={t('paymentConfig.secondaryColor')}>
+            <input
+              value={form.brand_secondary_color}
+              onChange={(e) => setForm({...form, brand_secondary_color: e.target.value})}
+            />
+          </Field>
+          <Field label={t('paymentConfig.supportEmail')}>
+            <input
+              type="email"
+              value={form.support_email}
+              onChange={(e) => setForm({...form, support_email: e.target.value})}
+            />
+          </Field>
+          <Field label={t('paymentConfig.descriptionField')}>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm({...form, description: e.target.value})}
+            />
+          </Field>
         </fieldset>
         <Can anyOf={['payment_config.manage']}>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{t('common.save')}</Button>
         </Can>
       </form>
     </div>

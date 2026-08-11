@@ -16,8 +16,10 @@ import {
 import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../utils/money';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function PaymentLinksPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
   const [rows, setRows] = useState<any[]>([]);
@@ -71,24 +73,22 @@ export function PaymentLinksPage() {
   return (
     <div>
       <PageHeader
-        title="Payment Links"
-        description="Create hosted checkout links. Customer pays via V4 Checkout → Payment Core → Provider Router → Sandbox."
-        crumbs={[{label: 'Payments'}, {label: 'Payment Links'}]}
+        title={t('paymentLinks.title')}
+        description={t('paymentLinks.description')}
+        crumbs={[{label: t('section.payments')}, {label: t('nav.paymentLinks')}]}
         actions={
           <Can anyOf={['payment_links.manage']}>
             <Button type="button" onClick={() => setOpen(true)}>
-              Create link
+              {t('paymentLinks.createLink')}
             </Button>
           </Can>
         }
       />
-      <Alert tone="info">
-        Copy uses the web route <code>/checkout/:token</code> (not the frozen Legacy public checkout path).
-      </Alert>
+      <Alert tone="info">{t('paymentLinks.copyHint')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <div className="v4-toolbar">
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter status">
-          <option value="">All statuses</option>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t('common.status')}>
+          <option value="">{t('common.allStatuses')}</option>
           {['DRAFT', 'ACTIVE', 'INACTIVE', 'EXPIRED', 'CANCELLED'].map((s) => (
             <option key={s} value={s}>
               {s}
@@ -96,38 +96,45 @@ export function PaymentLinksPage() {
           ))}
         </select>
         <Button variant="secondary" type="button" onClick={load}>
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
       {loading ? (
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Link', 'Title', 'Amount', 'Status', 'Created', '']}
+          columns={[
+            t('paymentLinks.colLink'),
+            t('paymentLinks.colTitle'),
+            t('common.amount'),
+            t('common.status'),
+            t('common.created'),
+            '',
+          ]}
           rows={rows.map((r) => [
             shortId(r.id),
             r.title,
             formatMoney(r.amount_minor, r.currency_code),
             <StatusBadge status={r.status} />,
             formatDate(r.created_at),
-            <Link to={`/payment-links/${r.id}`}>Open</Link>,
+            <Link to={`/payment-links/${r.id}`}>{t('common.open')}</Link>,
           ])}
         />
       )}
       {open ? (
-        <Modal title="Create payment link" onClose={() => setOpen(false)}>
+        <Modal title={t('paymentLinks.modalTitle')} onClose={() => setOpen(false)}>
           <form onSubmit={create}>
-            <Field label="Title">
+            <Field label={t('paymentLinks.labelTitle')}>
               <input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} required />
             </Field>
-            <Field label="Amount (minor units)">
+            <Field label={t('paymentLinks.labelAmount')}>
               <input
                 value={form.amount_minor}
                 onChange={(e) => setForm({...form, amount_minor: e.target.value})}
                 required
               />
             </Field>
-            <Field label="Currency">
+            <Field label={t('common.currency')}>
               <input
                 value={form.currency_code}
                 onChange={(e) => setForm({...form, currency_code: e.target.value.toUpperCase()})}
@@ -135,7 +142,7 @@ export function PaymentLinksPage() {
                 required
               />
             </Field>
-            <Field label="Description">
+            <Field label={t('paymentLinks.labelDescription')}>
               <textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
             </Field>
             <label style={{display: 'flex', gap: 8, marginBottom: 12}}>
@@ -144,9 +151,9 @@ export function PaymentLinksPage() {
                 checked={form.activate}
                 onChange={(e) => setForm({...form, activate: e.target.checked})}
               />
-              Activate immediately
+              {t('paymentLinks.activateImmediately')}
             </label>
-            <Button type="submit">Create</Button>
+            <Button type="submit">{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

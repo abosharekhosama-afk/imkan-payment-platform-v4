@@ -38,6 +38,7 @@ const pgEmbedded = new EmbeddedPostgres({
   persistent: false,
   onLog: () => undefined,
   onError: (m) => console.error('[e2e-pg]', m),
+  initdbFlags: ['--encoding=UTF8', '--lc-collate=C', '--lc-ctype=C'],
 });
 
 const connectionString = `postgres://${user}:${password}@127.0.0.1:${port}/${database}`;

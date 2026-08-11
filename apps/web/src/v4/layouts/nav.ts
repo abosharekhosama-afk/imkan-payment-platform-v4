@@ -1,97 +1,100 @@
 export type NavItem = {
   to: string;
-  label: string;
+  labelKey: string;
   anyOf?: string[];
 };
 
 export type NavSection = {
-  label: string;
+  labelKey: string;
   items: NavItem[];
 };
 
 /** V4 merchant console navigation — permission-aware (no role === checks). */
 export const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Overview',
-    items: [{to: '/', label: 'Dashboard', anyOf: ['payments.read', 'org.read', 'billing.read']}],
+    labelKey: 'section.overview',
+    items: [{to: '/', labelKey: 'nav.dashboard', anyOf: ['payments.read', 'org.read', 'billing.read']}],
   },
   {
-    label: 'Payments',
+    labelKey: 'section.payments',
     items: [
-      {to: '/payments', label: 'Payments', anyOf: ['payments.read']},
-      {to: '/transactions', label: 'Transactions', anyOf: ['payments.read']},
-      {to: '/payment-links', label: 'Payment Links', anyOf: ['payment_links.read']},
-      {to: '/payment-config', label: 'Payment Config', anyOf: ['payment_config.read']},
+      {to: '/payments', labelKey: 'nav.payments', anyOf: ['payments.read']},
+      {to: '/transactions', labelKey: 'nav.transactions', anyOf: ['payments.read']},
+      {to: '/payment-links', labelKey: 'nav.paymentLinks', anyOf: ['payment_links.read']},
+      {to: '/payment-config', labelKey: 'nav.paymentConfig', anyOf: ['payment_config.read']},
     ],
   },
   {
-    label: 'Billing',
+    labelKey: 'section.billing',
     items: [
-      {to: '/customers', label: 'Customers', anyOf: ['customers.read', 'billing.read', 'billing.manage']},
-      {to: '/products', label: 'Products', anyOf: ['products.read', 'plans.read', 'billing.manage']},
-      {to: '/prices', label: 'Prices', anyOf: ['prices.read', 'plans.read', 'billing.manage']},
-      {to: '/subscriptions', label: 'Subscriptions', anyOf: ['subscriptions.read', 'billing.read', 'billing.manage']},
-      {to: '/invoices', label: 'Invoices', anyOf: ['invoices.read', 'billing.read', 'billing.manage']},
+      {to: '/customers', labelKey: 'nav.customers', anyOf: ['customers.read', 'billing.read', 'billing.manage']},
+      {to: '/products', labelKey: 'nav.products', anyOf: ['products.read', 'plans.read', 'billing.manage']},
+      {to: '/prices', labelKey: 'nav.prices', anyOf: ['prices.read', 'plans.read', 'billing.manage']},
+      {to: '/subscriptions', labelKey: 'nav.subscriptions', anyOf: ['subscriptions.read', 'billing.read', 'billing.manage']},
+      {to: '/invoices', labelKey: 'nav.invoices', anyOf: ['invoices.read', 'billing.read', 'billing.manage']},
     ],
   },
   {
-    label: 'Merchant',
+    labelKey: 'section.merchant',
     items: [
-      {to: '/merchant/profile', label: 'Profile', anyOf: ['merchant.read']},
-      {to: '/merchant/business', label: 'Business', anyOf: ['merchant.read']},
-      {to: '/merchant/kyb', label: 'KYB', anyOf: ['kyb.read']},
-      {to: '/merchant/documents', label: 'Documents', anyOf: ['documents.read']},
-      {to: '/merchant/bank-accounts', label: 'Bank Accounts', anyOf: ['bank.read']},
+      {to: '/merchant/profile', labelKey: 'nav.profile', anyOf: ['merchant.read']},
+      {to: '/merchant/business', labelKey: 'nav.business', anyOf: ['merchant.read']},
+      {to: '/merchant/people', labelKey: 'nav.people', anyOf: ['merchant.read']},
+      {to: '/merchant/kyb', labelKey: 'nav.kyb', anyOf: ['kyb.read']},
+      {to: '/merchant/documents', labelKey: 'nav.documents', anyOf: ['documents.read']},
+      {to: '/merchant/bank-accounts', labelKey: 'nav.bankAccounts', anyOf: ['bank.read']},
     ],
   },
   {
-    label: 'Providers',
+    labelKey: 'section.providers',
     items: [
-      {to: '/providers', label: 'Providers', anyOf: ['providers.read', 'developer.read']},
-      {to: '/providers/accounts', label: 'Accounts & Routes', anyOf: ['providers.read']},
-      {to: '/providers/webhooks', label: 'Webhook Events', anyOf: ['webhooks.read', 'events.read']},
+      {to: '/providers', labelKey: 'nav.providers', anyOf: ['providers.read', 'developer.read']},
+      {to: '/providers/accounts', labelKey: 'nav.providerAccounts', anyOf: ['providers.read']},
+      {to: '/providers/webhooks', labelKey: 'nav.webhooks', anyOf: ['webhooks.read', 'events.read']},
     ],
   },
   {
-    label: 'Developers',
+    labelKey: 'section.developers',
+    items: [{to: '/developers/api-keys', labelKey: 'nav.apiKeys', anyOf: ['api_keys.read', 'developer.read']}],
+  },
+  {
+    labelKey: 'section.security',
     items: [
-      {to: '/developers/api-keys', label: 'API Keys', anyOf: ['api_keys.read', 'developer.read']},
+      {to: '/security/users', labelKey: 'nav.users', anyOf: ['users.read']},
+      {to: '/security/roles', labelKey: 'nav.roles', anyOf: ['roles.read']},
+      {to: '/security/audit', labelKey: 'nav.audit', anyOf: ['audit.read']},
+      {to: '/security/events', labelKey: 'nav.securityEvents', anyOf: ['security.read']},
+      {to: '/security/errors', labelKey: 'nav.errors', anyOf: ['errors.read']},
     ],
   },
   {
-    label: 'Security',
+    labelKey: 'section.settings',
     items: [
-      {to: '/security/users', label: 'Users & Invites', anyOf: ['users.read']},
-      {to: '/security/roles', label: 'Roles', anyOf: ['roles.read']},
-      {to: '/security/audit', label: 'Audit', anyOf: ['audit.read']},
-      {to: '/security/events', label: 'Security Events', anyOf: ['security.read']},
-      {to: '/security/errors', label: 'Error Reports', anyOf: ['errors.read']},
+      {to: '/settings/organization', labelKey: 'nav.organization', anyOf: ['org.read', 'settings.read']},
+      {to: '/settings/appearance', labelKey: 'nav.appearance', anyOf: ['settings.read', 'org.read']},
     ],
   },
   {
-    label: 'Settings',
+    labelKey: 'section.finance',
     items: [
-      {to: '/settings/organization', label: 'Organization', anyOf: ['org.read', 'settings.read']},
-      {to: '/settings/appearance', label: 'Appearance', anyOf: ['settings.read', 'org.read']},
+      {to: '/refunds', labelKey: 'nav.refunds', anyOf: ['payments.refund', 'payments.manage']},
+      {to: '/balances', labelKey: 'nav.balances', anyOf: ['balances.read']},
+      {to: '/settlements', labelKey: 'nav.settlements', anyOf: ['settlements.read', 'settlements.manage']},
+      {to: '/payouts', labelKey: 'nav.payouts', anyOf: ['payouts.read', 'payouts.manage']},
+      {to: '/disputes', labelKey: 'nav.disputes', anyOf: ['disputes.read', 'disputes.manage']},
+      {to: '/risk', labelKey: 'nav.risk', anyOf: ['disputes.read', 'platform.risk.manage']},
     ],
   },
   {
-    label: 'Finance',
-    items: [
-      {to: '/refunds', label: 'Refunds', anyOf: ['payments.refund', 'payments.manage']},
-      {to: '/balances', label: 'Balances', anyOf: ['balances.read']},
-      {to: '/settlements', label: 'Settlements', anyOf: ['settlements.read', 'settlements.manage']},
-      {to: '/payouts', label: 'Payouts', anyOf: ['payouts.read', 'payouts.manage']},
-      {to: '/disputes', label: 'Disputes', anyOf: ['disputes.read', 'disputes.manage']},
-      {to: '/risk', label: 'Risk', anyOf: ['disputes.read', 'platform.risk.manage']},
-    ],
+    labelKey: 'section.platform',
+    items: [{to: '/platform/kyb', labelKey: 'nav.kybReview', anyOf: ['kyb.review']}],
   },
   {
-    label: 'Later phases',
+    labelKey: 'section.later',
     items: [
-      {to: '/coming-soon/reconciliation', label: 'Reconciliation', anyOf: ['settlements.read', 'balances.read']},
-      {to: '/coming-soon/reports', label: 'Reports', anyOf: ['reports.read']},
-      {to: '/coming-soon/ledger', label: 'Ledger', anyOf: ['balances.read']},
+      {to: '/coming-soon/reconciliation', labelKey: 'nav.reconciliation', anyOf: ['settlements.read', 'balances.read']},
+      {to: '/coming-soon/reports', labelKey: 'nav.reports', anyOf: ['reports.read']},
+      {to: '/coming-soon/ledger', labelKey: 'nav.ledger', anyOf: ['balances.read']},
     ],
   },
 ];

@@ -2,14 +2,18 @@ import React, {useEffect, useState} from 'react';
 import {useParams} from 'react-router-dom';
 import {v4} from '../api/endpoints';
 import {Alert, Button, Field} from '../design-system/components';
+import {useI18n} from '../i18n/I18nProvider';
 import {formatMoney} from '../utils/money';
+import {usePlatformRuntime} from '../hooks/usePlatformRuntime';
 
 /**
  * Public V4 Checkout — /checkout/:token → /api/v1/checkout/:token
  * Sandbox tokens only (no PAN/CVV). Magic tokens: tok_ok, FAIL, TIMEOUT, AMBIGUOUS.
  */
 export function CheckoutPage() {
+  const {t} = useI18n();
   const {token: linkToken = ''} = useParams();
+  const {runtime, allowSandboxTokens} = usePlatformRuntime();
   const [page, setPage] = useState<any>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
@@ -53,6 +57,26 @@ export function CheckoutPage() {
         payment_method_type_code: 'CARD',
         payment_method_token: methodToken,
       });
+      if (paid.status === 'REQUIRES_ACTION') {
+        const redirectUrl = paid.redirect_url || paid.action?.url;
+        if (redirectUrl) {
+          window.location.href = String(redirectUrl);
+          return;
+        }
+        setError(t('checkout.requiresAction'));
+        return;
+      }
+      const intentStatus = paid.intent?.status || paid.payment_intent?.status || paid.status;
+      const successUrl = paid.success_url || page?.link?.success_url || page?.success_url;
+      const cancelUrl = paid.cancel_url || page?.link?.cancel_url || page?.cancel_url;
+      if (String(intentStatus).includes('SUCCEED') && successUrl) {
+        window.location.href = String(successUrl);
+        return;
+      }
+      if ((String(intentStatus).includes('FAIL') || paid.status === 'FAILED') && cancelUrl) {
+        window.location.href = String(cancelUrl);
+        return;
+      }
       setResult(paid);
     } catch (e: any) {
       setError(e.message);
@@ -64,7 +88,7 @@ export function CheckoutPage() {
   const branding = page?.branding || page?.config || {};
   const link = page?.link || page?.payment_link || page;
   const primary = branding.brand_primary_color || branding.primary_color || '#0b6e4f';
-  const company = branding.company_display_name || link?.title || 'Checkout';
+  const company = branding.company_display_name || link?.title || t('checkout.title');
 
   if (error && !page) {
     return (
@@ -79,7 +103,7 @@ export function CheckoutPage() {
   if (!page) {
     return (
       <div className="v4-checkout">
-        <div className="v4-checkout-card">Loading checkout…</div>
+        <div className="v4-checkout-card">{t('checkout.loading')}</div>
       </div>
     );
   }
@@ -91,22 +115,33 @@ export function CheckoutPage() {
       <div className="v4-checkout-card">
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
           <div>
-            <div style={{fontSize: 12, letterSpacing: '0.08em', color: '#6941c6', fontWeight: 700}}>SANDBOX CHECKOUT</div>
+            <div style={{fontSize: 12, letterSpacing: '0.08em', color: '#6941c6', fontWeight: 700}}>
+              {runtime.labels.checkout_banner}
+            </div>
             <h1 style={{margin: '0.25rem 0 0', fontFamily: 'var(--v4-font-display)', color: primary}}>{company}</h1>
           </div>
-          <span className="v4-badge sandbox">Sandbox</span>
+          <span className={`v4-badge ${allowSandboxTokens ? 'sandbox' : ''}`}>
+            {allowSandboxTokens ? t('env.sandbox') : t('checkout.secure')}
+          </span>
         </div>
-        <p style={{color: 'var(--v4-text-muted)'}}>{link?.description || branding.description || 'Complete your payment.'}</p>
+        <p style={{color: 'var(--v4-text-muted)'}}>
+          {link?.description || branding.description || t('checkout.description')}
+        </p>
         <div className="v4-stat" style={{marginBottom: 16}}>
-          <span>Amount due</span>
+          <span>{t('checkout.amountDue')}</span>
           <strong>{formatMoney(link?.amount_minor, link?.currency_code || 'SAR')}</strong>
         </div>
         {error ? <Alert tone="danger">{error}</Alert> : null}
         {status ? (
           <Alert tone={String(status).includes('SUCCEED') ? 'success' : String(status).includes('FAIL') ? 'danger' : 'warning'}>
-            Payment status: <strong>{status}</strong>
-            <div style={{marginTop: 8, fontSize: 13}}>Processed via Payment Core → Provider Router → Sandbox.</div>
+            {t('checkout.paymentStatus', {status})}
+            <div style={{marginTop: 8, fontSize: 13}}>
+              {t('checkout.processedViaProvider', {provider: result?.provider_code || 'provider'})}
+            </div>
           </Alert>
+        ) : null}
+        {sessionToken && !status && result?.status === 'REQUIRES_ACTION' ? (
+          <Alert tone="info">{t('checkout.redirecting')}</Alert>
         ) : null}
         {!sessionToken && !status ? (
           <form
@@ -115,10 +150,10 @@ export function CheckoutPage() {
               void startSession();
             }}
           >
-            <Field label="Name">
+            <Field label={t('checkout.name')}>
               <input value={customer.name} onChange={(e) => setCustomer({...customer, name: e.target.value})} />
             </Field>
-            <Field label="Email">
+            <Field label={t('common.email')}>
               <input
                 type="email"
                 value={customer.email}
@@ -126,33 +161,34 @@ export function CheckoutPage() {
               />
             </Field>
             <Button type="submit" disabled={busy} style={{width: '100%', background: primary}}>
-              Continue
+              {t('checkout.continue')}
             </Button>
           </form>
         ) : null}
         {sessionToken && !status ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void pay();
-            }}
-          >
-            <Alert tone="info">
-              Card data is not accepted. Use a sandbox payment method token (e.g. <code>tok_ok</code>, <code>tok_FAIL</code>
-              ).
-            </Alert>
-            <Field label="Sandbox payment method token" hint="No PAN/CVV. Hosted card fields not available yet.">
-              <select value={methodToken} onChange={(e) => setMethodToken(e.target.value)}>
-                <option value="tok_ok">tok_ok — succeed</option>
-                <option value="tok_FAIL">tok_FAIL — fail</option>
-                <option value="tok_TIMEOUT">tok_TIMEOUT — timeout</option>
-                <option value="tok_AMBIGUOUS">tok_AMBIGUOUS — ambiguous</option>
-              </select>
-            </Field>
-            <Button type="submit" disabled={busy} style={{width: '100%', background: primary}}>
-              {busy ? 'Processing…' : 'Pay securely'}
-            </Button>
-          </form>
+          allowSandboxTokens ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void pay();
+              }}
+            >
+              <Alert tone="info">{t('checkout.sandboxAlert')}</Alert>
+              <Field label={t('checkout.sandboxToken')} hint={t('checkout.sandboxTokenHint')}>
+                <select value={methodToken} onChange={(e) => setMethodToken(e.target.value)}>
+                  <option value="tok_ok">tok_ok — succeed</option>
+                  <option value="tok_FAIL">tok_FAIL — fail</option>
+                  <option value="tok_TIMEOUT">tok_TIMEOUT — timeout</option>
+                  <option value="tok_AMBIGUOUS">tok_AMBIGUOUS — ambiguous</option>
+                </select>
+              </Field>
+              <Button type="submit" disabled={busy} style={{width: '100%', background: primary}}>
+                {busy ? t('checkout.processing') : t('checkout.paySecurely')}
+              </Button>
+            </form>
+          ) : (
+            <Alert tone="warning">{t('checkout.productionAlertLong')}</Alert>
+          )
         ) : null}
       </div>
     </div>

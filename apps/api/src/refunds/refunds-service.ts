@@ -15,10 +15,43 @@ function randomRef() {
   return `sbx_rf_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Active payment rail environment — never client-supplied. */
+/** Active payment rail environment — never client-supplied. LIVE blocked DEC-009. */
 function resolveRefundEnvironment(): 'SANDBOX' | 'LIVE' {
-  // Live refund rail BLOCKED BY: DEC-009
+  const env = (process.env.APP_ENV || process.env.NODE_ENV || 'sandbox').toLowerCase();
+  if (env === 'production' || env === 'live') {
+    if (process.env.ALLOW_LIVE_API_KEYS !== 'true') return 'SANDBOX';
+    return 'LIVE';
+  }
   return 'SANDBOX';
+}
+
+async function resolvePaymentProviderForRefund(
+  client: PgClient,
+  organizationId: string,
+  paymentIntentId: string,
+): Promise<{code: string; providerTransactionId: string}> {
+  const txn = await client.query<{provider_code: string; provider_transaction_id: string | null}>(
+    `SELECT provider_code, provider_transaction_id FROM payment_transactions
+     WHERE payment_intent_id=$1 AND organization_id=$2 AND status='SUCCEEDED'
+     ORDER BY captured_at DESC NULLS LAST, created_at DESC LIMIT 1`,
+    [paymentIntentId, organizationId],
+  );
+  if (txn.rows[0]?.provider_code) {
+    return {
+      code: txn.rows[0].provider_code,
+      providerTransactionId: txn.rows[0].provider_transaction_id || paymentIntentId,
+    };
+  }
+  const att = await client.query<{provider_code: string | null}>(
+    `SELECT provider_code FROM payment_attempts
+     WHERE payment_intent_id=$1 AND organization_id=$2 AND status='SUCCEEDED'
+     ORDER BY created_at DESC LIMIT 1`,
+    [paymentIntentId, organizationId],
+  );
+  return {
+    code: att.rows[0]?.provider_code || 'sandbox',
+    providerTransactionId: paymentIntentId,
+  };
 }
 
 export const refundsService = {
@@ -102,13 +135,21 @@ export const refundsService = {
         );
       }
 
-      // Call sandbox adapter refund (no live credentials). Provider-specific code stays in adapter.
+      // Call provider adapter refund (SANDBOX rails only — LIVE blocked DEC-009).
       let providerRefundRef = randomRef();
       try {
-        const adapter = getProviderAdapter('sandbox');
+        const providerInfo = await resolvePaymentProviderForRefund(client, input.organizationId, input.paymentIntentId);
+        if (environment === 'SANDBOX' && providerInfo.code !== 'sandbox' && providerInfo.code !== 'paytabs') {
+          throw new AppError(
+            'PROVIDER_REFUND_BLOCKED',
+            `Refund via provider '${providerInfo.code}' is not enabled in SANDBOX scope`,
+            422,
+          );
+        }
+        const adapter = getProviderAdapter(providerInfo.code);
         const providerResult = await adapter.refund({
           organizationId: input.organizationId,
-          paymentTransactionId: input.paymentIntentId,
+          paymentTransactionId: providerInfo.providerTransactionId,
           amountMinor: input.amountMinor,
           currencyCode: currency,
           idempotencyKey: input.idempotencyKey || undefined,

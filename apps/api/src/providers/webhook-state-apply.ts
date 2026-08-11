@@ -70,6 +70,18 @@ export async function applyProviderWebhookToPaymentIntent(
   const target = mapEventToStatus(input.eventType);
   if (!target) return {applied: false, reason: 'unmapped_event_type'};
 
+  // Invalid downgrade: terminal success cannot revert to failure/cancel via out-of-order webhook.
+  if (target === 'FAILED' || target === 'CANCELLED') {
+    const priorSuccess = await client.query(
+      `SELECT 1 FROM payment_transactions
+       WHERE payment_intent_id=$1 AND organization_id=$2 AND status='SUCCEEDED' LIMIT 1`,
+      [input.paymentIntentId, input.organizationId],
+    );
+    if (priorSuccess.rows[0]) {
+      return {applied: false, reason: 'invalid_transition_after_capture', status: 'SUCCEEDED'};
+    }
+  }
+
   const r = await client.query(
     `SELECT id, organization_id, status, version, amount_minor, currency_code
      FROM payment_intents WHERE id=$1 AND organization_id=$2 FOR UPDATE`,
@@ -98,7 +110,7 @@ export async function applyProviderWebhookToPaymentIntent(
       current,
       'PROCESSING',
       {type: 'PROVIDER'},
-      `Webhook ${input.providerEventId} → PROCESSING`,
+      `Webhook ${input.providerEventId} -> PROCESSING`,
     );
   }
   if (current.status === 'PROCESSING' && (target === 'SUCCEEDED' || target === 'FAILED')) {
@@ -115,7 +127,7 @@ export async function applyProviderWebhookToPaymentIntent(
       current,
       target,
       {type: 'PROVIDER'},
-      `Webhook ${input.providerEventId} → ${target}`,
+      `Webhook ${input.providerEventId} -> ${target}`,
       extraSets,
       extraParams,
     );

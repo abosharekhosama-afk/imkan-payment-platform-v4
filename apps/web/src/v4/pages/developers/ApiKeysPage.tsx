@@ -14,6 +14,7 @@ import {
 } from '../../design-system/components';
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
+import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, shortId} from '../../utils/money';
 
 const SCOPE_OPTIONS = [
@@ -54,6 +55,7 @@ async function obtainStepUp(
 }
 
 export function ApiKeysPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
   const [rows, setRows] = useState<any[]>([]);
@@ -83,7 +85,7 @@ export function ApiKeysPage() {
       const result = await obtainStepUp(token, totp);
       if (result.enrolled) {
         setMfaSecretOnce(result.mfaSecret || null);
-        setError('MFA enrolled — enter a TOTP from your authenticator and submit again.');
+        setError(t('common.mfaEnrolled'));
         setTotp('');
         return;
       }
@@ -106,7 +108,7 @@ export function ApiKeysPage() {
       const result = await obtainStepUp(token, totp);
       if (result.enrolled) {
         setMfaSecretOnce(result.mfaSecret || null);
-        setError('MFA enrolled — enter a TOTP from your authenticator and submit again.');
+        setError(t('common.mfaEnrolled'));
         setTotp('');
         return;
       }
@@ -123,26 +125,26 @@ export function ApiKeysPage() {
   return (
     <div>
       <PageHeader
-        title="API Keys"
-        description="Hashed secrets. Plaintext shown once. Create/revoke require MFA step-up."
-        crumbs={[{label: 'Developers'}, {label: 'API Keys'}]}
+        title={t('developers.apiKeys.title')}
+        description={t('developers.apiKeys.descriptionLong')}
+        crumbs={[{label: t('section.developers')}, {label: t('nav.apiKeys')}]}
         actions={
           <Can anyOf={['api_keys.manage']}>
             <Button type="button" onClick={() => setOpen(true)}>
-              Create key
+              {t('developers.apiKeys.createKey')}
             </Button>
           </Can>
         }
       />
-      <Alert tone="info">SANDBOX by default. LIVE keys do not enable a live payment rail.</Alert>
+      <Alert tone="info">{t('developers.apiKeys.sandboxAlert')}</Alert>
       {mfaSecretOnce ? (
         <Alert tone="warning">
-          MFA secret (enroll in authenticator): <code>{mfaSecretOnce}</code>
+          {t('subscriptions.mfaSecret')} <code>{mfaSecretOnce}</code>
         </Alert>
       ) : null}
       {secretOnce ? (
         <Alert tone="warning">
-          Secret (copy now — will not be shown again): <code>{secretOnce}</code>
+          {t('developers.apiKeys.secretCopy')} <code>{secretOnce}</code>
           <div style={{marginTop: 8}}>
             <Button
               type="button"
@@ -153,7 +155,7 @@ export function ApiKeysPage() {
                 setSecretOnce(null);
               }}
             >
-              Copy & dismiss
+              {t('developers.apiKeys.copyDismiss')}
             </Button>
           </div>
         </Alert>
@@ -163,7 +165,15 @@ export function ApiKeysPage() {
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Key', 'Name', 'Prefix', 'Env', 'Status', 'Last used', '']}
+          columns={[
+            t('developers.apiKeys.colKey'),
+            t('common.name'),
+            t('developers.apiKeys.colPrefix'),
+            t('developers.apiKeys.colEnv'),
+            t('common.status'),
+            t('developers.apiKeys.colLastUsed'),
+            '',
+          ]}
           rows={rows.map((r) => [
             shortId(r.id),
             r.name,
@@ -181,7 +191,7 @@ export function ApiKeysPage() {
                     setTotp('');
                   }}
                 >
-                  Revoke
+                  {t('developers.apiKeys.revoke')}
                 </Button>
               ) : (
                 '—'
@@ -191,18 +201,18 @@ export function ApiKeysPage() {
         />
       )}
       {open ? (
-        <Modal title="Create API key" onClose={() => setOpen(false)}>
+        <Modal title={t('developers.apiKeys.modalCreate')} onClose={() => setOpen(false)}>
           <form onSubmit={create}>
-            <Field label="Name">
+            <Field label={t('common.name')}>
               <input required value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
             </Field>
-            <Field label="Environment">
+            <Field label={t('developers.apiKeys.labelEnvironment')}>
               <select value={form.environment} onChange={(e) => setForm({...form, environment: e.target.value})}>
                 <option value="SANDBOX">SANDBOX</option>
-                <option value="LIVE">LIVE (not a live payment rail)</option>
+                <option value="LIVE">{t('developers.apiKeys.liveOption')}</option>
               </select>
             </Field>
-            <Field label="Scopes">
+            <Field label={t('developers.apiKeys.labelScopes')}>
               <select
                 multiple
                 size={8}
@@ -221,7 +231,7 @@ export function ApiKeysPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Step-up TOTP" hint="6-digit MFA code">
+            <Field label={t('developers.apiKeys.labelTotp')} hint={t('developers.apiKeys.totpHint')}>
               <input
                 required
                 data-testid="api-key-totp"
@@ -231,15 +241,15 @@ export function ApiKeysPage() {
                 onChange={(e) => setTotp(e.target.value)}
               />
             </Field>
-            <Button type="submit">Create</Button>
+            <Button type="submit">{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}
       {revokeId ? (
-        <Modal title="Revoke API key" onClose={() => setRevokeId(null)}>
+        <Modal title={t('developers.apiKeys.modalRevoke')} onClose={() => setRevokeId(null)}>
           <form onSubmit={revoke}>
-            <p>This cannot be undone. Integrations using the key will fail.</p>
-            <Field label="Step-up TOTP">
+            <p>{t('developers.apiKeys.revokeWarning')}</p>
+            <Field label={t('developers.apiKeys.labelTotp')}>
               <input
                 required
                 data-testid="api-key-revoke-totp"
@@ -250,7 +260,7 @@ export function ApiKeysPage() {
               />
             </Field>
             <Button type="submit" variant="danger">
-              Revoke
+              {t('developers.apiKeys.revoke')}
             </Button>
           </form>
         </Modal>

@@ -86,6 +86,8 @@ export const providerWebhookService = {
         eventType: 'provider.webhook.rejected',
         metadata: {provider_code: input.providerCode, reason: verification.error, ip: input.ip || null},
       });
+      const {incrMetric} = await import('../observability/metrics.js');
+      incrMetric('webhook_failures_total', {provider: input.providerCode, reason: 'signature_invalid'});
       throw new AppError('WEBHOOK_SIGNATURE_INVALID', verification.error, 401);
     }
 
@@ -189,10 +191,12 @@ export const providerWebhookService = {
 
       // P15.0: resolve tenant from payment_intents — never from external payload org claim.
       let trustedOrgId: string | null = null;
-      if (event.paymentIntentId) {
+      let paymentIntentId: string | null = event.paymentIntentId || null;
+
+      if (paymentIntentId) {
         const piOrg = await client.query<{organization_id: string}>(
           `SELECT organization_id FROM payment_intents WHERE id=$1`,
-          [event.paymentIntentId],
+          [paymentIntentId],
         );
         trustedOrgId = piOrg.rows[0]?.organization_id || null;
         if (!trustedOrgId) {
@@ -204,7 +208,24 @@ export const providerWebhookService = {
           );
           return {accepted: false, reason: 'payment_intent_not_found', event_id: row.id};
         }
-        // Persist trusted org on the event row for audit
+      } else if (event.providerReference) {
+        // Provider-agnostic correlation (PayTabs tran_ref → payment_attempts.provider_reference).
+        const correlated = await client.query<{payment_intent_id: string; organization_id: string}>(
+          `SELECT pa.payment_intent_id, pi.organization_id
+           FROM payment_attempts pa
+           JOIN payment_intents pi ON pi.id = pa.payment_intent_id
+           WHERE pa.provider_reference = $1
+           ORDER BY pa.created_at DESC
+           LIMIT 1`,
+          [event.providerReference],
+        );
+        if (correlated.rows[0]) {
+          paymentIntentId = correlated.rows[0].payment_intent_id;
+          trustedOrgId = correlated.rows[0].organization_id;
+        }
+      }
+
+      if (trustedOrgId) {
         await client.query(`UPDATE provider_webhook_events SET organization_id=$2 WHERE id=$1`, [
           row.id,
           trustedOrgId,
@@ -213,7 +234,7 @@ export const providerWebhookService = {
 
       const applied = await applyProviderWebhookToPaymentIntent(client, {
         organizationId: trustedOrgId,
-        paymentIntentId: event.paymentIntentId || null,
+        paymentIntentId,
         eventType: event.eventType,
         providerEventId: event.providerEventId,
         providerReference: event.providerReference || null,

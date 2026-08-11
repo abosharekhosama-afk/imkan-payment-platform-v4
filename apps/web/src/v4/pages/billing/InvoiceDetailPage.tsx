@@ -7,8 +7,10 @@ import {Can} from '../../rbac/Can';
 import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function InvoiceDetailPage() {
+  const {t} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
@@ -55,13 +57,17 @@ export function InvoiceDetailPage() {
   return (
     <div>
       <PageHeader
-        title={`Invoice ${invoice.number || shortId(invoice.id)}`}
-        crumbs={[{label: 'Billing'}, {label: 'Invoices', to: '/invoices'}, {label: 'Detail'}]}
+        title={t('invoiceDetail.title', {number: invoice.number || shortId(invoice.id)})}
+        crumbs={[
+          {label: t('section.billing')},
+          {label: t('nav.invoices'), to: '/invoices'},
+          {label: t('common.detail')},
+        ]}
         actions={
           <Can anyOf={['invoices.pay', 'invoices.manage', 'billing.manage']}>
             {['OPEN', 'OVERDUE'].includes(invoice.status) ? (
               <Button type="button" onClick={() => setCollectOpen(true)}>
-                Collect now
+                {t('invoiceDetail.collectNow')}
               </Button>
             ) : null}
           </Can>
@@ -72,24 +78,28 @@ export function InvoiceDetailPage() {
         <p>
           <StatusBadge status={invoice.status} />
         </p>
-        <p>Total: {formatMoney(invoice.total_minor, invoice.currency_code)}</p>
-        <p>Subscription: {shortId(invoice.subscription_id)}</p>
         <p>
-          Period: {formatDate(invoice.period_start)} → {formatDate(invoice.period_end)}
+          {t('invoiceDetail.labelTotal')} {formatMoney(invoice.total_minor, invoice.currency_code)}
+        </p>
+        <p>
+          {t('invoiceDetail.labelSubscription')} {shortId(invoice.subscription_id)}
+        </p>
+        <p>
+          {t('invoiceDetail.labelPeriod')} {formatDate(invoice.period_start)} → {formatDate(invoice.period_end)}
         </p>
       </div>
       {collectOpen ? (
-        <Modal title="Collect invoice (step-up required)" onClose={() => setCollectOpen(false)}>
+        <Modal title={t('invoiceDetail.modalCollect')} onClose={() => setCollectOpen(false)}>
           <form onSubmit={collect}>
             {mfaSecretOnce ? (
               <Alert tone="info">
-                MFA secret (copy now): <code>{mfaSecretOnce}</code>
+                {t('subscriptions.mfaSecret')} <code>{mfaSecretOnce}</code>
               </Alert>
             ) : null}
-            <Field label="TOTP code">
+            <Field label={t('subscriptions.labelTotp')}>
               <input value={totp} onChange={(e) => setTotp(e.target.value)} required inputMode="numeric" />
             </Field>
-            <Button type="submit">Confirm collect</Button>
+            <Button type="submit">{t('invoiceDetail.confirmCollect')}</Button>
           </form>
         </Modal>
       ) : null}

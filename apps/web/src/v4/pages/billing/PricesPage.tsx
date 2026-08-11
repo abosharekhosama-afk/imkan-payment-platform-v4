@@ -5,8 +5,10 @@ import {Alert, Button, DataTable, Field, LoadingState, Modal, PageHeader} from '
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function PricesPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
   const [rows, setRows] = useState<any[]>([]);
@@ -59,13 +61,13 @@ export function PricesPage() {
   return (
     <div>
       <PageHeader
-        title="Prices"
-        description="Recurring or one-time prices attached to products."
-        crumbs={[{label: 'Billing'}, {label: 'Prices'}]}
+        title={t('prices.title')}
+        description={t('prices.description')}
+        crumbs={[{label: t('section.billing')}, {label: t('nav.prices')}]}
         actions={
           <Can anyOf={['prices.manage', 'billing.manage']}>
             <Button type="button" onClick={() => setOpen(true)} disabled={!products.length}>
-              Create price
+              {t('prices.create')}
             </Button>
           </Can>
         }
@@ -75,7 +77,13 @@ export function PricesPage() {
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Price', 'Product', 'Amount', 'Interval', 'Created']}
+          columns={[
+            t('prices.colPrice'),
+            t('prices.colProduct'),
+            t('common.amount'),
+            t('prices.colInterval'),
+            t('common.created'),
+          ]}
           rows={rows.map((r) => [
             shortId(r.id),
             shortId(r.product_id),
@@ -86,9 +94,9 @@ export function PricesPage() {
         />
       )}
       {open ? (
-        <Modal title="Create price" onClose={() => setOpen(false)}>
+        <Modal title={t('prices.modalTitle')} onClose={() => setOpen(false)}>
           <form onSubmit={create}>
-            <Field label="Product">
+            <Field label={t('prices.labelProduct')}>
               <select value={form.product_id} onChange={(e) => setForm({...form, product_id: e.target.value})} required>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -97,14 +105,14 @@ export function PricesPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Amount (minor)">
+            <Field label={t('prices.labelAmount')}>
               <input
                 required
                 value={form.unit_amount_minor}
                 onChange={(e) => setForm({...form, unit_amount_minor: e.target.value})}
               />
             </Field>
-            <Field label="Currency">
+            <Field label={t('common.currency')}>
               <input
                 required
                 maxLength={3}
@@ -112,14 +120,14 @@ export function PricesPage() {
                 onChange={(e) => setForm({...form, currency_code: e.target.value.toUpperCase()})}
               />
             </Field>
-            <Field label="Interval">
+            <Field label={t('prices.labelInterval')}>
               <select value={form.interval_unit} onChange={(e) => setForm({...form, interval_unit: e.target.value})}>
                 {['DAY', 'WEEK', 'MONTH', 'YEAR'].map((u) => (
                   <option key={u}>{u}</option>
                 ))}
               </select>
             </Field>
-            <Button type="submit">Create</Button>
+            <Button type="submit">{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

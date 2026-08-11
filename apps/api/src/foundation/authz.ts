@@ -27,6 +27,7 @@ const PUBLIC_PATHS = new Set([
   '/api/v1/auth/password/forgot',
   '/api/v1/auth/password/reset',
   '/api/v1/invitations/accept',
+  '/api/v1/platform/runtime',
 ]);
 
 /** Public hosted-checkout routes (Phase 4) — token-scoped, no customer account. */

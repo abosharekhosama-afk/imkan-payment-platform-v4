@@ -1,27 +1,29 @@
 import React, {useEffect, useState} from 'react';
+import {Link, useNavigate} from 'react-router-dom';
 import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
 import {Alert, Button, DataTable, LoadingState, PageHeader, StatusBadge} from '../../design-system/components';
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, shortId} from '../../utils/money';
+import {ApiError} from '../../api/client';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function KybPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const navigate = useNavigate();
   const [kyb, setKyb] = useState<any>(null);
-  const [docs, setDocs] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = () => {
     if (!token) return;
     setLoading(true);
-    Promise.all([v4.kyb(token), v4.documents(token).catch(() => [])])
-      .then(([k, d]) => {
-        setKyb(k);
-        setDocs(d || []);
-      })
+    v4.kyb(token)
+      .then(setKyb)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   };
@@ -29,53 +31,134 @@ export function KybPage() {
 
   if (loading) return <LoadingState />;
 
+  const caseStatus = String(kyb?.case?.status || 'DRAFT').toUpperCase();
+  const missing = kyb?.missing || [];
+  const requirements = kyb?.requirements || [];
+  const canSubmit = ['DRAFT', 'NEEDS_INFORMATION'].includes(caseStatus) && missing.length === 0;
+  const canEnterDashboard = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'IN_REVIEW'].includes(caseStatus);
+
   return (
     <div>
       <PageHeader
-        title="KYB"
-        description="Know Your Business case status. External vendor automation is not enabled (DEC-010)."
-        crumbs={[{label: 'Merchant'}, {label: 'KYB'}]}
+        title={t('merchant.kyb.title')}
+        description={t('merchant.kyb.description')}
+        crumbs={[{label: t('section.merchant')}, {label: t('nav.kyb')}]}
         actions={
-          <Can anyOf={['kyb.submit']}>
-            <Button
-              type="button"
-              onClick={() =>
-                void v4
-                  .kybSubmit(token, {})
-                  .then(() => {
-                    push('KYB submitted for review');
-                    load();
-                  })
-                  .catch((e) => setError(e.message))
-              }
-            >
-              Submit for review
-            </Button>
-          </Can>
+          <div className="v4-toolbar" style={{gap: 8}}>
+            <Link to="/onboarding">
+              <Button type="button" variant="secondary">
+                {t('merchant.kyb.onboarding')}
+              </Button>
+            </Link>
+            {canEnterDashboard ? (
+              <Button type="button" onClick={() => navigate('/')}>
+                {t('merchant.kyb.enterDashboard')}
+              </Button>
+            ) : null}
+            <Can anyOf={['kyb.submit']}>
+              <Button
+                type="button"
+                disabled={!canSubmit || submitting}
+                onClick={() => {
+                  if (!token) return;
+                  setSubmitting(true);
+                  setError('');
+                  void v4
+                    .kybSubmit(token, {})
+                    .then(() => {
+                      push('KYB submitted for review');
+                      load();
+                      navigate('/');
+                    })
+                    .catch((e) => {
+                      if (e instanceof ApiError && e.details) {
+                        const miss = (e.details as any)?.missing;
+                        if (Array.isArray(miss) && miss.length) {
+                          setError(
+                            `KYB incomplete: ${miss.map((m: any) => m.code || m.requirement_type || m).join(', ')}`,
+                          );
+                          return;
+                        }
+                      }
+                      setError(e.message);
+                    })
+                    .finally(() => setSubmitting(false));
+                }}
+              >
+                {submitting ? t('merchant.kyb.submitting') : t('merchant.kyb.submit')}
+              </Button>
+            </Can>
+          </div>
         }
       />
-      <Alert tone="warning">
-        Verification is <strong>manual / stub</strong> on the platform side. This is not an automated KYB vendor
-        integration.
-      </Alert>
+      <Alert tone="warning">{t('merchant.kyb.verificationAlert')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <div className="v4-card" style={{marginBottom: 16}}>
-        <p>
-          Status: <StatusBadge status={kyb?.status || kyb?.case?.status || 'UNKNOWN'} />
-        </p>
-        <pre style={{whiteSpace: 'pre-wrap', fontSize: 13}}>{JSON.stringify(kyb, null, 2)}</pre>
+
+      <div className="v4-stat-grid" style={{marginBottom: '1rem'}}>
+        <div className="v4-stat">
+          <span>{t('merchant.kyb.caseStatus')}</span>
+          <strong>
+            <StatusBadge status={caseStatus} />
+          </strong>
+        </div>
+        <div className="v4-stat">
+          <span>{t('onboarding.requirements')}</span>
+          <strong>
+            {requirements.filter((r: any) => r.satisfied).length}/{requirements.length}
+          </strong>
+        </div>
+        <div className="v4-stat">
+          <span>{t('merchant.kyb.missingLabel')}</span>
+          <strong>{missing.length}</strong>
+        </div>
       </div>
-      <div className="v4-card">
-        <h3>Documents</h3>
+
+      {missing.length ? (
+        <Alert tone="warning">
+          {t('merchant.kyb.completeMissingBefore')}{' '}
+          {missing.map((m: any) => m.code || m.requirement_type).join(', ')}
+        </Alert>
+      ) : canSubmit ? (
+        <Alert tone="success">{t('merchant.kyb.allReady')}</Alert>
+      ) : canEnterDashboard ? (
+        <Alert tone="success">{t('merchant.kyb.submitted')}</Alert>
+      ) : null}
+
+      <div className="v4-card" style={{marginBottom: 16}}>
+        <h3>{t('merchant.kyb.checklist')}</h3>
         <DataTable
-          columns={['Document', 'Type', 'Status', 'Created']}
-          rows={docs.map((d) => [
+          columns={[
+            t('merchant.kyb.colCode'),
+            t('merchant.kyb.colType'),
+            t('common.status'),
+            t('merchant.kyb.colDetail'),
+          ]}
+          rows={requirements.map((r: any) => [
+            r.code,
+            r.requirement_type,
+            r.satisfied ? t('merchant.kyb.ok') : t('merchant.kyb.missingLabel'),
+            r.detail || '—',
+          ])}
+          empty={<p style={{color: 'var(--v4-text-muted)'}}>{t('merchant.kyb.noRequirements')}</p>}
+        />
+      </div>
+
+      <div className="v4-card">
+        <h3>{t('merchant.kyb.documentsOnFile')}</h3>
+        <DataTable
+          columns={[
+            t('merchant.documents.colDocument'),
+            t('merchant.documents.colType'),
+            t('common.status'),
+            t('common.created'),
+          ]}
+          rows={(kyb?.documents || []).map((d: any) => [
             shortId(d.id),
-            d.document_type_code || d.type || '—',
+            d.document_type_code || '—',
             <StatusBadge status={d.status} />,
             formatDate(d.created_at),
           ])}
-          empty={<p style={{color: 'var(--v4-text-muted)'}}>No documents uploaded.</p>}
+          empty={<p style={{color: 'var(--v4-text-muted)'}}>{t('merchant.kyb.noDocuments')}</p>}
         />
       </div>
     </div>

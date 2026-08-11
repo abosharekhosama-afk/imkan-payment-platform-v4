@@ -4,6 +4,7 @@ import {useAuth} from '../auth/AuthProvider';
 import {v4} from '../api/endpoints';
 import {Alert, DataTable, LoadingState, PageHeader, StatusBadge} from '../design-system/components';
 import {formatDate, formatMoney, shortId} from '../utils/money';
+import {useI18n} from '../i18n/I18nProvider';
 
 /**
  * Transactions view — composed from payment detail transaction rows.
@@ -11,6 +12,7 @@ import {formatDate, formatMoney, shortId} from '../utils/money';
  * from recent payment intents (read-only composition, not invented financial data).
  */
 export function TransactionsPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -25,8 +27,8 @@ export function TransactionsPage() {
           payments.slice(0, 15).map((p: any) => v4.payment(token, p.id).catch(() => null)),
         );
         const txns = details.flatMap((d) =>
-          (d?.transactions || []).map((t: any) => ({
-            ...t,
+          (d?.transactions || []).map((txn: any) => ({
+            ...txn,
             payment_intent_id: d.intent?.id,
           })),
         );
@@ -42,24 +44,31 @@ export function TransactionsPage() {
   return (
     <div>
       <PageHeader
-        title="Transactions"
-        description="Provider transactions linked to recent V4 payment intents (composed from GET /merchant/payments/:id)."
-        crumbs={[{label: 'Payments'}, {label: 'Transactions'}]}
+        title={t('transactions.title')}
+        description={t('transactions.description')}
+        crumbs={[{label: t('section.payments')}, {label: t('nav.transactions')}]}
       />
-      <Alert tone="info">Not a ledger. Refunds / settlement rows are not available.</Alert>
+      <Alert tone="info">{t('transactions.notLedger')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Txn', 'Payment', 'Status', 'Provider', 'Amount', 'Created']}
-          rows={rows.map((t) => [
-            shortId(t.id),
-            <Link to={`/payments/${t.payment_intent_id}`}>{shortId(t.payment_intent_id)}</Link>,
-            <StatusBadge status={t.status} />,
-            t.provider_code || '—',
-            formatMoney(t.amount_minor, t.currency_code),
-            formatDate(t.created_at),
+          columns={[
+            t('transactions.colTxn'),
+            t('payments.colPayment'),
+            t('common.status'),
+            t('transactions.colProvider'),
+            t('common.amount'),
+            t('common.created'),
+          ]}
+          rows={rows.map((txn) => [
+            shortId(txn.id),
+            <Link to={`/payments/${txn.payment_intent_id}`}>{shortId(txn.payment_intent_id)}</Link>,
+            <StatusBadge status={txn.status} />,
+            txn.provider_code || '—',
+            formatMoney(txn.amount_minor, txn.currency_code),
+            formatDate(txn.created_at),
           ])}
         />
       )}

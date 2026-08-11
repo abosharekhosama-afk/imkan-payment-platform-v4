@@ -15,11 +15,15 @@ import {
 import {Can} from '../../rbac/Can';
 import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
+import {usePlatformRuntime} from '../../hooks/usePlatformRuntime';
 import {formatDate, shortId} from '../../utils/money';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function SubscriptionsPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {allowSandboxTokens} = usePlatformRuntime();
   const [rows, setRows] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [prices, setPrices] = useState<any[]>([]);
@@ -29,7 +33,7 @@ export function SubscriptionsPage() {
   const [renewOpen, setRenewOpen] = useState(false);
   const [totp, setTotp] = useState('');
   const [mfaSecretOnce, setMfaSecretOnce] = useState<string | null>(null);
-  const [form, setForm] = useState({customer_id: '', price_id: '', payment_method_token: 'tok_ok'});
+  const [form, setForm] = useState({customer_id: '', price_id: '', payment_method_token: ''});
 
   const load = () => {
     if (!token) return;
@@ -86,19 +90,19 @@ export function SubscriptionsPage() {
   return (
     <div>
       <PageHeader
-        title="Subscriptions"
-        description="Lifecycle managed in V4. Collection: Billing → Payment Core → Router → Sandbox."
-        crumbs={[{label: 'Billing'}, {label: 'Subscriptions'}]}
+        title={t('subscriptions.title')}
+        description={t('subscriptions.description')}
+        crumbs={[{label: t('section.billing')}, {label: t('nav.subscriptions')}]}
         actions={
           <>
             <Can anyOf={['billing.manage']}>
               <Button variant="secondary" type="button" onClick={() => setRenewOpen(true)}>
-                Run renewals
+                {t('subscriptions.runRenewals')}
               </Button>
             </Can>
             <Can anyOf={['subscriptions.manage', 'billing.manage']}>
               <Button type="button" onClick={() => setOpen(true)} disabled={!customers.length || !prices.length}>
-                Create subscription
+                {t('subscriptions.create')}
               </Button>
             </Can>
           </>
@@ -109,20 +113,26 @@ export function SubscriptionsPage() {
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Subscription', 'Status', 'Customer', 'Next billing', '']}
+          columns={[
+            t('subscriptions.colSubscription'),
+            t('common.status'),
+            t('subscriptions.colCustomer'),
+            t('subscriptions.colNextBilling'),
+            '',
+          ]}
           rows={rows.map((r) => [
             shortId(r.id),
             <StatusBadge status={r.status} />,
             shortId(r.customer_id),
             formatDate(r.next_billing_at),
-            <Link to={`/subscriptions/${r.id}`}>Open</Link>,
+            <Link to={`/subscriptions/${r.id}`}>{t('common.open')}</Link>,
           ])}
         />
       )}
       {open ? (
-        <Modal title="Create subscription" onClose={() => setOpen(false)}>
+        <Modal title={t('subscriptions.modalCreate')} onClose={() => setOpen(false)}>
           <form onSubmit={create}>
-            <Field label="Customer">
+            <Field label={t('subscriptions.labelCustomer')}>
               <select
                 required
                 value={form.customer_id}
@@ -135,7 +145,7 @@ export function SubscriptionsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Price">
+            <Field label={t('subscriptions.labelPrice')}>
               <select required value={form.price_id} onChange={(e) => setForm({...form, price_id: e.target.value})}>
                 {prices.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -144,23 +154,30 @@ export function SubscriptionsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Payment method token">
-              <input
-                value={form.payment_method_token}
-                onChange={(e) => setForm({...form, payment_method_token: e.target.value})}
-              />
-            </Field>
-            <Button type="submit">Create</Button>
+            {allowSandboxTokens ? (
+              <Field label={t('subscriptions.labelPmToken')}>
+                <input
+                  value={form.payment_method_token}
+                  onChange={(e) => setForm({...form, payment_method_token: e.target.value})}
+                  placeholder="tok_ok"
+                />
+              </Field>
+            ) : (
+              <Alert tone="info">{t('subscriptions.productionTokenAlert')}</Alert>
+            )}
+            <Button type="submit">{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}
       {renewOpen ? (
-        <Modal title="Run renewals (step-up required)" onClose={() => setRenewOpen(false)}>
+        <Modal title={t('subscriptions.modalRenewals')} onClose={() => setRenewOpen(false)}>
           <form onSubmit={runRenewals}>
             {mfaSecretOnce ? (
-              <Alert tone="info">MFA secret (copy now): <code>{mfaSecretOnce}</code></Alert>
+              <Alert tone="info">
+                {t('subscriptions.mfaSecret')} <code>{mfaSecretOnce}</code>
+              </Alert>
             ) : null}
-            <Field label="TOTP code" hint="Required for billing.renewals.run">
+            <Field label={t('subscriptions.labelTotp')} hint={t('subscriptions.totpHint')}>
               <input
                 data-testid="renewals-totp"
                 value={totp}
@@ -169,7 +186,7 @@ export function SubscriptionsPage() {
                 inputMode="numeric"
               />
             </Field>
-            <Button type="submit">Confirm renewals</Button>
+            <Button type="submit">{t('subscriptions.confirmRenewals')}</Button>
           </form>
         </Modal>
       ) : null}

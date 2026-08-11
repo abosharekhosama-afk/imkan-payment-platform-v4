@@ -1,17 +1,20 @@
 import React from 'react';
 import {Link} from 'react-router-dom';
 import {PageHeader} from '../design-system/components';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function ForbiddenPage() {
+  const {t} = useI18n();
+
   return (
     <div>
       <PageHeader
-        title="Access denied"
-        description="Your role does not include permission for this screen. Contact an organization owner if you need access."
-        crumbs={[{label: 'Security'}]}
+        title={t('forbidden.title')}
+        description={t('forbidden.description')}
+        crumbs={[{label: t('section.security')}]}
       />
       <p>
-        <Link to="/">Return to dashboard</Link>
+        <Link to="/">{t('forbidden.returnDashboard')}</Link>
       </p>
     </div>
   );

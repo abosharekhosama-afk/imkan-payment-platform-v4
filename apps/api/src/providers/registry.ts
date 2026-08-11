@@ -1,5 +1,6 @@
 import type {ProviderAdapter} from './adapter.js';
 import {sandboxAdapter} from './sandbox-adapter.js';
+import {paytabsAdapter} from './paytabs/index.js';
 import {ProviderError} from './errors.js';
 
 const adapters = new Map<string, ProviderAdapter>();
@@ -26,5 +27,6 @@ export function listRegisteredAdapterCodes(): string[] {
   return [...adapters.keys()].sort();
 }
 
-/** Built-in adapters. Real providers register only after evidence + DEC-009. */
+/** Built-in adapters. LIVE activation remains gated by DEC-009 + credentials plane. */
 registerProviderAdapter(sandboxAdapter);
+registerProviderAdapter(paytabsAdapter);

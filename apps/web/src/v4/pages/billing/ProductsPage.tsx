@@ -5,8 +5,10 @@ import {Alert, Button, DataTable, Field, LoadingState, Modal, PageHeader, Status
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, shortId} from '../../utils/money';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function ProductsPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
   const [rows, setRows] = useState<any[]>([]);
@@ -40,13 +42,13 @@ export function ProductsPage() {
   return (
     <div>
       <PageHeader
-        title="Products"
-        description="Catalog products for billing."
-        crumbs={[{label: 'Billing'}, {label: 'Products'}]}
+        title={t('products.title')}
+        description={t('products.description')}
+        crumbs={[{label: t('section.billing')}, {label: t('nav.products')}]}
         actions={
           <Can anyOf={['products.manage', 'billing.manage']}>
             <Button type="button" onClick={() => setOpen(true)}>
-              Create product
+              {t('products.create')}
             </Button>
           </Can>
         }
@@ -56,7 +58,13 @@ export function ProductsPage() {
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Product', 'Name', 'Type', 'Status', 'Created']}
+          columns={[
+            t('products.colProduct'),
+            t('common.name'),
+            t('products.colType'),
+            t('common.status'),
+            t('common.created'),
+          ]}
           rows={rows.map((r) => [
             shortId(r.id),
             r.name,
@@ -67,12 +75,12 @@ export function ProductsPage() {
         />
       )}
       {open ? (
-        <Modal title="Create product" onClose={() => setOpen(false)}>
+        <Modal title={t('products.modalTitle')} onClose={() => setOpen(false)}>
           <form onSubmit={create}>
-            <Field label="Name">
+            <Field label={t('common.name')}>
               <input required value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
             </Field>
-            <Field label="Type">
+            <Field label={t('products.labelType')}>
               <select
                 value={form.product_type}
                 onChange={(e) => setForm({...form, product_type: e.target.value as 'SUBSCRIPTION'})}
@@ -81,7 +89,7 @@ export function ProductsPage() {
                 <option value="ONE_TIME">ONE_TIME</option>
               </select>
             </Field>
-            <Button type="submit">Create</Button>
+            <Button type="submit">{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

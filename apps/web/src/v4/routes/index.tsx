@@ -14,6 +14,14 @@ import {PaymentLinkDetailPage} from '../pages/PaymentLinkDetailPage';
 import {PaymentsPage} from '../pages/PaymentsPage';
 import {PaymentDetailPage} from '../pages/PaymentDetailPage';
 import {CheckoutPage} from '../public-checkout/CheckoutPage';
+import {
+  AcceptInvitationPage,
+  CheckoutReturnPage,
+  ForgotPasswordPage,
+  ResendVerificationPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from '../pages/AuthPublicPages';
 import {CustomersPage} from '../pages/billing/CustomersPage';
 import {ProductsPage} from '../pages/billing/ProductsPage';
 import {PricesPage} from '../pages/billing/PricesPage';
@@ -23,6 +31,7 @@ import {InvoicesPage} from '../pages/billing/InvoicesPage';
 import {InvoiceDetailPage} from '../pages/billing/InvoiceDetailPage';
 import {MerchantProfilePage} from '../pages/merchant/MerchantProfilePage';
 import {BusinessPage} from '../pages/merchant/BusinessPage';
+import {PeoplePage} from '../pages/merchant/PeoplePage';
 import {DocumentsPage} from '../pages/merchant/DocumentsPage';
 import {KybPage} from '../pages/merchant/KybPage';
 import {BankAccountsPage} from '../pages/merchant/BankAccountsPage';
@@ -40,6 +49,10 @@ import {
   SecurityEventsPage,
   UsersPage,
 } from '../pages/security/SecurityPages';
+import {
+  PlatformKybDetailPage,
+  PlatformKybListPage,
+} from '../pages/platform/PlatformKybPages';
 import {ComingSoonPage} from '../pages/ComingSoonPage';
 import {ForbiddenPage} from '../pages/ForbiddenPage';
 import {RequirePermission} from '../rbac/RequirePermission';
@@ -76,7 +89,13 @@ export function AppRoutes() {
           </RequireAuth>
         }
       />
+      <Route path="/checkout/return" element={<CheckoutReturnPage />} />
       <Route path="/checkout/:token" element={<CheckoutPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/resend-verification" element={<ResendVerificationPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       <Route
         path="/"
         element={
@@ -111,6 +130,7 @@ export function AppRoutes() {
         <Route path="invoices/:id" element={<RP anyOf={['invoices.read', 'billing.read', 'billing.manage']}><InvoiceDetailPage /></RP>} />
         <Route path="merchant/profile" element={<RP anyOf={['merchant.read']}><MerchantProfilePage /></RP>} />
         <Route path="merchant/business" element={<RP anyOf={['merchant.read']}><BusinessPage /></RP>} />
+        <Route path="merchant/people" element={<RP anyOf={['merchant.read']}><PeoplePage /></RP>} />
         <Route path="merchant/kyb" element={<RP anyOf={['kyb.read']}><KybPage /></RP>} />
         <Route path="merchant/documents" element={<RP anyOf={['documents.read']}><DocumentsPage /></RP>} />
         <Route path="merchant/bank-accounts" element={<RP anyOf={['bank.read']}><BankAccountsPage /></RP>} />
@@ -131,6 +151,8 @@ export function AppRoutes() {
         <Route path="payouts" element={<RP anyOf={['payouts.read', 'payouts.manage']}><PayoutsPage /></RP>} />
         <Route path="disputes" element={<RP anyOf={['disputes.read', 'disputes.manage']}><DisputesPage /></RP>} />
         <Route path="risk" element={<RP anyOf={['disputes.read', 'platform.risk.manage']}><RiskPage /></RP>} />
+        <Route path="platform/kyb" element={<RP anyOf={['kyb.review']}><PlatformKybListPage /></RP>} />
+        <Route path="platform/kyb/:caseId" element={<RP anyOf={['kyb.review']}><PlatformKybDetailPage /></RP>} />
         <Route path="coming-soon/:feature" element={<ComingSoonPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

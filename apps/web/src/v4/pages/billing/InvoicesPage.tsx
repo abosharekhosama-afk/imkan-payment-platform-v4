@@ -6,8 +6,10 @@ import {Alert, Button, DataTable, LoadingState, PageHeader, StatusBadge} from '.
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function InvoicesPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
   const [rows, setRows] = useState<any[]>([]);
@@ -37,12 +39,12 @@ export function InvoicesPage() {
   return (
     <div>
       <PageHeader
-        title="Invoices"
-        description="Collection never calls a provider directly from Billing."
-        crumbs={[{label: 'Billing'}, {label: 'Invoices'}]}
+        title={t('invoices.title')}
+        description={t('invoices.description')}
+        crumbs={[{label: t('section.billing')}, {label: t('nav.invoices')}]}
         actions={
           <Button variant="secondary" type="button" onClick={load}>
-            Refresh
+            {t('common.refresh')}
           </Button>
         }
       />
@@ -51,18 +53,24 @@ export function InvoicesPage() {
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Number', 'Status', 'Total', 'Period end', 'Actions']}
+          columns={[
+            t('invoices.colNumber'),
+            t('common.status'),
+            t('invoices.colTotal'),
+            t('invoices.colPeriodEnd'),
+            t('invoices.colActions'),
+          ]}
           rows={rows.map((r) => [
             r.number || shortId(r.id),
             <StatusBadge status={r.status} />,
             formatMoney(r.total_minor, r.currency_code),
             formatDate(r.period_end),
             <div className="v4-toolbar" style={{margin: 0}}>
-              <Link to={`/invoices/${r.id}`}>Open</Link>
+              <Link to={`/invoices/${r.id}`}>{t('common.open')}</Link>
               <Can anyOf={['invoices.pay', 'invoices.manage', 'billing.manage']}>
                 {['OPEN', 'OVERDUE'].includes(r.status) ? (
                   <Button className="ghost" type="button" onClick={() => void collect(r.id)}>
-                    Collect
+                    {t('common.collect')}
                   </Button>
                 ) : null}
               </Can>

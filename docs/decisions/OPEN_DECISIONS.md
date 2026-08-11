@@ -131,7 +131,7 @@ Also approved with Phase 6: upgrade/downgrade/proration **OUT OF MVP**; V4 UI on
 |---|---|---|---|
 | DEC-005 | Redis/queues/object storage auxiliaries | OPEN (safe default: PG SoR; auxiliaries optional non-SoR) | Queue/object-storage adoption |
 | DEC-008 | Fees, reserves, settlement cutoffs, rounding, FX | **RESOLVED** (P15.1-A) — see `docs/decisions/DEC-008-FINANCIAL-MODEL.md`. FX/tax/rolling-reserves **deferred**. | Was blocking fee engine; model now shippable |
-| DEC-009 | Per-provider capability matrices | OPEN | Activating each live provider / live recurring |
+| DEC-009 | Per-provider capability matrices | **PARTIAL** (PayTabs sandbox P15.3) | Activating **LIVE** providers / live recurring |
 | DEC-010 | External KYB vendors | OPEN | Automated KYB vendor claims |
 | DEC-011 | PCI scope document | OPEN | Production card acceptance |
 | DEC-012 | Sandbox↔Live merchant switch policy | OPEN | Env toggle UX |
@@ -140,3 +140,38 @@ Also approved with Phase 6: upgrade/downgrade/proration **OUT OF MVP**; V4 UI on
 | DEC-016 | Books system target (Zoho vs internal) | OPEN | Books adapter priority |
 
 If a new material decision appears during implementation, add it here and pause when it affects Financial / Security / Provider behavior pending approval.
+
+---
+
+## DEC-009 — Provider capability matrices (P15.3 update)
+
+| Field | Value |
+|---|---|
+| **Status** | **PARTIAL** (2026-08-10 — PayTabs sandbox adapter) |
+| **Decision** | PayTabs integrated via `ProviderAdapter` + Router; SANDBOX only. Capability matrix in `docs/providers/PROVIDER_CAPABILITY_MATRIX.md`. LIVE activation remains blocked until separate approval + credentials plane. |
+| **Evidence** | Migration 034, P15.3 tests (195/195 PASS), `PAYTABS_SANDBOX_CERTIFICATION.md` |
+| **Impact** | Orgs can bind PayTabs sandbox routes; Internal Sandbox unchanged. Production Gate still NOT PASSED. |
+| **Still OPEN** | LIVE PayTabs, all other live providers, live recurring, **real E2E cert (P15.5 blocked on credentials + public webhook)** |
+
+---
+
+## P15.4 — Real PayTabs Sandbox (2026-08-10)
+
+| Field | Value |
+|---|---|
+| **Status** | **PARTIAL / BLOCKED** |
+| **Decision** | Real sandbox HTTP certification infrastructure ready; execution blocked until merchant provides `PAYTABS_SANDBOX_SERVER_KEY` + `PAYTABS_SANDBOX_PROFILE_ID` via SecretResolver and public webhook URL. |
+| **Evidence** | P15.4 tests 214/214 PASS + 2 skipped; see `P15_4_FINAL_AUDIT.md` |
+| **Impact** | No LIVE activation. Production Gate unchanged. |
+
+---
+
+## P15.5 — Real PayTabs Sandbox E2E (2026-08-10)
+
+| Field | Value |
+|---|---|
+| **Status** | **PARTIAL / BLOCKED** |
+| **Decision** | Preflight gating + credential-gated E2E test harness delivered. Real HTTP/HPP/webhook/refund execution blocked until merchant sandbox credentials + public HTTPS webhook endpoint available. PayTabs native idempotency not documented — IMKAN-side idempotency only. |
+| **Evidence** | P15.5 tests 224/224 PASS + 8 skipped; preflight CLI exit 2; see `P15_5_FINAL_AUDIT.md` |
+| **Impact** | PayTabs remains **SANDBOX_TESTED**, not **CERTIFIED**. Production Gate unchanged. P15.6 / LIVE not started. |
+| **Blockers** | `PAYTABS_SANDBOX_SERVER_KEY`, `PAYTABS_SANDBOX_PROFILE_ID`, `PAYTABS_REAL_SANDBOX_CERT=true`, public HTTPS callback + webhook endpoint |

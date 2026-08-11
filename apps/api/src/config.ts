@@ -31,6 +31,24 @@ function assertProductionInfrastructure() {
   if (transport === 'bearer' && process.env.ALLOW_BEARER_ONLY_IN_PRODUCTION !== 'true') {
     throw new Error('Production SESSION_TRANSPORT must be cookie or dual (not bearer-only)');
   }
+  const emailTransport = (process.env.EMAIL_TRANSPORT || 'smtp').toLowerCase();
+  const requireEmail =
+    process.env.REQUIRE_EMAIL_VERIFICATION === 'true' || process.env.NODE_ENV === 'production';
+  if (requireEmail) {
+    if (emailTransport !== 'smtp') {
+      throw new Error('Production requires EMAIL_TRANSPORT=smtp when email verification is enabled (P16.1)');
+    }
+    if (!process.env.SMTP_HOST?.trim()) {
+      throw new Error('Production requires SMTP_HOST when email verification is enabled (P16.1)');
+    }
+    if (!process.env.EMAIL_FROM?.trim()) {
+      throw new Error('Production requires EMAIL_FROM when email verification is enabled (P16.1)');
+    }
+    const publicUrl = process.env.APP_PUBLIC_URL || process.env.CHECKOUT_BASE_URL || '';
+    if (!publicUrl.trim()) {
+      throw new Error('Production requires APP_PUBLIC_URL for email action links (P16.1)');
+    }
+  }
 }
 
 assertProductionInfrastructure();
@@ -120,4 +138,13 @@ export const config = {
   secretBackend: (process.env.SECRET_BACKEND || 'env').toLowerCase(),
   /** P15.2 session transport: bearer | cookie | dual */
   sessionTransport: (process.env.SESSION_TRANSPORT || (process.env.NODE_ENV === 'production' ? 'cookie' : 'dual')).toLowerCase(),
+  /** P16.1 — public web app base URL for email action links */
+  appPublicUrl: (process.env.APP_PUBLIC_URL || process.env.CHECKOUT_BASE_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  /** P16.1 — email transport: stub (dev) | smtp (production) */
+  emailTransport: (process.env.EMAIL_TRANSPORT || (process.env.NODE_ENV === 'production' ? 'smtp' : 'stub')).toLowerCase(),
+  emailFrom: process.env.EMAIL_FROM || '',
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
 };

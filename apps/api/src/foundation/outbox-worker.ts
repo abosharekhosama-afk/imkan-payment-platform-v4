@@ -1,9 +1,10 @@
 import {config} from '../config.js';
 import {withPgTransaction} from '../infrastructure/db/postgres.js';
+import {handleEmailOutboxEvent, isDeliverableEmailEvent} from '../platform/email-outbox-handlers.js';
 
 /**
  * Phase 2 outbox worker — processes PENDING domain events.
- * Email/provider delivery uses adapter stubs only (no invented external APIs).
+ * P16.1: email/invitation events use vendor-neutral SMTP when configured.
  */
 export class OutboxWorker {
   private timer: NodeJS.Timeout | null = null;
@@ -69,11 +70,13 @@ export class OutboxWorker {
     }
   }
 
-  private async handle(eventType: string, _payload: unknown) {
+  private async handle(eventType: string, payload: unknown) {
+    if (isDeliverableEmailEvent(eventType)) {
+      await handleEmailOutboxEvent(eventType, payload);
+      return;
+    }
     if (
-      eventType.startsWith('email.') ||
       eventType.startsWith('user.') ||
-      eventType.startsWith('invitation.') ||
       eventType.startsWith('security.') ||
       eventType.startsWith('kyb.') ||
       eventType.startsWith('bank_account.') ||
@@ -82,8 +85,7 @@ export class OutboxWorker {
       eventType.startsWith('billing.') ||
       eventType.startsWith('provider.')
     ) {
-      // Phase 2–4 stub handlers: no external delivery vendor is invented.
-      // payment.* payloads are retained for future Books/webhook consumers.
+      // Domain events retained for future Books/webhook/merchant delivery consumers (P16.8).
       return;
     }
     return;

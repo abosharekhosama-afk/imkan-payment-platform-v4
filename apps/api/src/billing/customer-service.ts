@@ -1,6 +1,7 @@
 import {pgQuery, withPgTransaction} from '../infrastructure/db/postgres.js';
 import {AppError, notFound} from '../foundation/errors.js';
 import {emitOutboxEvent, writeAuditEvent} from '../foundation/audit.js';
+import {assertProductionPaymentMethodAllowed} from '../platform/sandbox-token-guard.js';
 
 function normalizeEmail(email?: string | null): string | null {
   if (email == null || String(email).trim() === '') return null;
@@ -25,6 +26,7 @@ export const customerService = {
     const name = String(input.name || '').trim();
     if (!name) throw new AppError('CUSTOMER_NAME_REQUIRED', 'Customer name is required', 400);
     const email = normalizeEmail(input.email);
+    assertProductionPaymentMethodAllowed(input.defaultPaymentMethodToken);
 
     return withPgTransaction(async (client) => {
       try {

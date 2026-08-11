@@ -4,8 +4,10 @@ import {useAuth} from '../auth/AuthProvider';
 import {v4} from '../api/endpoints';
 import {Alert, Button, DataTable, LoadingState, PageHeader, StatusBadge} from '../design-system/components';
 import {formatDate, formatMoney, shortId} from '../utils/money';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function PaymentsPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [status, setStatus] = useState('');
@@ -27,34 +29,41 @@ export function PaymentsPage() {
   return (
     <div>
       <PageHeader
-        title="Payments"
-        description="V4 payment intents (Payment Core). Refunds are not available."
-        crumbs={[{label: 'Payments'}, {label: 'List'}]}
+        title={t('payments.title')}
+        description={t('payments.description')}
+        crumbs={[{label: t('section.payments')}, {label: t('common.list')}]}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <div className="v4-toolbar">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All statuses</option>
+          <option value="">{t('common.allStatuses')}</option>
           {['CREATED', 'REQUIRES_PAYMENT', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'].map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
         <Button variant="secondary" type="button" onClick={load}>
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
       {loading ? (
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Payment', 'Status', 'Amount', 'Currency', 'Created', '']}
+          columns={[
+            t('payments.colPayment'),
+            t('common.status'),
+            t('common.amount'),
+            t('payments.colCurrency'),
+            t('common.created'),
+            '',
+          ]}
           rows={rows.map((r) => [
             shortId(r.id),
             <StatusBadge status={r.status} />,
             formatMoney(r.amount_minor, r.currency_code),
             r.currency_code,
             formatDate(r.created_at),
-            <Link to={`/payments/${r.id}`}>Details</Link>,
+            <Link to={`/payments/${r.id}`}>{t('common.details')}</Link>,
           ])}
         />
       )}

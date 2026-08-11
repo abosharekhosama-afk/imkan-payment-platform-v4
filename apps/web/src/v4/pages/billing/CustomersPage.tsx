@@ -4,17 +4,21 @@ import {v4} from '../../api/endpoints';
 import {Alert, Button, Drawer, Field, LoadingState, Modal, PageHeader} from '../../design-system/components';
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
+import {usePlatformRuntime} from '../../hooks/usePlatformRuntime';
 import {formatDate, shortId} from '../../utils/money';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function CustomersPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {allowSandboxTokens} = usePlatformRuntime();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
-  const [form, setForm] = useState({name: '', email: '', phone: '', default_payment_method_token: 'tok_ok'});
+  const [form, setForm] = useState({name: '', email: '', phone: '', default_payment_method_token: ''});
 
   const load = () => {
     if (!token) return;
@@ -46,13 +50,13 @@ export function CustomersPage() {
   return (
     <div>
       <PageHeader
-        title="Customers"
-        description="Payment identities (not product catalog). Prefer side drawer for detail."
-        crumbs={[{label: 'Billing'}, {label: 'Customers'}]}
+        title={t('customers.title')}
+        description={t('customers.description')}
+        crumbs={[{label: t('section.billing')}, {label: t('nav.customers')}]}
         actions={
           <Can anyOf={['customers.manage', 'billing.manage']}>
             <Button type="button" onClick={() => setOpen(true)}>
-              Create customer
+              {t('customers.create')}
             </Button>
           </Can>
         }
@@ -65,12 +69,12 @@ export function CustomersPage() {
           <table className="v4-table">
             <thead>
               <tr>
-                <th>Customer</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>External ID</th>
-                <th>Source</th>
-                <th>Created</th>
+                <th>{t('customers.colCustomer')}</th>
+                <th>{t('customers.colName')}</th>
+                <th>{t('common.email')}</th>
+                <th>{t('customers.colExternalId')}</th>
+                <th>{t('customers.colSource')}</th>
+                <th>{t('common.created')}</th>
               </tr>
             </thead>
             <tbody>
@@ -95,7 +99,7 @@ export function CustomersPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>No customers yet</td>
+                  <td colSpan={6}>{t('customers.empty')}</td>
                 </tr>
               )}
             </tbody>
@@ -105,48 +109,53 @@ export function CustomersPage() {
       {selected ? (
         <Drawer title={selected.name || shortId(selected.id)} onClose={() => setSelected(null)}>
           <dl style={{display: 'grid', gridTemplateColumns: '140px 1fr', gap: '0.5rem 1rem'}}>
-            <dt>ID</dt>
+            <dt>{t('customers.drawerId')}</dt>
             <dd>{selected.id}</dd>
-            <dt>Email</dt>
+            <dt>{t('common.email')}</dt>
             <dd>{selected.email || '—'}</dd>
-            <dt>Phone</dt>
+            <dt>{t('customers.drawerPhone')}</dt>
             <dd>{selected.phone || '—'}</dd>
-            <dt>External customer</dt>
+            <dt>{t('customers.drawerExternal')}</dt>
             <dd>{selected.external_customer_id || '—'}</dd>
-            <dt>Source system</dt>
+            <dt>{t('customers.drawerSource')}</dt>
             <dd>{selected.source_system || '—'}</dd>
-            <dt>PM token</dt>
+            <dt>{t('customers.drawerPmToken')}</dt>
             <dd>{selected.default_payment_method_token || '—'}</dd>
-            <dt>Created</dt>
+            <dt>{t('common.created')}</dt>
             <dd>{formatDate(selected.created_at)}</dd>
-            <dt>Updated</dt>
+            <dt>{t('customers.drawerUpdated')}</dt>
             <dd>{formatDate(selected.updated_at)}</dd>
           </dl>
-          <h4>Raw record</h4>
+          <h4>{t('customers.drawerRaw')}</h4>
           <pre style={{fontSize: '0.75rem', overflow: 'auto', background: 'var(--v4-bg)', padding: '0.75rem'}}>
             {JSON.stringify(selected, null, 2)}
           </pre>
         </Drawer>
       ) : null}
       {open ? (
-        <Modal title="Create customer" onClose={() => setOpen(false)}>
+        <Modal title={t('customers.modalTitle')} onClose={() => setOpen(false)}>
           <form onSubmit={create}>
-            <Field label="Name">
+            <Field label={t('common.name')}>
               <input required value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
             </Field>
-            <Field label="Email">
+            <Field label={t('common.email')}>
               <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
             </Field>
-            <Field label="Phone">
+            <Field label={t('customers.labelPhone')}>
               <input value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} />
             </Field>
-            <Field label="Default sandbox payment token" hint="Used for off-session billing collection">
-              <input
-                value={form.default_payment_method_token}
-                onChange={(e) => setForm({...form, default_payment_method_token: e.target.value})}
-              />
-            </Field>
-            <Button type="submit">Create</Button>
+            {allowSandboxTokens ? (
+              <Field label={t('customers.labelPmToken')} hint={t('customers.pmTokenHint')}>
+                <input
+                  value={form.default_payment_method_token}
+                  onChange={(e) => setForm({...form, default_payment_method_token: e.target.value})}
+                  placeholder="tok_ok"
+                />
+              </Field>
+            ) : (
+              <Alert tone="info">{t('customers.productionAlert')}</Alert>
+            )}
+            <Button type="submit">{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

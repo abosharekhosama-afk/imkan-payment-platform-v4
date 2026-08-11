@@ -2,8 +2,10 @@ import React, {useEffect, useState} from 'react';
 import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
 import {Alert, DataTable, LoadingState, PageHeader, StatusBadge} from '../../design-system/components';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function ProvidersPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [caps, setCaps] = useState<any[]>([]);
@@ -25,21 +27,24 @@ export function ProvidersPage() {
   return (
     <div>
       <PageHeader
-        title="Providers"
-        description="Only the internal Sandbox adapter is registered on the V4 Router."
-        crumbs={[{label: 'Providers'}, {label: 'Catalog'}]}
+        title={t('providers.title')}
+        description={t('providers.description')}
+        crumbs={[{label: t('section.providers')}, {label: t('nav.providers')}]}
       />
-      <Alert tone="warning">
-        <strong>No real external providers are active.</strong> LIVE configuration for sandbox is unsupported
-        (`supports_live=false`). Do not interpret this catalog as production readiness.
-      </Alert>
+      <Alert tone="warning">{t('providers.noExternalLong')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
       ) : (
         <>
           <DataTable
-            columns={['Code', 'Name', 'Status', 'Sandbox', 'Live']}
+            columns={[
+              t('providers.colCode'),
+              t('providers.colName'),
+              t('common.status'),
+              t('providers.colSandbox'),
+              t('providers.colLive'),
+            ]}
             rows={rows.map((r) => [
               r.code,
               r.name,
@@ -49,9 +54,14 @@ export function ProvidersPage() {
             ])}
           />
           <div className="v4-card" style={{marginTop: 16}}>
-            <h3>Sandbox capabilities</h3>
+            <h3>{t('providers.capabilities')}</h3>
             <DataTable
-              columns={['Capability', 'Evidence', 'Scope', 'Notes']}
+              columns={[
+                t('providers.colCapability'),
+                t('providers.colEvidence'),
+                t('providers.colScope'),
+                t('providers.colNotes'),
+              ]}
               rows={caps.map((c) => [
                 c.capability_code,
                 <StatusBadge status={c.evidence_status} />,

@@ -16,8 +16,10 @@ import {
 import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../utils/money';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function PaymentDetailPage() {
+  const {t} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
@@ -77,9 +79,9 @@ export function PaymentDetailPage() {
   return (
     <div>
       <PageHeader
-        title={`Payment ${shortId(intent.id)}`}
-        description="Attempts, transactions, and state transitions. Secrets and PAN are never shown."
-        crumbs={[{label: 'Payments', to: '/payments'}, {label: 'Detail'}]}
+        title={t('paymentDetail.title', {id: shortId(intent.id)})}
+        description={t('paymentDetail.description')}
+        crumbs={[{label: t('section.payments'), to: '/payments'}, {label: t('common.detail')}]}
         actions={
           <>
             <Can anyOf={['payments.refund', 'payments.manage']}>
@@ -91,14 +93,14 @@ export function PaymentDetailPage() {
                     setRefundOpen(true);
                   }}
                 >
-                  Refund
+                  {t('paymentDetail.refund')}
                 </Button>
               ) : null}
             </Can>
             <Can anyOf={['payments.cancel', 'payments.manage']}>
               {['CREATED', 'REQUIRES_PAYMENT', 'PROCESSING'].includes(intent.status) ? (
                 <Button variant="danger" type="button" onClick={() => setConfirmCancel(true)}>
-                  Cancel payment
+                  {t('paymentDetail.cancelPayment')}
                 </Button>
               ) : null}
             </Can>
@@ -106,30 +108,34 @@ export function PaymentDetailPage() {
         }
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <Alert tone="info">
-        Sandbox refunds post to the ledger with step-up. Live provider refunds are{' '}
-        <strong>BLOCKED BY: DEC-009</strong>.
-      </Alert>
+      <Alert tone="info">{t('paymentDetail.sandboxRefundAlert')}</Alert>
       <div className="v4-stat-grid">
         <div className="v4-stat">
-          <span>Status</span>
+          <span>{t('common.status')}</span>
           <strong>
             <StatusBadge status={intent.status} />
           </strong>
         </div>
         <div className="v4-stat">
-          <span>Amount</span>
+          <span>{t('common.amount')}</span>
           <strong>{formatMoney(intent.amount_minor, intent.currency_code)}</strong>
         </div>
         <div className="v4-stat">
-          <span>Created</span>
+          <span>{t('common.created')}</span>
           <strong style={{fontSize: '1rem'}}>{formatDate(intent.created_at)}</strong>
         </div>
       </div>
       <div className="v4-card" style={{marginBottom: 16}}>
-        <h3>Attempts</h3>
+        <h3>{t('paymentDetail.attempts')}</h3>
         <DataTable
-          columns={['#', 'Status', 'Provider', 'Reference', 'Failure', 'Started']}
+          columns={[
+            t('paymentDetail.colAttempt'),
+            t('common.status'),
+            t('transactions.colProvider'),
+            t('paymentDetail.colReference'),
+            t('paymentDetail.colFailure'),
+            t('paymentDetail.colStarted'),
+          ]}
           rows={(data.attempts || []).map((a: any) => [
             a.attempt_number,
             <StatusBadge status={a.status} />,
@@ -141,23 +147,36 @@ export function PaymentDetailPage() {
         />
       </div>
       <div className="v4-card" style={{marginBottom: 16}}>
-        <h3>Transactions</h3>
+        <h3>{t('paymentDetail.transactions')}</h3>
         <DataTable
-          columns={['Txn', 'Status', 'Provider', 'Provider txn', 'Amount', 'Created']}
-          rows={(data.transactions || []).map((t: any) => [
-            shortId(t.id),
-            <StatusBadge status={t.status} />,
-            t.provider_code || '—',
-            shortId(t.provider_transaction_id),
-            formatMoney(t.amount_minor, t.currency_code),
-            formatDate(t.created_at),
+          columns={[
+            t('transactions.colTxn'),
+            t('common.status'),
+            t('transactions.colProvider'),
+            t('paymentDetail.colProviderTxn'),
+            t('common.amount'),
+            t('common.created'),
+          ]}
+          rows={(data.transactions || []).map((txn: any) => [
+            shortId(txn.id),
+            <StatusBadge status={txn.status} />,
+            txn.provider_code || '—',
+            shortId(txn.provider_transaction_id),
+            formatMoney(txn.amount_minor, txn.currency_code),
+            formatDate(txn.created_at),
           ])}
         />
       </div>
       <div className="v4-card">
-        <h3>Timeline</h3>
+        <h3>{t('paymentDetail.timeline')}</h3>
         <DataTable
-          columns={['From', 'To', 'Actor', 'Reason', 'At']}
+          columns={[
+            t('paymentDetail.colFrom'),
+            t('paymentDetail.colTo'),
+            t('paymentDetail.colActor'),
+            t('paymentDetail.colReason'),
+            t('paymentDetail.colAt'),
+          ]}
           rows={(data.history || []).map((h: any) => [
             h.from_status || '—',
             h.to_status,
@@ -168,15 +187,15 @@ export function PaymentDetailPage() {
         />
       </div>
       <p style={{marginTop: '1rem'}}>
-        <Link to="/refunds">View all refunds</Link>
+        <Link to="/refunds">{t('paymentDetail.viewRefunds')}</Link>
       </p>
       {refundOpen ? (
-        <Modal title="Create refund" onClose={() => setRefundOpen(false)}>
+        <Modal title={t('paymentDetail.createRefund')} onClose={() => setRefundOpen(false)}>
           <form onSubmit={submitRefund}>
-            <Field label="Original amount">
+            <Field label={t('paymentDetail.originalAmount')}>
               <input readOnly value={formatMoney(intent.amount_minor, intent.currency_code)} />
             </Field>
-            <Field label="Refund amount (minor units)" hint="Partial refunds allowed; total cannot exceed captured">
+            <Field label={t('paymentDetail.refundAmount')} hint={t('paymentDetail.refundAmountHint')}>
               <input
                 required
                 pattern="\d+"
@@ -184,24 +203,24 @@ export function PaymentDetailPage() {
                 onChange={(e) => setRefundAmount(e.target.value)}
               />
             </Field>
-            <Field label="Reason">
+            <Field label={t('paymentDetail.reason')}>
               <input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} />
             </Field>
-            <Field label="MFA / step-up TOTP">
+            <Field label={t('finance.refunds.labelTotp')}>
               <input required value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" />
             </Field>
             <Button type="submit" disabled={busy}>
-              {busy ? 'Processing…' : 'Confirm refund'}
+              {busy ? t('common.processing') : t('paymentDetail.confirmRefund')}
             </Button>
           </form>
         </Modal>
       ) : null}
       {confirmCancel ? (
         <ConfirmDialog
-          title="Cancel payment?"
-          message="This cancels the payment intent if still cancellable."
+          title={t('paymentDetail.cancelTitle')}
+          message={t('paymentDetail.cancelMessage')}
           danger
-          confirmLabel="Cancel payment"
+          confirmLabel={t('paymentDetail.cancelPayment')}
           onClose={() => setConfirmCancel(false)}
           onConfirm={() => {
             void v4

@@ -6,6 +6,7 @@ import {assertActiveCurrency, ensureMerchantProfile, parseMinorAmount} from './m
 import {paymentConfigService} from './payment-config-service.js';
 import {paymentLinksService} from './payment-links-service.js';
 import {providerRouter, resolvePaymentEnvironment} from '../providers/router.js';
+import {assertProductionPaymentMethodAllowed} from '../platform/sandbox-token-guard.js';
 import {ledgerService} from '../ledger/ledger-service.js';
 import {assertSafePublicUrl} from '../security/url-safety.js';
 import {assertMerchantPaymentsAllowed} from '../security/onboarding-gate.js';
@@ -473,6 +474,7 @@ export const paymentCoreService = {
     if (raw.card_number || raw.pan || raw.cvv || raw.cvc || raw.card_cvv) {
       throw new AppError('CARD_DATA_FORBIDDEN', 'Card PAN/CVV must not be submitted to this API', 400);
     }
+    assertProductionPaymentMethodAllowed(input.paymentMethodToken);
 
     return withPgTransaction(async (client) => {
       const link = await client.query(`SELECT * FROM payment_links WHERE public_token=$1 FOR UPDATE`, [linkToken]);
@@ -728,6 +730,49 @@ export const paymentCoreService = {
         };
       }
 
+      // Hosted checkout / 3DS — async confirmation via webhook (PayTabs HPP).
+      if (result.status === 'REQUIRES_ACTION') {
+        await client.query(
+          `UPDATE payment_attempts
+           SET status='PROCESSING', provider_reference=$2, version=version+1, updated_at=NOW()
+           WHERE id=$1`,
+          [attempt.id, result.providerReference || null],
+        );
+        const action = (result.details?.action as {type?: string; url?: string} | undefined) || {
+          type: '3DS',
+          url: result.details?.redirect_url,
+        };
+        return {
+          status: 'REQUIRES_ACTION' as const,
+          intent: money(intent),
+          transaction: null,
+          success_url: intent.success_url,
+          cancel_url: intent.cancel_url,
+          provider_reference: result.providerReference,
+          provider_code: result.providerCode,
+          action,
+          redirect_url: result.details?.redirect_url || action.url,
+        };
+      }
+
+      if (result.status === 'PENDING') {
+        await client.query(
+          `UPDATE payment_attempts
+           SET status='PROCESSING', provider_reference=$2, version=version+1, updated_at=NOW()
+           WHERE id=$1`,
+          [attempt.id, result.providerReference || null],
+        );
+        return {
+          status: 'PENDING' as const,
+          intent: money(intent),
+          transaction: null,
+          success_url: intent.success_url,
+          cancel_url: intent.cancel_url,
+          provider_reference: result.providerReference,
+          provider_code: result.providerCode,
+        };
+      }
+
       // FAILED path
       await client.query(
         `UPDATE payment_attempts
@@ -823,6 +868,7 @@ export const paymentCoreService = {
       metadata?: Record<string, unknown>;
     },
   ) {
+    assertProductionPaymentMethodAllowed(input.paymentMethodToken);
     const amountMinor = parseMinorAmount(input.amountMinor);
     const currency = input.currencyCode.toUpperCase();
 

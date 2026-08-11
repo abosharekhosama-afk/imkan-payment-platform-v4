@@ -3,6 +3,7 @@ import {pgQuery, type PgClient} from '../infrastructure/db/postgres.js';
 import type {ProviderAdapter, ProviderEnvironment, ProviderOperationResult} from './adapter.js';
 import {ProviderError, shouldQueryBeforeRetry} from './errors.js';
 import {getProviderAdapter} from './registry.js';
+import {incrMetric} from '../observability/metrics.js';
 import './registry.js';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = Number(process.env.PROVIDER_TIMEOUT_MS || 12_000);
@@ -217,8 +218,17 @@ export const providerRouter = {
     const timeoutMs = input.timeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS;
     let result: ProviderOperationResult;
     try {
+      incrMetric('provider_requests_total', {
+        provider: input.resolved.providerCode,
+        operation: input.operation,
+        environment: input.resolved.environment,
+      });
       result = await withTimeout(input.fn(), timeoutMs, input.resolved.providerCode);
     } catch (error) {
+      incrMetric('provider_failures_total', {
+        provider: input.resolved.providerCode,
+        operation: input.operation,
+      });
       if (error instanceof ProviderError) {
         const inserted = await exec(
           `INSERT INTO provider_transactions (
@@ -258,6 +268,8 @@ export const providerRouter = {
       throw error;
     }
 
+    recordProviderFailureMetric(input.resolved.providerCode, input.operation, result);
+
     const inserted = await exec(
       `INSERT INTO provider_transactions (
          organization_id, provider_id, provider_account_id, payment_intent_id, payment_attempt_id,
@@ -293,6 +305,15 @@ export const providerRouter = {
     };
   },
 };
+
+function recordProviderFailureMetric(providerCode: string, operation: string, result: ProviderOperationResult) {
+  if (result.status === 'FAILED' || result.status === 'AMBIGUOUS') {
+    incrMetric('provider_failures_total', {provider: providerCode, operation});
+  }
+  if (result.status === 'AMBIGUOUS') {
+    incrMetric('ambiguous_payments_total', {provider: providerCode});
+  }
+}
 
 async function finalizeResolve(
   row: any,

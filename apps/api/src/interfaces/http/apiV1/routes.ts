@@ -27,6 +27,7 @@ import {evaluateAlerts} from '../../../observability/alerts.js';
 import {incrMetric, metricsPrometheusText, snapshotMetrics} from '../../../observability/metrics.js';
 import {resolveSecretBackendKind} from '../../../security/secrets/index.js';
 import {listSecretReferences, upsertSecretReference} from '../../../security/secrets/secret-references-service.js';
+import {getPlatformRuntimeConfig} from '../../../platform/runtime-config.js';
 
 export async function apiV1Routes(app: FastifyInstance) {
   // Preserve raw JSON body for provider webhook signature verification (Phase 5).
@@ -145,6 +146,8 @@ export async function apiV1Routes(app: FastifyInstance) {
 
     return ok(request, {status: 'ready', ...checks});
   });
+
+  app.get('/platform/runtime', async (request) => ok(request, getPlatformRuntimeConfig()));
 
   /** Prometheus-ish text + JSON snapshot (P15.2 baseline). Public scrape; no secrets. */
   app.get('/metrics', async (request, reply) => {

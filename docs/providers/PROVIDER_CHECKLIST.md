@@ -47,6 +47,42 @@
 - [ ] Capability matrix approved and recorded under DEC-009 for this provider
 - [ ] Health check integrated (provider status endpoint or synthetic probe)
 
-## Current status (2026-08-09)
+## Current status (2026-08-10)
 
-No provider has completed this checklist. See `PROVIDER-READINESS-MATRIX.md` — PayTabs has partial legacy-era code (hosted page request; unwired callback); all other named providers (Stripe, Adyen, Checkout.com, Nuvei, Worldpay, MyFatoorah, Paymob, HyperPay, Moyasar, Tap, Amazon Payment Services) have no code.
+### PayTabs — **SANDBOX_TESTED** (P15.5)
+
+Lifecycle position: **SANDBOX_TESTED** (not CERTIFIED with real E2E; not LIVE_READY).
+
+| Stage | Status | Evidence |
+|---|---|---|
+| DISCOVERED | Done | Legacy code + PayTabs docs |
+| CONTRACTED | Done | `ProviderAdapter` + paytabs module |
+| SANDBOX_CONFIGURED | Done | Migration 034 + SecretResolver refs |
+| SANDBOX_TESTED | Done | P15.3 simulate + P15.4 contract + P15.5 preflight |
+| CERTIFIED (real E2E) | **BLOCKED** | Merchant sandbox credentials + public HTTPS webhook required |
+| LIVE_READY | **BLOCKED** | DEC-009; no LIVE credentials |
+| LIVE_ENABLED | **BLOCKED** | `supports_live=FALSE` |
+
+Checklist highlights for PayTabs sandbox:
+
+- [x] API authentication documented (server key header)
+- [x] Sandbox credentials via SecretResolver (not in DB/repo)
+- [x] Webhook signature verification + tests
+- [x] Replay/duplicate protection (webhook engine)
+- [x] Event mapping table (response_status → internal)
+- [x] Refund API (full + partial PARTIAL)
+- [x] 3DS / HPP redirect flow (simulate)
+- [x] Preflight gating for real E2E (P15.5)
+- [ ] Real HTTP payment creation — **BLOCKED** (credentials)
+- [ ] Real inbound webhook from PayTabs — **NOT VERIFIED** (public HTTPS)
+- [ ] Real 3DS on PayTabs HPP — **NOT VERIFIED**
+- [ ] Real sandbox refund — **NOT VERIFIED**
+- [ ] Live credentials (separate plane) — **BLOCKED**
+- [ ] Void API verified — **NOT VERIFIED**
+- [ ] Tokenization / recurring — **NOT SUPPORTED**
+- [ ] Disputes / settlement file — **UNKNOWN**
+- [ ] Production readiness / live minimal tx — **BLOCKED**
+
+### Other providers
+
+No other provider has completed this checklist. See `PROVIDER-READINESS-MATRIX.md`.

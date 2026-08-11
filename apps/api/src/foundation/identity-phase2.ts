@@ -11,6 +11,10 @@ function maybeDevToken(token: string) {
   return config.exposeDevTokens ? {token} : {};
 }
 
+function emailActionUrl(path: string, token: string): string {
+  return `${config.appPublicUrl}${path}?token=${encodeURIComponent(token)}`;
+}
+
 export class IdentityPhase2Service {
   async issueEmailVerification(userId: string, email: string, client?: any) {
     const token = randomToken(32);
@@ -26,7 +30,7 @@ export class IdentityPhase2Service {
         eventType: 'email.verification.requested',
         aggregateType: 'user',
         aggregateId: userId,
-        payload: {user_id: userId, email},
+        payload: {user_id: userId, email, action_url: emailActionUrl('/verify-email', token)},
         idempotencyKey: `email.verification:${userId}:${expires.toISOString()}`,
       },
       client,
@@ -99,7 +103,7 @@ export class IdentityPhase2Service {
           eventType: 'email.password_reset.requested',
           aggregateType: 'user',
           aggregateId: u.id,
-          payload: {user_id: u.id, email: u.email},
+          payload: {user_id: u.id, email: u.email, action_url: emailActionUrl('/reset-password', token)},
           idempotencyKey: `password.reset:${u.id}:${Date.now()}`,
         },
         client,
@@ -220,7 +224,12 @@ export class IdentityPhase2Service {
           eventType: 'invitation.created',
           aggregateType: 'organization_invitation',
           aggregateId: id,
-          payload: {invitation_id: id, email: emailNormalized, role_code: input.roleCode},
+          payload: {
+            invitation_id: id,
+            email: emailNormalized,
+            role_code: input.roleCode,
+            action_url: emailActionUrl('/accept-invitation', token),
+          },
           idempotencyKey: `invitation.created:${id}`,
         },
         client,

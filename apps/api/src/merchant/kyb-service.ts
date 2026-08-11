@@ -2,6 +2,9 @@ import {pgQuery, withPgTransaction, type PgClient} from '../infrastructure/db/po
 import {AppError, conflict, notFound} from '../foundation/errors.js';
 import {emitOutboxEvent, writeAuditEvent, writeSecurityEvent} from '../foundation/audit.js';
 import {kybVerificationProvider} from './verification-providers.js';
+import {documentsService} from './documents-service.js';
+import {requiresDocumentFileUpload} from '../platform/document-storage.js';
+import {kybMerchantPortalUrl, resolveOrganizationNotifyEmail} from './kyb-notify.js';
 
 type Actor = {userId: string; requestId?: string};
 
@@ -233,14 +236,21 @@ async function evaluateRequirements(
       }
       case 'DOCUMENT_TYPE': {
         const docCode = String(params.document_type_code || '');
+        const storageClause = requiresDocumentFileUpload()
+          ? ` AND d.storage_key IS NOT NULL AND d.sha256 IS NOT NULL`
+          : '';
         const r = await client.query(
           `SELECT d.id FROM documents d
            JOIN master_document_types dt ON dt.id = d.document_type_id
-           WHERE d.organization_id=$1 AND dt.code=$2 AND d.status IN ('UPLOADED','PENDING_REVIEW','ACCEPTED')`,
+           WHERE d.organization_id=$1 AND dt.code=$2 AND d.status IN ('UPLOADED','PENDING_REVIEW','ACCEPTED')${storageClause}`,
           [organizationId, docCode],
         );
         satisfied = Boolean(r.rows[0]);
-        detail = satisfied ? `Document ${docCode} present` : `Document ${docCode} is required`;
+        detail = satisfied
+          ? `Document ${docCode} present`
+          : requiresDocumentFileUpload()
+            ? `Document ${docCode} must be uploaded with file content`
+            : `Document ${docCode} is required`;
         break;
       }
       case 'BANK_ACCOUNT': {
@@ -453,8 +463,22 @@ export const kybService = {
         {organizationId, userId: actor.userId, eventType: 'kyb.case.submitted', metadata: {case_id: kase.id}},
         client,
       );
+      await documentsService.markPendingReviewForOrganization(client, organizationId);
+      const notifyEmail = await resolveOrganizationNotifyEmail(organizationId);
       await emitOutboxEvent(
-        {organizationId, eventType: 'kyb.case.submitted', aggregateType: 'verification_case', aggregateId: kase.id, payload: {organization_id: organizationId}, idempotencyKey: `kyb-submit-${kase.id}-v${kase.version}`},
+        {
+          organizationId,
+          eventType: 'kyb.case.submitted',
+          aggregateType: 'verification_case',
+          aggregateId: kase.id,
+          payload: {
+            organization_id: organizationId,
+            case_id: kase.id,
+            notify_email: notifyEmail,
+            portal_url: kybMerchantPortalUrl(),
+          },
+          idempotencyKey: `kyb-submit-${kase.id}-v${kase.version}`,
+        },
         client,
       );
       return updated;
@@ -487,11 +511,45 @@ export const kybService = {
   async getCaseDetail(caseId: string) {
     const kase = await pgQuery(`SELECT * FROM verification_cases WHERE id=$1 AND case_type='KYB'`, [caseId]);
     if (!kase.rows[0]) throw notFound('KYB case not found', 'KYB_CASE_NOT_FOUND');
-    const [results, transitions] = await Promise.all([
+    const orgId = kase.rows[0].organization_id as string;
+    const [results, transitions, documents, org, legal, business, checklist] = await Promise.all([
       pgQuery(`SELECT * FROM verification_results WHERE case_id=$1 ORDER BY created_at DESC`, [caseId]),
       pgQuery(`SELECT * FROM verification_case_transitions WHERE case_id=$1 ORDER BY created_at`, [caseId]),
+      documentsService.listForOrganization(orgId),
+      pgQuery(`SELECT id, name, country_code, created_at FROM organizations WHERE id=$1`, [orgId]),
+      pgQuery(
+        `SELECT clp.legal_name, clp.registration_number, met.code AS legal_entity_type_code,
+                mc.code AS incorporation_country_code
+         FROM company_legal_profiles clp
+         LEFT JOIN master_legal_entity_types met ON met.id = clp.legal_entity_type_id
+         LEFT JOIN master_countries mc ON mc.id = clp.incorporation_country_id
+         WHERE clp.organization_id=$1`,
+        [orgId],
+      ),
+      pgQuery(
+        `SELECT bp.description, mi.code AS industry_code, mbt.code AS business_type_code
+         FROM business_profiles bp
+         LEFT JOIN master_industries mi ON mi.id = bp.industry_id
+         LEFT JOIN master_business_types mbt ON mbt.id = bp.business_type_id
+         WHERE bp.organization_id=$1`,
+        [orgId],
+      ),
+      (async () => {
+        const db = {query: pgQuery} as PgClient;
+        const requirements = await applicableRequirements(db, orgId, kase.rows[0].risk_category_id);
+        return evaluateRequirements(db, orgId, requirements);
+      })(),
     ]);
-    return {case: kase.rows[0], results: results.rows, history: transitions.rows};
+    return {
+      case: kase.rows[0],
+      organization: org.rows[0] || null,
+      legal_profile: legal.rows[0] || null,
+      business_profile: business.rows[0] || null,
+      requirements: checklist,
+      documents: documents,
+      results: results.rows,
+      history: transitions.rows,
+    };
   },
 
   async startReview(caseId: string, actor: Actor) {
@@ -533,7 +591,7 @@ export const kybService = {
         client,
       );
       await emitOutboxEvent(
-        {organizationId: r.rows[0].organization_id, eventType: 'kyb.case.needs_information', aggregateType: 'verification_case', aggregateId: caseId, payload: {reason}},
+        {organizationId: r.rows[0].organization_id, eventType: 'kyb.case.needs_information', aggregateType: 'verification_case', aggregateId: caseId, payload: {reason, notify_email: await resolveOrganizationNotifyEmail(r.rows[0].organization_id), portal_url: kybMerchantPortalUrl()}},
         client,
       );
       return updated;
@@ -579,7 +637,7 @@ export const kybService = {
         client,
       );
       await emitOutboxEvent(
-        {organizationId: kase.organization_id, eventType: 'kyb.case.decided', aggregateType: 'verification_case', aggregateId: caseId, payload: {decision, reason}, idempotencyKey: `kyb-decide-${caseId}-v${kase.version}`},
+        {organizationId: kase.organization_id, eventType: 'kyb.case.decided', aggregateType: 'verification_case', aggregateId: caseId, payload: {decision, reason, notify_email: await resolveOrganizationNotifyEmail(kase.organization_id), portal_url: kybMerchantPortalUrl()}, idempotencyKey: `kyb-decide-${caseId}-v${kase.version}`},
         client,
       );
       return updated;

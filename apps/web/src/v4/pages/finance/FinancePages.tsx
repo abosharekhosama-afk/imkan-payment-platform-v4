@@ -3,9 +3,11 @@ import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
 import {Alert, Button, Field, LoadingState, PageHeader} from '../../design-system/components';
 import {Can} from '../../rbac/Can';
+import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 
 export function RefundsPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -53,22 +55,22 @@ export function RefundsPage() {
   return (
     <div>
       <PageHeader
-        title="Refunds"
-        description="Sandbox refunds post to ledger. Live provider refunds BLOCKED BY: DEC-009."
-        crumbs={[{label: 'Finance'}, {label: 'Refunds'}]}
+        title={t('finance.refunds.title')}
+        description={t('finance.refunds.description')}
+        crumbs={[{label: t('section.finance')}, {label: t('nav.refunds')}]}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <Can anyOf={['payments.refund', 'payments.manage']}>
         <div className="v4-card" style={{marginBottom: '1rem'}}>
           <form onSubmit={create}>
-            <Field label="Payment intent ID">
+            <Field label={t('finance.refunds.labelPaymentId')}>
               <input
                 required
                 value={form.payment_intent_id}
                 onChange={(e) => setForm({...form, payment_intent_id: e.target.value})}
               />
             </Field>
-            <Field label="Amount (minor units)">
+            <Field label={t('finance.refunds.labelAmount')}>
               <input
                 required
                 pattern="\d+"
@@ -76,7 +78,7 @@ export function RefundsPage() {
                 onChange={(e) => setForm({...form, amount_minor: e.target.value})}
               />
             </Field>
-            <Field label="Currency">
+            <Field label={t('common.currency')}>
               <input
                 required
                 maxLength={3}
@@ -84,13 +86,13 @@ export function RefundsPage() {
                 onChange={(e) => setForm({...form, currency_code: e.target.value.toUpperCase()})}
               />
             </Field>
-            <Field label="Reason">
+            <Field label={t('finance.refunds.labelReason')}>
               <input value={form.reason} onChange={(e) => setForm({...form, reason: e.target.value})} />
             </Field>
-            <Field label="MFA / step-up TOTP (if required)">
+            <Field label={t('finance.refunds.labelTotp')}>
               <input value={form.totp} onChange={(e) => setForm({...form, totp: e.target.value})} />
             </Field>
-            <Button type="submit">Create refund</Button>
+            <Button type="submit">{t('finance.refunds.create')}</Button>
           </form>
         </div>
       </Can>
@@ -101,11 +103,11 @@ export function RefundsPage() {
           <table className="v4-table">
             <thead>
               <tr>
-                <th>Refund</th>
-                <th>Payment</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Created</th>
+                <th>{t('finance.refunds.colRefund')}</th>
+                <th>{t('finance.refunds.colPayment')}</th>
+                <th>{t('common.amount')}</th>
+                <th>{t('common.status')}</th>
+                <th>{t('common.created')}</th>
               </tr>
             </thead>
             <tbody>
@@ -121,7 +123,7 @@ export function RefundsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5}>No refunds</td>
+                  <td colSpan={5}>{t('finance.refunds.empty')}</td>
                 </tr>
               )}
             </tbody>
@@ -133,6 +135,7 @@ export function RefundsPage() {
 }
 
 export function BalancesPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
@@ -147,19 +150,19 @@ export function BalancesPage() {
   return (
     <div>
       <PageHeader
-        title="Balances"
-        description="Derived from double-entry ledger. Never summed in the browser."
-        crumbs={[{label: 'Finance'}, {label: 'Balances'}]}
+        title={t('finance.balances.title')}
+        description={t('finance.balances.description')}
+        crumbs={[{label: t('section.finance')}, {label: t('nav.balances')}]}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {!data && !error ? <LoadingState /> : null}
       {data ? (
         <div className="v4-stat-grid">
           {[
-            ['Available', formatMoney(data.available_minor, data.currency_code)],
-            ['Pending', formatMoney(data.pending_minor, data.currency_code)],
-            ['Reserved', formatMoney(data.reserved_minor, data.currency_code)],
-            ['Settled', formatMoney(data.settled_minor, data.currency_code)],
+            [t('finance.balances.available'), formatMoney(data.available_minor, data.currency_code)],
+            [t('finance.balances.pending'), formatMoney(data.pending_minor, data.currency_code)],
+            [t('finance.balances.reserved'), formatMoney(data.reserved_minor, data.currency_code)],
+            [t('finance.balances.settled'), formatMoney(data.settled_minor, data.currency_code)],
           ].map(([label, value]) => (
             <div className="v4-stat" key={String(label)}>
               <span>{label}</span>
@@ -170,7 +173,7 @@ export function BalancesPage() {
       ) : null}
       {data?.phase ? (
         <Alert tone="info">
-          Source: {data.source || 'financial_core'} ({data.phase}). Values are never summed in the browser.
+          {t('finance.balances.source', {source: data.source || 'financial_core', phase: data.phase})}
         </Alert>
       ) : null}
       {data?.note ? <Alert tone="info">{data.note}</Alert> : null}
@@ -179,6 +182,7 @@ export function BalancesPage() {
 }
 
 export function SettlementsPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -192,7 +196,7 @@ export function SettlementsPage() {
   }, [token]);
   return (
     <div>
-      <PageHeader title="Settlements" description="Draft settlements from succeeded payments. Fees BLOCKED BY: DEC-008." />
+      <PageHeader title={t('finance.settlements.title')} description={t('finance.settlements.description')} />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
@@ -201,12 +205,12 @@ export function SettlementsPage() {
           <table className="v4-table">
             <thead>
               <tr>
-                <th>Settlement</th>
-                <th>Currency</th>
-                <th>Gross</th>
-                <th>Net</th>
-                <th>Status</th>
-                <th>Created</th>
+                <th>{t('finance.settlements.colSettlement')}</th>
+                <th>{t('common.currency')}</th>
+                <th>{t('finance.settlements.colGross')}</th>
+                <th>{t('finance.settlements.colNet')}</th>
+                <th>{t('common.status')}</th>
+                <th>{t('common.created')}</th>
               </tr>
             </thead>
             <tbody>
@@ -223,7 +227,7 @@ export function SettlementsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>No records</td>
+                  <td colSpan={6}>{t('common.noRecords')}</td>
                 </tr>
               )}
             </tbody>
@@ -235,6 +239,7 @@ export function SettlementsPage() {
 }
 
 export function PayoutsPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -248,7 +253,7 @@ export function PayoutsPage() {
   }, [token]);
   return (
     <div>
-      <PageHeader title="Payouts" description="Payout creation requires step-up. Live rails BLOCKED BY: DEC-009." />
+      <PageHeader title={t('finance.payouts.title')} description={t('finance.payouts.description')} />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
@@ -257,11 +262,11 @@ export function PayoutsPage() {
           <table className="v4-table">
             <thead>
               <tr>
-                <th>Payout</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Settlement</th>
-                <th>Created</th>
+                <th>{t('finance.payouts.colPayout')}</th>
+                <th>{t('common.amount')}</th>
+                <th>{t('common.status')}</th>
+                <th>{t('finance.payouts.colSettlement')}</th>
+                <th>{t('common.created')}</th>
               </tr>
             </thead>
             <tbody>
@@ -277,7 +282,7 @@ export function PayoutsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5}>No records</td>
+                  <td colSpan={5}>{t('common.noRecords')}</td>
                 </tr>
               )}
             </tbody>
@@ -289,6 +294,7 @@ export function PayoutsPage() {
 }
 
 export function DisputesPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -302,7 +308,7 @@ export function DisputesPage() {
   }, [token]);
   return (
     <div>
-      <PageHeader title="Disputes" description="Dispute records foundation." />
+      <PageHeader title={t('finance.disputes.title')} description={t('finance.disputes.description')} />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
@@ -311,11 +317,11 @@ export function DisputesPage() {
           <table className="v4-table">
             <thead>
               <tr>
-                <th>Dispute</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Reason</th>
-                <th>Created</th>
+                <th>{t('finance.disputes.colDispute')}</th>
+                <th>{t('common.amount')}</th>
+                <th>{t('common.status')}</th>
+                <th>{t('finance.disputes.colReason')}</th>
+                <th>{t('common.created')}</th>
               </tr>
             </thead>
             <tbody>
@@ -331,7 +337,7 @@ export function DisputesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5}>No records</td>
+                  <td colSpan={5}>{t('common.noRecords')}</td>
                 </tr>
               )}
             </tbody>
@@ -343,6 +349,7 @@ export function DisputesPage() {
 }
 
 export function RiskPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -356,7 +363,7 @@ export function RiskPage() {
   }, [token]);
   return (
     <div>
-      <PageHeader title="Risk signals" description="Manual / recorded risk signals (foundation)." />
+      <PageHeader title={t('finance.risk.title')} description={t('finance.risk.description')} />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
@@ -365,11 +372,11 @@ export function RiskPage() {
           <table className="v4-table">
             <thead>
               <tr>
-                <th>Signal</th>
-                <th>Type</th>
-                <th>Decision</th>
-                <th>Score</th>
-                <th>Created</th>
+                <th>{t('finance.risk.colSignal')}</th>
+                <th>{t('finance.risk.colType')}</th>
+                <th>{t('finance.risk.colDecision')}</th>
+                <th>{t('finance.risk.colScore')}</th>
+                <th>{t('common.created')}</th>
               </tr>
             </thead>
             <tbody>
@@ -385,7 +392,7 @@ export function RiskPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5}>No records</td>
+                  <td colSpan={5}>{t('common.noRecords')}</td>
                 </tr>
               )}
             </tbody>

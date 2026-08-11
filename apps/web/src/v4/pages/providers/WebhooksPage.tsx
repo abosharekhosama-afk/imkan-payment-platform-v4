@@ -2,9 +2,11 @@ import React, {useEffect, useState} from 'react';
 import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
 import {Alert, DataTable, LoadingState, PageHeader, StatusBadge} from '../../design-system/components';
+import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, shortId} from '../../utils/money';
 
 export function WebhooksPage() {
+  const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -21,26 +23,33 @@ export function WebhooksPage() {
   return (
     <div>
       <PageHeader
-        title="Provider webhook events"
-        description="Inbound provider webhooks received by V4."
-        crumbs={[{label: 'Providers'}, {label: 'Webhook Events'}]}
+        title={t('providers.webhooks.title')}
+        description={t('providers.webhooks.description')}
+        crumbs={[{label: t('section.providers')}, {label: t('nav.webhooks')}]}
       />
-      <Alert tone="info">
-        Verified webhooks are signature-checked, replay-protected, deduplicated, then applied to Payment Intent state
-        (and ledger on success / refund events) via the webhook state-apply path. “PROCESSED” means the event was
-        handled; always confirm PI status and ledger for financial truth. Live providers remain BLOCKED BY: DEC-009.
-      </Alert>
+      <Alert tone="info">{t('providers.webhooks.infoLong')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
       ) : (
         <DataTable
-          columns={['Event', 'Provider', 'Type', 'Signature', 'Status', 'Received']}
+          columns={[
+            t('providers.webhooks.colEvent'),
+            t('providers.webhooks.colProvider'),
+            t('providers.webhooks.colType'),
+            t('providers.webhooks.colSignature'),
+            t('common.status'),
+            t('providers.webhooks.colReceived'),
+          ]}
           rows={rows.map((r) => [
             shortId(r.id),
             r.provider_code || '—',
             r.event_type || '—',
-            r.signature_valid === true ? 'valid' : r.signature_valid === false ? 'invalid' : '—',
+            r.signature_valid === true
+              ? t('providers.webhooks.valid')
+              : r.signature_valid === false
+                ? t('providers.webhooks.invalid')
+                : '—',
             <StatusBadge status={r.status} />,
             formatDate(r.received_at || r.created_at),
           ])}

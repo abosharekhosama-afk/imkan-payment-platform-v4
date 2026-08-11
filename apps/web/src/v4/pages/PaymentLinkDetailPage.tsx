@@ -7,8 +7,10 @@ import {Alert, Button, LoadingState, PageHeader, StatusBadge} from '../design-sy
 import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney} from '../utils/money';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function PaymentLinkDetailPage() {
+  const {t} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
@@ -38,29 +40,34 @@ export function PaymentLinkDetailPage() {
   if (error && !row) return <Alert tone="danger">{error}</Alert>;
 
   const webUrl = checkoutWebUrl(row.public_token);
+  const maxUses = row.max_uses != null ? ` / ${row.max_uses}` : '';
 
   return (
     <div>
       <PageHeader
         title={row.title}
-        description="Payment link detail"
-        crumbs={[{label: 'Payments', to: '/payments'}, {label: 'Payment Links', to: '/payment-links'}, {label: 'Detail'}]}
+        description={t('paymentLinkDetail.description')}
+        crumbs={[
+          {label: t('section.payments'), to: '/payments'},
+          {label: t('nav.paymentLinks'), to: '/payment-links'},
+          {label: t('common.detail')},
+        ]}
         actions={
           <Can anyOf={['payment_links.manage']}>
             <>
               {row.status === 'DRAFT' || row.status === 'INACTIVE' ? (
                 <Button type="button" onClick={() => void act('activate')}>
-                  Activate
+                  {t('paymentLinkDetail.activate')}
                 </Button>
               ) : null}
               {row.status === 'ACTIVE' ? (
                 <Button variant="secondary" type="button" onClick={() => void act('deactivate')}>
-                  Deactivate
+                  {t('paymentLinkDetail.deactivate')}
                 </Button>
               ) : null}
               {['DRAFT', 'ACTIVE', 'INACTIVE'].includes(row.status) ? (
                 <Button variant="danger" type="button" onClick={() => void act('cancel')}>
-                  Cancel
+                  {t('paymentLinkDetail.cancel')}
                 </Button>
               ) : null}
             </>
@@ -73,7 +80,7 @@ export function PaymentLinkDetailPage() {
           <StatusBadge status={row.status} /> · {formatMoney(row.amount_minor, row.currency_code)}
         </p>
         <p>
-          <strong>Checkout URL</strong>
+          <strong>{t('paymentLinkDetail.checkoutUrl')}</strong>
           <br />
           <a href={webUrl} target="_blank" rel="noreferrer">
             {webUrl}
@@ -88,15 +95,18 @@ export function PaymentLinkDetailPage() {
               push('Copied');
             }}
           >
-            Copy URL
+            {t('paymentLinkDetail.copyUrl')}
           </Button>
           <Link to={`/checkout/${row.public_token}`} target="_blank">
-            <Button type="button">Open checkout</Button>
+            <Button type="button">{t('paymentLinkDetail.openCheckout')}</Button>
           </Link>
         </div>
         <p style={{color: 'var(--v4-text-muted)'}}>
-          Created {formatDate(row.created_at)} · Uses {row.use_count ?? 0}
-          {row.max_uses != null ? ` / ${row.max_uses}` : ''}
+          {t('paymentLinkDetail.createdUses', {
+            date: formatDate(row.created_at),
+            count: String(row.use_count ?? 0),
+            max: maxUses,
+          })}
         </p>
       </div>
     </div>

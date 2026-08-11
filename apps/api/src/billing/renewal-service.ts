@@ -2,6 +2,8 @@ import {pgQuery, withPgTransaction} from '../infrastructure/db/postgres.js';
 import {AppError} from '../foundation/errors.js';
 import {emitOutboxEvent, writeSecurityEvent} from '../foundation/audit.js';
 import {paymentCoreService} from '../payments/payment-core-service.js';
+import {allowSandboxPaymentTokens} from '../platform/runtime-config.js';
+import {assertProductionPaymentMethodAllowed} from '../platform/sandbox-token-guard.js';
 import {
   advanceSubscriptionPeriod,
   canCollectAttempt,
@@ -282,7 +284,7 @@ export const renewalService = {
     if (prepared.skip) return prepared;
 
     const {sub, price, invoice, attemptNumber, idempotencyKey} = prepared;
-    const token = sub.payment_method_token || 'tok_billing_ok';
+    const token = sub.payment_method_token || (allowSandboxPaymentTokens() ? 'tok_billing_ok' : null);
 
     // Ambiguous prior attempt: query-before-retry — do not create a new charge blindly.
     // For sandbox, status lookup via router if provider_reference exists on last AMBIGUOUS attempt.
@@ -325,13 +327,22 @@ export const renewalService = {
       }
     }
 
+    if (!token) {
+      throw new AppError(
+        'PAYMENT_METHOD_REQUIRED',
+        'Subscription renewal requires a stored payment method in production',
+        422,
+      );
+    }
+    assertProductionPaymentMethodAllowed(token);
+
     const collection = await paymentCoreService.collectForBilling(sub.organization_id, {
       amountMinor: String(price.unit_amount_minor),
       currencyCode: String(price.currency_code).trim(),
       customerEmail: null,
       description: `Invoice ${invoice.number}`,
       reference: invoice.number,
-      paymentMethodToken: /FAIL|AMBIGUOUS|TIMEOUT/i.test(String(token)) ? token : token || 'tok_ok',
+      paymentMethodToken: token,
       idempotencyKey,
       metadata: {invoice_id: invoice.id, subscription_id: sub.id, attempt_number: attemptNumber},
     });

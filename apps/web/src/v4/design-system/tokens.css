@@ -1,5 +1,6 @@
 :root {
   --v4-font-sans: "Source Sans 3", "Segoe UI", sans-serif;
+  --v4-font-arabic: "Noto Sans Arabic", "Source Sans 3", "Segoe UI", sans-serif;
   --v4-font-display: "Fraunces", "Georgia", serif;
   --v4-font-mono: "IBM Plex Mono", "Consolas", monospace;
 
@@ -52,13 +53,33 @@
 }
 
 [data-theme='dark'] {
-  --v4-bg: #0b1220;
-  --v4-bg-elevated: #142033;
-  --v4-bg-muted: #1c2b40;
-  --v4-bg-sidebar: #08101c;
-  --v4-border: #2a3b52;
-  --v4-border-strong: #3d516b;
+  --v4-bg: #0a0f18;
+  --v4-bg-elevated: #121c2c;
+  --v4-bg-muted: #1a2838;
+  --v4-bg-sidebar: #060b12;
+  --v4-bg-sidebar-hover: #152030;
+  --v4-border: #2d3f56;
+  --v4-border-strong: #3f5570;
   --v4-text: #e8eef6;
-  --v4-text-muted: #9aadc2;
-  --v4-accent-soft: #16382d;
+  --v4-text-muted: #94a8bd;
+  --v4-text-inverse: #f0f4f8;
+  --v4-accent: #22c993;
+  --v4-accent-hover: #1aad7d;
+  --v4-accent-soft: #0f2e24;
+  --v4-danger: #f97066;
+  --v4-danger-soft: #3d1a18;
+  --v4-warning: #fdb022;
+  --v4-warning-soft: #3d2a14;
+  --v4-info: #528bff;
+  --v4-info-soft: #142a4d;
+  --v4-focus: #3dd4a8;
+  --v4-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
+
+  --v4-status-succeeded: #32d583;
+  --v4-status-failed: #f97066;
+  --v4-status-pending: #fdb022;
+  --v4-status-cancelled: #98a2b3;
+  --v4-status-pastdue: #f79009;
+  --v4-status-sandbox: #b692f6;
+  --v4-status-live: #32d583;
 }

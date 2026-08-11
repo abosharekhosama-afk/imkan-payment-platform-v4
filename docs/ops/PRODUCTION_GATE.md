@@ -6,6 +6,12 @@
 
 **P15.2 note:** Infrastructure/security baseline improved (Redis RL architecture, secrets layer, HttpOnly cookies, monitoring baseline, backup drill). This does **not** make the gate PASS.
 
+**P15.3 note:** PayTabs V4 sandbox adapter + provider abstraction delivered (SANDBOX only). Internal Sandbox regression PASS. **Does not** activate LIVE PayTabs or change gate to PASS.
+
+**P15.4 note:** Real sandbox HTTP certification infrastructure ready. **BLOCKED** on merchant sandbox credentials + public webhook. Gate remains **NOT PASSED**.
+
+**P15.5 note:** Preflight gating + credential-gated E2E harness ready. Real HTTP/HPP/webhook/refund **BLOCKED** — credentials + public HTTPS webhook absent. PayTabs **SANDBOX_TESTED** (not CERTIFIED). Gate remains **NOT PASSED**.
+
 | Requirement | Evidence | Test | Result | Date | Status |
 |---|---|---|---|---|---|
 | Signup | `/signup` + register API | phase2 / test:pg | Works | 2026-08-10 | PASS |
@@ -23,8 +29,8 @@
 | API authorization | requirePermission | phase6_6 | | 2026-08-10 | PASS |
 | Tenant isolation | cross-tenant refund/renewals | test:pg | | 2026-08-10 | PASS |
 | Custom roles | escalation guards | phase6_6 | | 2026-08-10 | PASS |
-| First live provider | | | DEC-009 | | **BLOCKED** |
-| Webhooks | signature + state apply + ledger | phase5 + code | Sandbox | 2026-08-10 | PARTIAL |
+| First live provider | PayTabs sandbox adapter only | DEC-009 | P15.3 simulate | 2026-08-10 | **BLOCKED** (LIVE) |
+| Webhooks | signature + state apply + ledger + PayTabs HMAC | phase5 + P15.3 | Sandbox + simulate | 2026-08-10 | PARTIAL |
 | Credential security | hashing + secret_ref metadata + resolver | P15.2 | KMS vendor not wired | 2026-08-10 | PARTIAL |
 | Ledger | balanced journals + unique source | refund + P15.1-B | | 2026-08-10 | PASS |
 | Balances | Financial Core SoT (`GET /balances`) | P15.1-C | | 2026-08-10 | PASS |
@@ -41,15 +47,15 @@
 | Security testing | suite + P15.2 regression | test:pg | pen-test missing | 2026-08-10 | PARTIAL |
 | Monitoring/Alerts | `/health/ready` + `/metrics` + alert rules | p15-2-health-metrics | Baseline only | 2026-08-10 | PARTIAL |
 | Backup/Restore | scripts + embedded drill evidence | ops:pg-backup-drill | Local drill PASS; offsite/WAL open | 2026-08-10 | PARTIAL |
-| Unit/API/Integration | test:pg | | 2026-08-10 | PASS |
+| Unit/API/Integration | test:pg | | 224 tests (8 skipped) | 2026-08-10 | PASS |
 | E2E | role-matrix present | not re-executed here | | PARTIAL |
 | Load | | | | | NOT IMPLEMENTED |
 | Financial invariants | refund + P15.1 model/ledger | | | 2026-08-10 | PASS |
 | Live payout / settlement rail | | | mark-paid ≠ bank transfer | | **BLOCKED** |
 
-## Explicit blockers (unchanged by P15.2 completion)
+## Explicit blockers (unchanged by P15.3 completion)
 
-1. **Live Provider = BLOCKED** (DEC-009; registry = sandbox only)
+1. **Live Provider = BLOCKED** (DEC-009 partial; PayTabs LIVE not enabled)
 2. **PCI = BLOCKED** (DEC-011)
 3. **Live payout = BLOCKED** (sandbox mark-paid is not money movement)
 4. **Production Gate = NOT PASSED**
@@ -67,3 +73,15 @@ Financial Core sandbox path completed: model, ledger hardening, balances, settle
 ### 2026-08-10 (P15.2)
 
 Production Security & Infrastructure Gate implemented. See `docs/implementation/P15_2_PRODUCTION_SECURITY_INFRASTRUCTURE.md` and `P15_2_FINAL_AUDIT.md`.
+
+### 2026-08-10 (P15.3)
+
+PayTabs V4 sandbox adapter + provider abstraction. See `docs/implementation/P15_3_PAYTABS_ADAPTER.md` and `P15_3_FINAL_AUDIT.md`. PayTabs status: **SANDBOX_TESTED**. Gate remains **NOT PASSED**.
+
+### 2026-08-10 (P15.4)
+
+Real PayTabs sandbox certification infrastructure (credential gate, HTTP hardening, webhook security tests, checkout redirect). Real HTTP **BLOCKED** — no merchant credentials. See `P15_4_FINAL_AUDIT.md`.
+
+### 2026-08-10 (P15.5)
+
+Real PayTabs Sandbox E2E completion infrastructure (preflight module, CLI, credential-gated E2E tests). Real HTTP/HPP/webhook/refund **BLOCKED** — credentials + public HTTPS webhook absent. PayTabs **SANDBOX_TESTED**. See `P15_5_FINAL_AUDIT.md`.

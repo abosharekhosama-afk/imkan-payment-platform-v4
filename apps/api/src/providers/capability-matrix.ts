@@ -59,7 +59,7 @@ const MATRIX: Record<string, {environment: string; live_blocked_by?: string; cap
   {
     SANDBOX: {environment: 'SANDBOX', capabilities: SANDBOX_CAPABILITIES},
     PAYTABS: {
-      environment: 'LIVE',
+      environment: 'SANDBOX',
       live_blocked_by: 'DEC-009',
       capabilities: PAYTABS_CAPABILITIES,
     },
@@ -81,10 +81,12 @@ export function getCapabilityProfile(code: string) {
     code: key,
     found: true,
     ...profile,
-    note:
+      note:
       key === 'SANDBOX'
         ? 'Sandbox adapter is active'
-        : 'Live adapter registration BLOCKED BY: DEC-009',
+        : key === 'PAYTABS'
+          ? 'PayTabs V4 adapter registered — SANDBOX only in P15.3; LIVE blocked by DEC-009'
+          : 'Live adapter registration BLOCKED BY: DEC-009',
   };
 }
 

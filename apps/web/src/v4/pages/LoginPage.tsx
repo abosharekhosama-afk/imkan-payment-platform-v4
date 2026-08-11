@@ -3,8 +3,10 @@ import {Link, Navigate} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {Alert, Button, Field} from '../design-system/components';
 import {ApiError} from '../api/client';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function LoginPage() {
+  const {t} = useI18n();
   const {token, login, verifyMfa, loading} = useAuth();
   const [email, setEmail] = useState('owner@example.com');
   const [password, setPassword] = useState('Password123!');
@@ -39,19 +41,19 @@ export function LoginPage() {
         <div className="v4-brand" style={{marginBottom: '1.5rem'}}>
           <div className="v4-brand-mark">V4</div>
           <div>
-            <h1 style={{margin: 0, fontFamily: 'var(--v4-font-display)'}}>IMKAN Payments</h1>
-            <p style={{margin: 0, color: 'var(--v4-text-muted)'}}>Sign in to the V4 merchant console</p>
+            <h1 style={{margin: 0, fontFamily: 'var(--v4-font-display)'}}>{t('app.name')}</h1>
+            <p style={{margin: 0, color: 'var(--v4-text-muted)'}}>{t('auth.loginSubtitle')}</p>
           </div>
         </div>
-        <Alert tone="info">Active console uses PostgreSQL `/api/v1` only. Sandbox is the payment rail.</Alert>
+        <Alert tone="info">{t('auth.loginInfo')}</Alert>
         {error ? <Alert tone="danger">{error}</Alert> : null}
         <form onSubmit={onSubmit}>
           {!mfaToken ? (
             <>
-              <Field label="Email">
+              <Field label={t('common.email')}>
                 <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required autoComplete="username" />
               </Field>
-              <Field label="Password">
+              <Field label={t('auth.password')}>
                 <input
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -62,17 +64,21 @@ export function LoginPage() {
               </Field>
             </>
           ) : (
-            <Field label="MFA code">
+            <Field label={t('auth.mfaCode')}>
               <input value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" pattern="\d{6}" required />
             </Field>
           )}
           <Button type="submit" disabled={busy} style={{width: '100%'}}>
-            {busy ? 'Please wait…' : mfaToken ? 'Verify MFA' : 'Sign in'}
+            {busy ? t('common.pleaseWait') : mfaToken ? t('auth.verifyMfa') : t('auth.login')}
           </Button>
         </form>
         {!mfaToken ? (
-          <p style={{marginTop: '1rem', textAlign: 'center'}}>
-            New merchant? <Link to="/signup">Create an account</Link>
+          <p style={{marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem'}}>
+            {t('auth.newMerchant')} <Link to="/signup">{t('auth.createAccount')}</Link>
+            <br />
+            <Link to="/forgot-password">{t('auth.forgotPassword')}</Link>
+            {' · '}
+            <Link to="/resend-verification">{t('auth.resendVerification')}</Link>
           </p>
         ) : null}
       </div>

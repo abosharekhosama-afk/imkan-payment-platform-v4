@@ -344,6 +344,69 @@ export async function registerPhase3Routes(app: FastifyInstance) {
     },
   );
 
+  app.post(
+    '/merchant/documents/upload-intent',
+    {preHandler: [requireOrganizationContext(), requirePermission('documents.manage')]},
+    async (request, reply) => {
+      const body = z
+        .object({
+          document_type_code: codeSchema,
+          subject_type: z.enum(['ORGANIZATION', 'BENEFICIAL_OWNER', 'DIRECTOR', 'REPRESENTATIVE', 'PAYOUT_ACCOUNT']).optional(),
+          subject_id: z.string().uuid().optional(),
+          file_name: z.string().min(1).max(300),
+          mime_type: z.string().min(3).max(150),
+          size_bytes: z.number().int().min(1).max(25 * 1024 * 1024),
+        })
+        .parse(request.body);
+      const row = await documentsService.createUploadIntent(
+        request.auth!.organizationId!,
+        {
+          documentTypeCode: body.document_type_code,
+          subjectType: body.subject_type,
+          subjectId: body.subject_id,
+          fileName: body.file_name,
+          mimeType: body.mime_type,
+          sizeBytes: body.size_bytes,
+        },
+        {userId: request.auth!.userId, requestId: request.id},
+      );
+      return created(reply, request, row);
+    },
+  );
+
+  app.put(
+    '/merchant/documents/:documentId/content',
+    {preHandler: [requireOrganizationContext(), requirePermission('documents.manage')]},
+    async (request, reply) => {
+      const params = z.object({documentId: z.string().uuid()}).parse(request.params);
+      const chunks: Buffer[] = [];
+      for await (const chunk of request.raw) {
+        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+      }
+      const body = Buffer.concat(chunks);
+      const row = await documentsService.uploadContent(request.auth!.organizationId!, params.documentId, body, {
+        userId: request.auth!.userId,
+        requestId: request.id,
+      });
+      return ok(request, row);
+    },
+  );
+
+  app.get(
+    '/merchant/documents/:documentId/content',
+    {preHandler: [requireOrganizationContext(), requirePermission('documents.read')]},
+    async (request, reply) => {
+      const params = z.object({documentId: z.string().uuid()}).parse(request.params);
+      const content = await documentsService.getContent(params.documentId, {organizationId: request.auth!.organizationId!});
+      if (content.mode === 'redirect') {
+        return reply.redirect(content.url);
+      }
+      reply.header('content-type', content.mimeType);
+      reply.header('content-disposition', `inline; filename="${content.fileName.replace(/"/g, '')}"`);
+      return reply.send(content.buffer);
+    },
+  );
+
   // -------------------------------------------------------------------- KYB
 
   app.get(
@@ -557,6 +620,17 @@ export async function registerPhase3Routes(app: FastifyInstance) {
       request,
       await documentsService.review(params.documentId, body.decision, body.reason || null, {userId: request.auth!.userId, requestId: request.id}),
     );
+  });
+
+  app.get('/admin/documents/:documentId/content', {preHandler: [requirePermission('kyb.review')]}, async (request, reply) => {
+    const params = z.object({documentId: z.string().uuid()}).parse(request.params);
+    const content = await documentsService.getContent(params.documentId, {admin: true});
+    if (content.mode === 'redirect') {
+      return reply.redirect(content.url);
+    }
+    reply.header('content-type', content.mimeType);
+    reply.header('content-disposition', `inline; filename="${content.fileName.replace(/"/g, '')}"`);
+    return reply.send(content.buffer);
   });
 
   app.get('/admin/bank-accounts', {preHandler: [requirePermission('bank.review')]}, async (request) => {

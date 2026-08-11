@@ -1,6 +1,6 @@
 # Provider Readiness Matrix
 
-**Date:** 2026-08-09 (updated Phase 5)  
+**Date:** 2026-08-11 (Palestine DISCOVERED research)  
 **Rule applied:** a capability is marked only from repository evidence (working code + tests). Vendor documentation alone is NOT verification (DEC-009).
 
 **Evidence statuses (V4 `provider_capabilities.evidence_status`):**  
@@ -12,6 +12,12 @@
 | PayTabs (legacy MySQL adapter) | PARTIAL (legacy) | PARTIAL (legacy) | UNKNOWN | PARTIAL (legacy; bypass risk on old path) | UNSUPPORTED | UNKNOWN | UNKNOWN | PARTIAL | 🟡 Legacy only — not on V4 Router |
 | Generic Remote | PARTIAL | UNKNOWN | UNKNOWN | UNSUPPORTED | PARTIAL | UNKNOWN | UNKNOWN | PARTIAL | 🟡 Legacy shell |
 | Stripe / Adyen / Checkout.com / others | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 No V4 adapter |
+| **Bank of Palestine Gateway** (`bop`) | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 DISCOVERED — [palestine/RESEARCH.md](./palestine/RESEARCH.md); no public API |
+| **Arab Bank PS** (`arabbank_ps`) | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 DISCOVERED — CyberSource via bank; no public acquiring docs |
+| **Jawwal Pay** (`jawwalpay`) | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 DISCOVERED — contact for online gateway pack |
+| **PalPay** (`palpay`) | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 DISCOVERED — not Pallapay crypto; no public API |
+
+Palestine outreach kits + next adapter plan: [docs/providers/palestine/](./palestine/).
 
 ## V4 Sandbox capability rows (seeded)
 

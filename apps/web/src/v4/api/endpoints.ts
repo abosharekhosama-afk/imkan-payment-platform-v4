@@ -1,4 +1,4 @@
-import {apiV1, type ApiRequestOptions} from './client';
+import {apiV1, ApiError, type ApiRequestOptions} from './client';
 
 type Tok = string | null | undefined;
 
@@ -9,7 +9,7 @@ const withToken = (token: Tok, extra?: ApiRequestOptions): ApiRequestOptions => 
 
 /** Verified against apps/api/src/interfaces/http/apiV1/* */
 export const v4 = {
-  // Auth
+  platformRuntime: () => apiV1<any>('/platform/runtime'),
   register: (body: {
     email: string;
     password: string;
@@ -23,6 +23,14 @@ export const v4 = {
     apiV1<any>('/auth/mfa/verify', {method: 'POST', body}),
   me: (token: Tok) => apiV1<any>('/auth/me', withToken(token)),
   logout: (token: Tok) => apiV1<any>('/auth/logout', withToken(token, {method: 'POST', body: {}})),
+  verifyEmail: (body: {token: string}) => apiV1<any>('/auth/verify-email', {method: 'POST', body}),
+  resendVerification: (body: {email: string}) =>
+    apiV1<any>('/auth/resend-verification', {method: 'POST', body}),
+  forgotPassword: (body: {email: string}) => apiV1<any>('/auth/password/forgot', {method: 'POST', body}),
+  resetPassword: (body: {token: string; password: string}) =>
+    apiV1<any>('/auth/password/reset', {method: 'POST', body}),
+  acceptInvitation: (body: {token: string; name?: string; password?: string}) =>
+    apiV1<any>('/invitations/accept', {method: 'POST', body}),
 
   orgCurrent: (token: Tok) => apiV1<any>('/organizations/current', withToken(token)),
   members: (token: Tok, orgId: string) =>
@@ -39,11 +47,85 @@ export const v4 = {
     apiV1<any>('/merchant/legal-profile', withToken(token, {method: 'PUT', body})),
   putBusinessProfile: (token: Tok, body: unknown) =>
     apiV1<any>('/merchant/business-profile', withToken(token, {method: 'PUT', body})),
+  addOwner: (token: Tok, body: unknown) =>
+    apiV1<any>('/merchant/owners', withToken(token, {method: 'POST', body})),
+  addDirector: (token: Tok, body: unknown) =>
+    apiV1<any>('/merchant/directors', withToken(token, {method: 'POST', body})),
+  addRepresentative: (token: Tok, body: unknown) =>
+    apiV1<any>('/merchant/representatives', withToken(token, {method: 'POST', body})),
+  removeOwner: (token: Tok, personId: string) =>
+    apiV1<any>(`/merchant/owners/${personId}/remove`, withToken(token, {method: 'POST', body: {}})),
+  removeDirector: (token: Tok, personId: string) =>
+    apiV1<any>(`/merchant/directors/${personId}/remove`, withToken(token, {method: 'POST', body: {}})),
+  removeRepresentative: (token: Tok, personId: string) =>
+    apiV1<any>(`/merchant/representatives/${personId}/remove`, withToken(token, {method: 'POST', body: {}})),
   kyb: (token: Tok) => apiV1<any>('/merchant/kyb', withToken(token)),
   kybSubmit: (token: Tok, body: unknown = {}) =>
     apiV1<any>('/merchant/kyb/submit', withToken(token, {method: 'POST', body, idempotent: true})),
   documents: (token: Tok) => apiV1<any[]>('/merchant/documents', withToken(token)),
+  createDocument: (token: Tok, body: unknown) =>
+    apiV1<any>('/merchant/documents', withToken(token, {method: 'POST', body})),
+  documentUploadIntent: (token: Tok, body: unknown) =>
+    apiV1<any>('/merchant/documents/upload-intent', withToken(token, {method: 'POST', body})),
+  uploadDocumentContent: async (token: Tok, documentId: string, file: File) => {
+    const headers: Record<string, string> = {
+      'Content-Type': file.type || 'application/octet-stream',
+    };
+    if (token && token !== 'cookie-session' && !token.startsWith('pk_')) {
+      headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
+    const res = await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/v1/merchant/documents/${documentId}/content`, {
+      method: 'PUT',
+      headers,
+      body: file,
+      credentials: 'include',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = (json as any)?.error || {};
+      throw new ApiError(err.message || `Upload failed (${res.status})`, {status: res.status, code: err.code});
+    }
+    return (json as any).data ?? json;
+  },
+
+  // Platform admin — KYB
+  adminKybCases: (token: Tok, status?: string) =>
+    apiV1<any[]>(`/admin/kyb/cases${status ? `?status=${encodeURIComponent(status)}` : ''}`, withToken(token)),
+  adminKybCase: (token: Tok, caseId: string) => apiV1<any>(`/admin/kyb/cases/${caseId}`, withToken(token)),
+  adminKybStartReview: (token: Tok, caseId: string) =>
+    apiV1<any>(`/admin/kyb/cases/${caseId}/start-review`, withToken(token, {method: 'POST', body: {}})),
+  adminKybRequestInfo: (token: Tok, caseId: string, body: {reason: string}) =>
+    apiV1<any>(`/admin/kyb/cases/${caseId}/request-information`, withToken(token, {method: 'POST', body})),
+  adminKybDecision: (
+    token: Tok,
+    caseId: string,
+    body: {decision: 'APPROVED' | 'REJECTED'; reason: string; stepUpToken?: string},
+  ) =>
+    apiV1<any>(`/admin/kyb/cases/${caseId}/decision`, {
+      ...withToken(token, {method: 'POST', body: {decision: body.decision, reason: body.reason}, idempotent: true}),
+      stepUpToken: body.stepUpToken,
+    }),
+  adminDocumentReview: (token: Tok, documentId: string, body: {decision: 'ACCEPTED' | 'REJECTED'; reason?: string}) =>
+    apiV1<any>(`/admin/documents/${documentId}/review`, withToken(token, {method: 'POST', body})),
+  openAdminDocument: async (token: Tok, documentId: string) => {
+    const headers: Record<string, string> = {};
+    if (token && token !== 'cookie-session') {
+      headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
+    const res = await fetch(
+      `${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/v1/admin/documents/${documentId}/content`,
+      {headers, credentials: 'include'},
+    );
+    if (!res.ok) throw new ApiError(`Download failed (${res.status})`, {status: res.status});
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
   bankAccounts: (token: Tok) => apiV1<any[]>('/merchant/bank-accounts', withToken(token)),
+  createBankAccount: (token: Tok, body: unknown, stepUpToken?: string) =>
+    apiV1<any>('/merchant/bank-accounts', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
+  masterData: (token: Tok, type: string) => apiV1<any[]>(`/master-data/${type}`, withToken(token)),
 
   // Payments
   dashboardSummary: (token: Tok) => apiV1<any>('/merchant/dashboard/summary', withToken(token)),

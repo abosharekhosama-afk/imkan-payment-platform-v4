@@ -1,6 +1,7 @@
 import {pgQuery, withPgTransaction} from '../infrastructure/db/postgres.js';
 import {AppError, notFound} from '../foundation/errors.js';
 import {emitOutboxEvent, writeAuditEvent} from '../foundation/audit.js';
+import {assertProductionPaymentMethodAllowed} from '../platform/sandbox-token-guard.js';
 import {nextBillingDate} from './billing-policy.js';
 import {
   recordSubscriptionTransition,
@@ -43,6 +44,7 @@ export const subscriptionService = {
           : nextBillingDate(now, price.rows[0].interval_unit, Number(price.rows[0].interval_count));
       const status: SubscriptionStatus = trialDays > 0 ? 'TRIALING' : 'ACTIVE';
       const token = input.paymentMethodToken || customer.rows[0].default_payment_method_token || null;
+      assertProductionPaymentMethodAllowed(token);
 
       const r = await client.query(
         `INSERT INTO subscriptions (

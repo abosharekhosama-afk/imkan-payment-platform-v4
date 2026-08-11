@@ -29,9 +29,20 @@ Call log:
 - text: V4
 - heading "IMKAN Payments" [level=1]
 - paragraph: Sign in to the V4 merchant console
-- text: "Active console uses PostgreSQL `/api/v1` only. Sandbox is the payment rail. MFA code"
-- textbox "MFA code"
-- button "Verify MFA"
+- text: "Active console uses PostgreSQL `/api/v1` only. Sandbox is the payment rail. TypeError: Failed to fetch Email"
+- textbox "Email": e2e-owner@example.test
+- text: Password
+- textbox "Password": SecurePass!123
+- button "Sign in"
+- paragraph:
+  - text: New merchant?
+  - link "Create an account":
+    - /url: /signup
+  - link "Forgot password":
+    - /url: /forgot-password
+  - text: ·
+  - link "Resend verification":
+    - /url: /resend-verification
 ```
 
 # Test source

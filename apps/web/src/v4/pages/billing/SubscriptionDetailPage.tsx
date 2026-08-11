@@ -6,8 +6,10 @@ import {Alert, Button, LoadingState, PageHeader, StatusBadge} from '../../design
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, shortId} from '../../utils/money';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function SubscriptionDetailPage() {
+  const {t} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
@@ -42,23 +44,27 @@ export function SubscriptionDetailPage() {
   return (
     <div>
       <PageHeader
-        title={`Subscription ${shortId(row.id)}`}
-        crumbs={[{label: 'Billing'}, {label: 'Subscriptions', to: '/subscriptions'}, {label: 'Detail'}]}
+        title={t('subscriptionDetail.title', {id: shortId(row.id)})}
+        crumbs={[
+          {label: t('section.billing')},
+          {label: t('nav.subscriptions'), to: '/subscriptions'},
+          {label: t('common.detail')},
+        ]}
         actions={
           <>
             <Can anyOf={['subscriptions.pause', 'subscriptions.manage', 'billing.manage']}>
               <Button variant="secondary" type="button" onClick={() => void act('pause')}>
-                Pause
+                {t('common.pause')}
               </Button>
             </Can>
             <Can anyOf={['subscriptions.resume', 'subscriptions.manage', 'billing.manage']}>
               <Button variant="secondary" type="button" onClick={() => void act('resume')}>
-                Resume
+                {t('common.resume')}
               </Button>
             </Can>
             <Can anyOf={['subscriptions.cancel', 'subscriptions.manage', 'billing.manage']}>
               <Button variant="danger" type="button" onClick={() => void act('cancel')}>
-                Cancel
+                {t('common.cancel')}
               </Button>
             </Can>
           </>
@@ -69,10 +75,18 @@ export function SubscriptionDetailPage() {
         <p>
           <StatusBadge status={row.status} />
         </p>
-        <p>Customer: {shortId(row.customer_id)}</p>
-        <p>Price: {shortId(row.price_id)}</p>
-        <p>Next billing: {formatDate(row.next_billing_at)}</p>
-        <p>Current period end: {formatDate(row.current_period_end)}</p>
+        <p>
+          {t('subscriptionDetail.labelCustomer')} {shortId(row.customer_id)}
+        </p>
+        <p>
+          {t('subscriptionDetail.labelPrice')} {shortId(row.price_id)}
+        </p>
+        <p>
+          {t('subscriptionDetail.labelNextBilling')} {formatDate(row.next_billing_at)}
+        </p>
+        <p>
+          {t('subscriptionDetail.labelPeriodEnd')} {formatDate(row.current_period_end)}
+        </p>
       </div>
     </div>
   );

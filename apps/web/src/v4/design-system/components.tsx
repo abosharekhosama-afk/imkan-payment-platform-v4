@@ -1,5 +1,6 @@
 import React from 'react';
 import {Link} from 'react-router-dom';
+import {useI18n} from '../i18n/I18nProvider';
 
 export function PageHeader({
   title,
@@ -83,8 +84,9 @@ export function EmptyState({title, description}: {title: string; description?: s
   );
 }
 
-export function LoadingState({label = 'Loading…'}: {label?: string}) {
-  return <div className="v4-loading v4-card">{label}</div>;
+export function LoadingState({label}: {label?: string}) {
+  const {t} = useI18n();
+  return <div className="v4-loading v4-card">{label ?? t('common.loading')}</div>;
 }
 
 export function ErrorState({message}: {message: string}) {
@@ -104,7 +106,8 @@ export function DataTable({
   rows: React.ReactNode[][];
   empty?: React.ReactNode;
 }) {
-  if (!rows.length) return <>{empty || <EmptyState title="No records" />}</>;
+  const {t} = useI18n();
+  if (!rows.length) return <>{empty || <EmptyState title={t('common.noRecords')} />}</>;
   return (
     <div className="v4-table-wrap">
       <table className="v4-table">
@@ -138,6 +141,7 @@ export function Modal({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const {t} = useI18n();
   return (
     <div className="v4-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="v4-modal" onClick={(e) => e.stopPropagation()}>
@@ -145,7 +149,7 @@ export function Modal({
           <h3 style={{margin: 0}}>{title}</h3>
           <div className="spacer" />
           <Button variant="ghost" onClick={onClose} type="button">
-            Close
+            {t('common.close')}
           </Button>
         </div>
         {children}
@@ -163,6 +167,7 @@ export function Drawer({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const {t} = useI18n();
   return (
     <div className="v4-drawer-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="v4-drawer" onClick={(e) => e.stopPropagation()}>
@@ -170,7 +175,7 @@ export function Drawer({
           <h3 style={{margin: 0}}>{title}</h3>
           <div className="spacer" />
           <Button variant="ghost" onClick={onClose} type="button">
-            Close
+            {t('common.close')}
           </Button>
         </div>
         {children}
@@ -182,7 +187,7 @@ export function Drawer({
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   onConfirm,
   onClose,
   danger,
@@ -194,16 +199,17 @@ export function ConfirmDialog({
   onClose: () => void;
   danger?: boolean;
 }) {
+  const {t} = useI18n();
   return (
     <Modal title={title} onClose={onClose}>
       <p>{message}</p>
       <div className="v4-toolbar">
         <div className="spacer" />
         <Button variant="secondary" onClick={onClose} type="button">
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} type="button">
-          {confirmLabel}
+          {confirmLabel ?? t('common.confirm')}
         </Button>
       </div>
     </Modal>
@@ -211,14 +217,12 @@ export function ConfirmDialog({
 }
 
 export function ComingSoon({feature, reason}: {feature: string; reason: string}) {
+  const {t} = useI18n();
   return (
     <div>
-      <PageHeader title={feature} description="Not available in the current V4 phase." />
-      <Alert tone="warning">
-        <strong>{feature}</strong> is not implemented on the V4 PostgreSQL API yet. {reason} This screen does not call
-        frozen Legacy MySQL APIs and does not invent financial data.
-      </Alert>
-      <EmptyState title="Coming later" description="Tracked for Financial Core / later phases — not Phase 6.5." />
+      <PageHeader title={feature} description={t('comingSoon.description')} />
+      <Alert tone="warning">{t('comingSoon.alert', {feature, reason})}</Alert>
+      <EmptyState title={t('comingSoon.title')} description={t('comingSoon.subtitle')} />
     </div>
   );
 }
