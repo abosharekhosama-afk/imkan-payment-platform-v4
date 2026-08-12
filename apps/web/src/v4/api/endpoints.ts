@@ -1,4 +1,4 @@
-import {apiV1, ApiError, getCsrfTokenFromDocument, type ApiRequestOptions} from './client';
+import {apiV1, ApiError, downloadApiV1, getCsrfTokenFromDocument, type ApiRequestOptions} from './client';
 
 type Tok = string | null | undefined;
 
@@ -168,6 +168,10 @@ export const v4 = {
   customers: (token: Tok) => apiV1<any[]>('/customers', withToken(token)),
   createCustomer: (token: Tok, body: unknown) =>
     apiV1<any>('/customers', withToken(token, {method: 'POST', body, idempotent: true})),
+  updateCustomer: (token: Tok, id: string, body: unknown) =>
+    apiV1<any>(`/customers/${id}`, withToken(token, {method: 'PATCH', body})),
+  customerPayments: (token: Tok, id: string) =>
+    apiV1<any[]>(`/customers/${id}/payments`, withToken(token)),
   products: (token: Tok) => apiV1<any[]>('/products', withToken(token)),
   createProduct: (token: Tok, body: unknown) =>
     apiV1<any>('/products', withToken(token, {method: 'POST', body, idempotent: true})),
@@ -201,6 +205,15 @@ export const v4 = {
   createProviderRoute: (token: Tok, body: unknown, stepUpToken?: string) =>
     apiV1<any>('/provider-routes', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
   providerWebhooks: (token: Tok) => apiV1<any[]>('/provider-webhooks', withToken(token)),
+  merchantWebhookEndpoints: (token: Tok) => apiV1<any[]>('/merchant/webhook-endpoints', withToken(token)),
+  createMerchantWebhookEndpoint: (token: Tok, body: unknown) =>
+    apiV1<any>('/merchant/webhook-endpoints', withToken(token, {method: 'POST', body})),
+  updateMerchantWebhookEndpoint: (token: Tok, id: string, body: unknown) =>
+    apiV1<any>(`/merchant/webhook-endpoints/${id}`, withToken(token, {method: 'PATCH', body})),
+  merchantWebhookDeliveries: (token: Tok) =>
+    apiV1<any[]>('/merchant/webhook-deliveries', withToken(token)),
+  retryMerchantWebhookDelivery: (token: Tok, deliveryId: string) =>
+    apiV1<any>(`/merchant/webhook-deliveries/${deliveryId}/retry`, withToken(token, {method: 'POST', body: {}})),
   apiKeys: (token: Tok) => apiV1<any[]>('/api-keys', withToken(token)),
   enableMfa: (token: Tok) => apiV1<any>('/auth/mfa/enable', withToken(token, {method: 'POST', body: {}})),
   stepUp: (token: Tok, totp: string) =>
@@ -226,6 +239,36 @@ export const v4 = {
     apiV1<any>('/platform/invitations', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
   revokePlatformInvitation: (token: Tok, id: string, stepUpToken?: string) =>
     apiV1<any>(`/platform/invitations/${id}/revoke`, withToken(token, {method: 'POST', body: {}, stepUpToken})),
+
+  platformOrganizations: (token: Tok, query = '') =>
+    apiV1<any[]>(`/platform/organizations${query}`, withToken(token)),
+  downloadPlatformOrganizationsCsv: (token: Tok, query = '') =>
+    downloadApiV1(`/platform/organizations${query}${query.includes('?') ? '&' : '?'}format=csv`, 'organizations.csv', token),
+  platformOrganization: (token: Tok, organizationId: string) =>
+    apiV1<any>(`/platform/organizations/${organizationId}`, withToken(token)),
+  updatePlatformOrganizationStatus: (token: Tok, organizationId: string, body: unknown, stepUpToken?: string) =>
+    apiV1<any>(`/platform/organizations/${organizationId}/status`, withToken(token, {method: 'PATCH', body, stepUpToken})),
+  updatePlatformOrganizationSettings: (token: Tok, organizationId: string, body: unknown) =>
+    apiV1<any>(`/platform/organizations/${organizationId}/settings`, withToken(token, {method: 'PATCH', body})),
+  platformOrganizationPayments: (token: Tok, organizationId: string, query = '') =>
+    apiV1<any[]>(`/platform/organizations/${organizationId}/payments${query}`, withToken(token)),
+  downloadPlatformOrganizationPaymentsCsv: (token: Tok, organizationId: string) =>
+    downloadApiV1(`/platform/organizations/${organizationId}/payments?format=csv`, `payments-${organizationId}.csv`, token),
+  platformWebhookDeliveries: (token: Tok, query = '') =>
+    apiV1<any[]>(`/platform/webhook-deliveries${query}`, withToken(token)),
+  retryPlatformWebhookDelivery: (token: Tok, deliveryId: string) =>
+    apiV1<any>(`/platform/webhook-deliveries/${deliveryId}/retry`, withToken(token, {method: 'POST', body: {}})),
+  retryFailedPlatformWebhooks: (token: Tok, body: {organization_id?: string} = {}) =>
+    apiV1<any>('/platform/webhook-deliveries/retry-failed', withToken(token, {method: 'POST', body})),
+  platformSystemHealth: (token: Tok) => apiV1<any>('/platform/system/health', withToken(token)),
+  platformAuditEvents: (token: Tok, query = '') =>
+    apiV1<any[]>(`/platform/audit-events${query}`, withToken(token)),
+  downloadPlatformAuditCsv: (token: Tok, query = '') =>
+    downloadApiV1(`/platform/audit-events${query}${query.includes('?') ? '&' : '?'}format=csv`, 'audit-events.csv', token),
+  platformSecurityEvents: (token: Tok, query = '') =>
+    apiV1<any[]>(`/platform/security-events${query}`, withToken(token)),
+  platformErrorReports: (token: Tok, query = '') =>
+    apiV1<any[]>(`/platform/error-reports${query}`, withToken(token)),
 
   // RBAC / custom roles (Phase 6.6)
   rbacRoles: (token: Tok) => apiV1<any>('/rbac/roles', withToken(token)),

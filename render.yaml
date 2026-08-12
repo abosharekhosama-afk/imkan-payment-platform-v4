@@ -1,59 +1,128 @@
+# Render Blueprint — Payment Platform V4
+# Deploy: Render Dashboard → New → Blueprint → connect repo
+# Docs: docs/ops/RENDER_DEPLOY.md
+#
+# Free-tier notes:
+# - Web service may sleep after inactivity (~50s cold start).
+# - Use Neon (PostgreSQL) + Upstash (Redis) free tiers; paste URLs in env vars below.
+# - Set VITE_API_URL + CORS_ORIGIN after the API URL is known.
+
 services:
+  # --- V4 API (PostgreSQL + outbox worker in-process) ---
   - type: web
-    name: payment-platform-api
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerCommand: node apps/api/dist/server.js
-    plan: starter
-    healthCheckPath: /health/ready
-    preDeployCommand: npm run db:migrate
+    name: imkan-payments-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install --include=dev && npm run build -w apps/api
+    startCommand: node apps/api/dist/server.js
+    preDeployCommand: npm run db:migrate:pg
+    healthCheckPath: /api/v1/health/ready
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "3000"
-      - key: DATABASE_URL
+      - key: APP_ENV
+        value: production
+      - key: ENABLE_LEGACY_V1
+        value: "false"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: SESSION_TRANSPORT
+        value: cookie
+      - key: OUTBOX_WORKER_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_STORE
+        value: redis
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "true"
+      - key: REQUIRE_KYB_FOR_PAYMENTS
+        value: "true"
+      - key: EMAIL_TRANSPORT
+        value: smtp
+      - key: PAYMENT_PROVIDER
+        value: stripe
+      - key: STRIPE_ADAPTER_MODE
+        value: http
+      - key: STRIPE_ENV
+        value: test
+      - key: STRIPE_ALLOW_LIVE
+        value: "false"
+      - key: STRIPE_AUTO_ROUTE
+        value: "false"
+      - key: STRIPE_CHECKOUT_UI
+        value: elements
+      - key: EXPOSE_DEV_TOKENS
+        value: "false"
+      # --- Paste from Neon / external PostgreSQL ---
+      - key: DATABASE_URL_PG
         sync: false
+      # --- Paste from Upstash Redis ---
       - key: REDIS_URL
+        sync: false
+      # --- Public URLs (set after first deploy) ---
+      - key: APP_PUBLIC_URL
         sync: false
       - key: CORS_ORIGIN
         sync: false
-      - key: PAYMENT_PROVIDER
-        value: sandbox
+      - key: STRIPE_SUCCESS_URL
+        sync: false
+      - key: STRIPE_CANCEL_URL
+        sync: false
+      # --- SMTP (Brevo / SendGrid / etc.) ---
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: IMKAN Payments
+      - key: PLATFORM_KYB_NOTIFY_EMAIL
+        sync: false
+      # --- Stripe test keys (switch to live when ready) ---
+      - key: STRIPE_TEST_SECRET_KEY
+        sync: false
+      - key: STRIPE_TEST_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_TEST_WEBHOOK_SECRET
+        sync: false
+      # --- Generated / set manually in Render dashboard ---
       - key: WEBHOOK_SIGNING_SECRET
         generateValue: true
       - key: PAYMENT_TOKEN_ENCRYPTION_KEY
         generateValue: true
-      - key: SESSION_TTL_HOURS
-        value: "24"
-      - key: RATE_LIMIT_MAX
-        value: "120"
-      - key: RATE_LIMIT_WINDOW
-        value: 1 minute
-  - type: worker
-    name: payment-platform-worker
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerCommand: node apps/api/dist/worker.js
-    plan: starter
+      - key: BANK_DATA_ENCRYPTION_KEY
+        generateValue: true
+      - key: BANK_FINGERPRINT_HMAC_KEY
+        generateValue: true
+      - key: SANDBOX_WEBHOOK_SECRET
+        generateValue: true
+
+  # --- Static merchant + platform console ---
+  - type: web
+    name: imkan-payments-web
+    runtime: static
+    plan: free
+    buildCommand: npm install --include=dev && npm run build -w apps/web
+    staticPublishPath: apps/web/dist
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: WEBHOOK_SIGNING_SECRET
-        sync: false
-      - key: PAYMENT_TOKEN_ENCRYPTION_KEY
-        sync: false
-  - type: static_site
-    name: payment-platform-web
-    rootDir: apps/web
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: VITE_API_URL
-        sync: false
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_SESSION_TRANSPORT
+        value: cookie
       - key: VITE_REQUIRE_LOGIN
         value: "true"
+      # Set to https://imkan-payments-api.onrender.com (your API URL)
+      - key: VITE_API_URL
+        sync: false
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -23,12 +23,6 @@ import {
   VerifyEmailPage,
 } from '../pages/AuthPublicPages';
 import {CustomersPage} from '../pages/billing/CustomersPage';
-import {ProductsPage} from '../pages/billing/ProductsPage';
-import {PricesPage} from '../pages/billing/PricesPage';
-import {SubscriptionsPage} from '../pages/billing/SubscriptionsPage';
-import {SubscriptionDetailPage} from '../pages/billing/SubscriptionDetailPage';
-import {InvoicesPage} from '../pages/billing/InvoicesPage';
-import {InvoiceDetailPage} from '../pages/billing/InvoiceDetailPage';
 import {MerchantProfilePage} from '../pages/merchant/MerchantProfilePage';
 import {BusinessPage} from '../pages/merchant/BusinessPage';
 import {PeoplePage} from '../pages/merchant/PeoplePage';
@@ -40,6 +34,7 @@ import {ProvidersPage} from '../pages/providers/ProvidersPage';
 import {ProviderAccountsPage} from '../pages/providers/ProviderAccountsPage';
 import {WebhooksPage} from '../pages/providers/WebhooksPage';
 import {ApiKeysPage} from '../pages/developers/ApiKeysPage';
+import {OutboundWebhooksPage} from '../pages/developers/OutboundWebhooksPage';
 import {
   AppearancePage,
   AuditPage,
@@ -50,10 +45,17 @@ import {
   UsersPage,
 } from '../pages/security/SecurityPages';
 import {
+  PlatformOrganizationDetailPage,
+  PlatformOrganizationsPage,
+  PlatformObservabilityPage,
+} from '../pages/platform/PlatformOrganizationsPages';
+import {
   PlatformKybDetailPage,
   PlatformKybListPage,
 } from '../pages/platform/PlatformKybPages';
 import {PlatformTeamPage} from '../pages/platform/PlatformTeamPage';
+import {PlatformSystemHealthPage} from '../pages/platform/PlatformSystemHealthPage';
+import {PlatformWebhooksPage} from '../pages/platform/PlatformWebhooksPage';
 import {ComingSoonPage} from '../pages/ComingSoonPage';
 import {ForbiddenPage} from '../pages/ForbiddenPage';
 import {RequirePermission} from '../rbac/RequirePermission';
@@ -80,7 +82,7 @@ function RP({anyOf, children}: {anyOf: string[]; children: React.ReactNode}) {
 /** Home ('/') sends platform team accounts to the platform workspace; merchants see the dashboard. */
 function HomeRedirect() {
   const {isPlatform} = useAuth();
-  if (isPlatform) return <Navigate to="/platform" replace />;
+  if (isPlatform) return <Navigate to="/platform/organizations" replace />;
   return (
     <RP anyOf={['payments.read', 'org.read', 'billing.read', 'platform.admin', 'platform.support']}>
       <DashboardPage />
@@ -127,12 +129,14 @@ export function AppRoutes() {
         <Route path="payments/:id" element={<RP anyOf={['payments.read']}><PaymentDetailPage /></RP>} />
         <Route path="transactions" element={<RP anyOf={['payments.read']}><TransactionsPage /></RP>} />
         <Route path="customers" element={<RP anyOf={['customers.read', 'billing.read', 'billing.manage']}><CustomersPage /></RP>} />
-        <Route path="products" element={<RP anyOf={['products.read', 'plans.read', 'billing.manage']}><ProductsPage /></RP>} />
-        <Route path="prices" element={<RP anyOf={['prices.read', 'plans.read', 'billing.manage']}><PricesPage /></RP>} />
-        <Route path="subscriptions" element={<RP anyOf={['subscriptions.read', 'billing.read', 'billing.manage']}><SubscriptionsPage /></RP>} />
-        <Route path="subscriptions/:id" element={<RP anyOf={['subscriptions.read', 'billing.read', 'billing.manage']}><SubscriptionDetailPage /></RP>} />
-        <Route path="invoices" element={<RP anyOf={['invoices.read', 'billing.read', 'billing.manage']}><InvoicesPage /></RP>} />
-        <Route path="invoices/:id" element={<RP anyOf={['invoices.read', 'billing.read', 'billing.manage']}><InvoiceDetailPage /></RP>} />
+        <Route path="customers/:id" element={<RP anyOf={['customers.read', 'billing.read', 'billing.manage']}><CustomersPage /></RP>} />
+        {/* Books owns catalog/invoicing — redirect legacy billing URLs away from the console */}
+        <Route path="products" element={<Navigate to="/customers" replace />} />
+        <Route path="prices" element={<Navigate to="/customers" replace />} />
+        <Route path="subscriptions" element={<Navigate to="/payment-links" replace />} />
+        <Route path="subscriptions/:id" element={<Navigate to="/payment-links" replace />} />
+        <Route path="invoices" element={<Navigate to="/payment-links" replace />} />
+        <Route path="invoices/:id" element={<Navigate to="/payment-links" replace />} />
         <Route path="merchant/profile" element={<RP anyOf={['merchant.read']}><MerchantProfilePage /></RP>} />
         <Route path="merchant/business" element={<RP anyOf={['merchant.read']}><BusinessPage /></RP>} />
         <Route path="merchant/people" element={<RP anyOf={['merchant.read']}><PeoplePage /></RP>} />
@@ -143,6 +147,7 @@ export function AppRoutes() {
         <Route path="providers/accounts" element={<RP anyOf={['providers.read']}><ProviderAccountsPage /></RP>} />
         <Route path="providers/webhooks" element={<RP anyOf={['webhooks.read', 'events.read']}><WebhooksPage /></RP>} />
         <Route path="developers/api-keys" element={<RP anyOf={['api_keys.read', 'developer.read']}><ApiKeysPage /></RP>} />
+        <Route path="developers/outbound-webhooks" element={<RP anyOf={['webhooks.read', 'webhooks.manage', 'developer.read']}><OutboundWebhooksPage /></RP>} />
         <Route path="security/users" element={<RP anyOf={['users.read']}><UsersPage /></RP>} />
         <Route path="security/roles" element={<RP anyOf={['roles.read']}><RolesPage /></RP>} />
         <Route path="security/audit" element={<RP anyOf={['audit.read']}><AuditPage /></RP>} />
@@ -156,7 +161,12 @@ export function AppRoutes() {
         <Route path="payouts" element={<RP anyOf={['payouts.read', 'payouts.manage']}><PayoutsPage /></RP>} />
         <Route path="disputes" element={<RP anyOf={['disputes.read', 'disputes.manage']}><DisputesPage /></RP>} />
         <Route path="risk" element={<RP anyOf={['disputes.read', 'platform.risk.manage']}><RiskPage /></RP>} />
-        <Route path="platform" element={<Navigate to="/platform/team" replace />} />
+        <Route path="platform" element={<Navigate to="/platform/organizations" replace />} />
+        <Route path="platform/organizations" element={<RP anyOf={['platform.organizations.read', 'platform.admin', 'platform.support']}><PlatformOrganizationsPage /></RP>} />
+        <Route path="platform/organizations/:organizationId" element={<RP anyOf={['platform.organizations.read', 'platform.admin', 'platform.support']}><PlatformOrganizationDetailPage /></RP>} />
+        <Route path="platform/observability" element={<RP anyOf={['platform.audit_logs.read', 'platform.admin', 'platform.support']}><PlatformObservabilityPage /></RP>} />
+        <Route path="platform/webhooks" element={<RP anyOf={['webhooks.manage', 'platform.admin', 'platform.support']}><PlatformWebhooksPage /></RP>} />
+        <Route path="platform/health" element={<RP anyOf={['platform.system.manage', 'platform.admin', 'platform.support']}><PlatformSystemHealthPage /></RP>} />
         <Route path="platform/team" element={<RP anyOf={['platform.users.read', 'platform.admin']}><PlatformTeamPage /></RP>} />
         <Route path="platform/kyb" element={<RP anyOf={['kyb.review']}><PlatformKybListPage /></RP>} />
         <Route path="platform/kyb/:caseId" element={<RP anyOf={['kyb.review']}><PlatformKybDetailPage /></RP>} />

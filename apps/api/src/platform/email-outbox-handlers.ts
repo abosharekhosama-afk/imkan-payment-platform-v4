@@ -60,9 +60,15 @@ export async function handleEmailOutboxEvent(eventType: string, payload: unknown
       await transport.send(msg);
       return;
     }
-    case 'invitation.created': {
-      const msg = buildInvitationEmail(p);
-      if (!msg.to || !str(p.action_url)) throw new Error('invitation.created missing email or action_url');
+    case 'invitation.created':
+    case 'platform.invitation.created': {
+      const msg = buildInvitationEmail({
+        ...p,
+        role_code: p.role_code || (eventType === 'platform.invitation.created' ? str(p.role_code) : ''),
+      });
+      if (!msg.to || !str(p.action_url)) {
+        throw new Error(`${eventType} missing email or action_url`);
+      }
       await transport.send(msg);
       return;
     }
@@ -112,6 +118,7 @@ export function isDeliverableEmailEvent(eventType: string): boolean {
     eventType === 'email.verification.requested' ||
     eventType === 'email.password_reset.requested' ||
     eventType === 'invitation.created' ||
+    eventType === 'platform.invitation.created' ||
     eventType === 'kyb.case.submitted' ||
     eventType === 'kyb.case.needs_information' ||
     eventType === 'kyb.case.decided'

@@ -47,7 +47,7 @@ PayTabs remains:
 | **P16.5** | Checkout production UX (hosted fields shell, success/cancel redirect) | **STARTED** (redirect) |
 | **P16.6** | Billing: real PM tokens, dunning email, no tok_ok default | **STARTED** (API + UI guard) |
 | **P16.7** | Finance: settlement import, live payout rail, deep recon | NOT STARTED |
-| **P16.8** | Merchant webhooks V4 outbox delivery | NOT STARTED |
+| **P16.8** | Merchant webhooks V4 outbox delivery | DONE (PG endpoints + HMAC + retry) |
 | **P16.9** | Books connector (DEC-016) | BLOCKED |
 | **P16.10** | Ops gate: pen test, offsite backup, E2E, gate doc refresh | NOT STARTED |
 

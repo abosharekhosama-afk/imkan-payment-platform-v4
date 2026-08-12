@@ -36,6 +36,14 @@ async function emitPaymentEvent(
   extra: Record<string, unknown> = {},
   idempotencyKey?: string,
 ) {
+  let externalInvoiceRef: string | null = null;
+  if (intent.payment_link_id) {
+    const link = await client.query<{external_invoice_ref: string | null}>(
+      `SELECT external_invoice_ref FROM payment_links WHERE id=$1 AND organization_id=$2`,
+      [intent.payment_link_id, organizationId],
+    );
+    externalInvoiceRef = link.rows[0]?.external_invoice_ref || null;
+  }
   await emitOutboxEvent(
     {
       organizationId,
@@ -55,6 +63,8 @@ async function emitPaymentEvent(
         customer_email: intent.customer_email,
         customer_name: intent.customer_name,
         description: intent.description,
+        external_invoice_ref: externalInvoiceRef,
+        paid_at: intent.succeeded_at || null,
         ...extra,
       },
       idempotencyKey,

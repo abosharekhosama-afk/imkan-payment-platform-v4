@@ -15,6 +15,7 @@ import {registerPhase5Routes} from './phase5-routes.js';
 import {registerPhase6Routes} from './phase6-routes.js';
 import {registerPhase66RbacRoutes} from './phase6_6-rbac-routes.js';
 import {registerPhase7FinancialRoutes} from './phase7-financial-routes.js';
+import {registerPlatformAdminRoutes} from './platform-admin-routes.js';
 import {rateLimit} from '../../../foundation/rate-limit.js';
 import {redisPing} from '../../../infrastructure/db/redis.js';
 import {rateLimitStoreReady} from '../../../foundation/rate-limit-bootstrap.js';
@@ -54,6 +55,7 @@ export async function apiV1Routes(app: FastifyInstance) {
   await registerPhase6Routes(app);
   await registerPhase66RbacRoutes(app);
   await registerPhase7FinancialRoutes(app);
+  await registerPlatformAdminRoutes(app);
 
   app.setErrorHandler(async (error, request, reply) => {
     const status = error instanceof AppError ? error.statusCode : Number((error as any).statusCode || 500);

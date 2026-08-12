@@ -73,6 +73,78 @@ export async function registerPhase6Routes(app: FastifyInstance) {
     },
   );
 
+  app.get(
+    '/customers/:id',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('customers.read', 'billing.manage', 'platform.admin'),
+        rateLimit('payments.read'),
+      ],
+    },
+    async (request) => {
+      const params = z.object({id: z.string().uuid()}).parse(request.params);
+      return ok(request, await customerService.get(request.auth!.organizationId!, params.id));
+    },
+  );
+
+  app.patch(
+    '/customers/:id',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('customers.manage', 'billing.manage', 'platform.admin'),
+        rateLimit('payment_links.write'),
+      ],
+    },
+    async (request) => {
+      const params = z.object({id: z.string().uuid()}).parse(request.params);
+      const body = z
+        .object({
+          name: z.string().min(1).max(300).optional(),
+          email: z.string().email().optional().nullable(),
+          phone: z.string().max(40).optional().nullable(),
+          external_customer_id: z.string().max(200).optional().nullable(),
+          source_system: z.string().max(100).optional().nullable(),
+          status: z.enum(['ACTIVE', 'DISABLED']).optional(),
+        })
+        .parse(request.body);
+      return ok(
+        request,
+        await customerService.update(request.auth!.organizationId!, params.id, {
+          name: body.name,
+          email: body.email,
+          phone: body.phone,
+          externalCustomerId: body.external_customer_id,
+          sourceSystem: body.source_system,
+          status: body.status,
+          actorUserId: request.auth!.authKind === 'session' ? request.auth!.userId : null,
+          requestId: request.id,
+        }),
+      );
+    },
+  );
+
+  app.get(
+    '/customers/:id/payments',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('customers.read', 'payments.read', 'billing.manage', 'platform.admin'),
+        rateLimit('payments.read'),
+      ],
+    },
+    async (request) => {
+      const params = z.object({id: z.string().uuid()}).parse(request.params);
+      const {limit, offset} = parsePaging(request.query);
+      return ok(
+        request,
+        await customerService.listPayments(request.auth!.organizationId!, params.id, limit, offset),
+        {limit, offset},
+      );
+    },
+  );
+
   // ---- products / prices
   app.get(
     '/products',

@@ -7,6 +7,10 @@ import {rateLimit} from '../../../foundation/rate-limit.js';
 import {providerAdminService} from '../../../providers/provider-admin-service.js';
 import {providerWebhookService} from '../../../providers/webhook-service.js';
 import {AppError} from '../../../foundation/errors.js';
+import {
+  MERCHANT_WEBHOOK_EVENT_TYPES,
+  merchantOutboundWebhooks,
+} from '../../../webhooks/merchant-outbound-webhooks.js';
 
 export async function registerPhase5Routes(app: FastifyInstance) {
   // ---------------------------------------------------------- providers (admin)
@@ -110,6 +114,132 @@ export async function registerPhase5Routes(app: FastifyInstance) {
       const rows = await providerWebhookService.listForOrg(request.auth!.organizationId!, limit, offset);
       return ok(request, rows, {limit, offset});
     },
+  );
+
+  // ---------------------------------------------------------- merchant outbound webhooks (P16.8)
+
+  app.get(
+    '/merchant/webhook-endpoints',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('webhooks.read', 'webhooks.manage', 'developer.read', 'platform.admin'),
+        rateLimit('providers.read'),
+      ],
+    },
+    async (request) => ok(request, await merchantOutboundWebhooks.listEndpoints(request.auth!.organizationId!)),
+  );
+
+  app.post(
+    '/merchant/webhook-endpoints',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('webhooks.manage', 'platform.admin'),
+        rateLimit('payment_links.write'),
+      ],
+    },
+    async (request, reply) => {
+      const body = z
+        .object({
+          url: z.string().url().max(2000),
+          description: z.string().max(500).optional().nullable(),
+          subscribed_events: z.array(z.string().max(80)).max(20).optional(),
+        })
+        .parse(request.body);
+      const row = await merchantOutboundWebhooks.createEndpoint(request.auth!.organizationId!, {
+        url: body.url,
+        description: body.description,
+        subscribedEvents: body.subscribed_events,
+        actorUserId: request.auth!.authKind === 'session' ? request.auth!.userId : null,
+        requestId: request.id,
+      });
+      return created(reply, request, row);
+    },
+  );
+
+  app.patch(
+    '/merchant/webhook-endpoints/:id',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('webhooks.manage', 'platform.admin'),
+        rateLimit('payment_links.write'),
+      ],
+    },
+    async (request) => {
+      const params = z.object({id: z.string().uuid()}).parse(request.params);
+      const body = z
+        .object({
+          url: z.string().url().max(2000).optional(),
+          description: z.string().max(500).optional().nullable(),
+          subscribed_events: z.array(z.string().max(80)).max(20).optional(),
+          status: z.enum(['ACTIVE', 'DISABLED']).optional(),
+        })
+        .parse(request.body);
+      return ok(
+        request,
+        await merchantOutboundWebhooks.updateEndpoint(request.auth!.organizationId!, params.id, {
+          url: body.url,
+          description: body.description,
+          subscribedEvents: body.subscribed_events,
+          status: body.status,
+          actorUserId: request.auth!.authKind === 'session' ? request.auth!.userId : null,
+          requestId: request.id,
+        }),
+      );
+    },
+  );
+
+  app.get(
+    '/merchant/webhook-deliveries',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('webhooks.read', 'webhooks.manage', 'developer.read', 'platform.admin'),
+        rateLimit('providers.read'),
+      ],
+    },
+    async (request) => {
+      const {limit, offset} = parsePaging(request.query);
+      return ok(
+        request,
+        await merchantOutboundWebhooks.listDeliveries(request.auth!.organizationId!, limit, offset),
+        {limit, offset},
+      );
+    },
+  );
+
+  app.post(
+    '/merchant/webhook-deliveries/:deliveryId/retry',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('webhooks.manage', 'platform.admin'),
+        rateLimit('payment_links.write'),
+      ],
+    },
+    async (request) => {
+      const params = z.object({deliveryId: z.string().uuid()}).parse(request.params);
+      return ok(
+        request,
+        await merchantOutboundWebhooks.retryDelivery(params.deliveryId, {
+          organizationId: request.auth!.organizationId!,
+          actorUserId: request.auth!.userId,
+        }),
+      );
+    },
+  );
+
+  app.get(
+    '/merchant/webhook-event-types',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('webhooks.read', 'webhooks.manage', 'developer.read', 'platform.admin'),
+      ],
+    },
+    async (request) => ok(request, [...MERCHANT_WEBHOOK_EVENT_TYPES]),
   );
 
   // ---------------------------------------------------------- API keys

@@ -73,7 +73,7 @@ export function getPlatformRuntimeConfig(): PlatformRuntimeConfig {
       document_storage: isDocumentStorageProduction() ? 'production' : 'metadata_only',
       payout_rail: 'mark_paid_internal',
       settlement_import: 'internal_only',
-      merchant_webhooks_v4: 'stub',
+        merchant_webhooks_v4: config.outboxWorkerEnabled ? 'production' : 'stub',
       checkout_sandbox_tokens: allowTokens ? 'allowed' : 'blocked',
     },
     labels: {

@@ -238,6 +238,23 @@ export const refundsService = {
         },
         client,
       );
+      await emitOutboxEvent(
+        {
+          organizationId: input.organizationId,
+          eventType: 'refund.succeeded',
+          aggregateType: 'refund',
+          aggregateId: refund.id,
+          payload: {
+            refund_id: refund.id,
+            payment_intent_id: input.paymentIntentId,
+            amount_minor: input.amountMinor,
+            currency_code: currency,
+            status: 'SUCCEEDED',
+          },
+          idempotencyKey: `refund.succeeded:${refund.id}`,
+        },
+        client,
+      );
       const full = already + amount === capturable;
       await emitOutboxEvent(
         {

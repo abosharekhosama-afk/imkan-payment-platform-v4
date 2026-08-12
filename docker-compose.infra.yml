@@ -1,0 +1,43 @@
+# Managed infrastructure for staging / self-hosted production.
+# Usage:
+#   docker compose -f docker-compose.infra.yml up -d
+#   Copy .env.production.example → .env and point DATABASE_URL_PG + REDIS_URL here.
+#
+# WARNING: default passwords below are for local staging only.
+# Replace with secrets manager values before any real production use.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: imkan
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: imkan_payments
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - imkan_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U imkan -d imkan_payments']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-change-me-in-production}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - imkan_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD:-change-me-in-production}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  imkan_pg_data:
+  imkan_redis_data:

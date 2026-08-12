@@ -186,4 +186,35 @@ export function checkoutWebUrl(publicToken: string): string {
   return `${origin}/checkout/${publicToken}`;
 }
 
+export async function downloadApiV1(path: string, filename: string, token?: string | null) {
+  assertV4Path(path);
+  const relative = isApiV1Path(path) ? path : `${API_PREFIX}${path.startsWith('/') ? path : `/${path}`}`;
+  assertV4Path(relative);
+
+  const res = await fetch(`${API_ORIGIN}${relative}`, {
+    method: 'GET',
+    headers: authHeader(token),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    const err = (json as any)?.error;
+    throw new ApiError(err?.message || res.statusText || 'Download failed', {
+      code: err?.code,
+      requestId: err?.request_id || res.headers.get('x-request-id') || undefined,
+      status: res.status,
+      details: err?.details,
+    });
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 export {API_ORIGIN, API_PREFIX};

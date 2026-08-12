@@ -1,10 +1,15 @@
 import {config} from '../config.js';
 import {withPgTransaction} from '../infrastructure/db/postgres.js';
 import {handleEmailOutboxEvent, isDeliverableEmailEvent} from '../platform/email-outbox-handlers.js';
+import {
+  isMerchantDeliverableEvent,
+  merchantOutboundWebhooks,
+} from '../webhooks/merchant-outbound-webhooks.js';
 
 /**
  * Phase 2 outbox worker — processes PENDING domain events.
  * P16.1: email/invitation events use vendor-neutral SMTP when configured.
+ * P16.8: payment/refund events enqueue HMAC merchant webhook deliveries.
  */
 export class OutboxWorker {
   private timer: NodeJS.Timeout | null = null;
@@ -27,11 +32,14 @@ export class OutboxWorker {
       await withPgTransaction(async (client) => {
         const claimed = await client.query<{
           id: string;
+          organization_id: string | null;
           event_type: string;
+          aggregate_type: string;
+          aggregate_id: string;
           payload_json: unknown;
           attempts: number;
         }>(
-          `SELECT id, event_type, payload_json, attempts
+          `SELECT id, organization_id, event_type, aggregate_type, aggregate_id, payload_json, attempts
            FROM outbox_events
            WHERE status='PENDING' AND available_at <= NOW()
            ORDER BY created_at
@@ -43,7 +51,7 @@ export class OutboxWorker {
             row.id,
           ]);
           try {
-            await this.handle(row.event_type, row.payload_json);
+            await this.handle(client, row);
             await client.query(
               `UPDATE outbox_events SET status='PROCESSED', processed_at=NOW(), last_error=NULL WHERE id=$1`,
               [row.id],
@@ -65,27 +73,44 @@ export class OutboxWorker {
           }
         }
       });
+      // HTTP delivery outside the claim transaction
+      await merchantOutboundWebhooks.deliverPending();
     } finally {
       this.running = false;
     }
   }
 
-  private async handle(eventType: string, payload: unknown) {
-    if (isDeliverableEmailEvent(eventType)) {
-      await handleEmailOutboxEvent(eventType, payload);
+  private async handle(
+    client: import('../infrastructure/db/postgres.js').PgClient,
+    row: {
+      id: string;
+      organization_id: string | null;
+      event_type: string;
+      aggregate_type: string;
+      aggregate_id: string;
+      payload_json: unknown;
+    },
+  ) {
+    if (isDeliverableEmailEvent(row.event_type)) {
+      await handleEmailOutboxEvent(row.event_type, row.payload_json);
+      return;
+    }
+    if (isMerchantDeliverableEvent(row.event_type)) {
+      await merchantOutboundWebhooks.enqueueFromOutbox(client, row);
       return;
     }
     if (
-      eventType.startsWith('user.') ||
-      eventType.startsWith('security.') ||
-      eventType.startsWith('kyb.') ||
-      eventType.startsWith('bank_account.') ||
-      eventType.startsWith('payment.') ||
-      eventType.startsWith('payment_link.') ||
-      eventType.startsWith('billing.') ||
-      eventType.startsWith('provider.')
+      row.event_type.startsWith('user.') ||
+      row.event_type.startsWith('security.') ||
+      row.event_type.startsWith('kyb.') ||
+      row.event_type.startsWith('bank_account.') ||
+      row.event_type.startsWith('payment.') ||
+      row.event_type.startsWith('payment_link.') ||
+      row.event_type.startsWith('billing.') ||
+      row.event_type.startsWith('provider.') ||
+      row.event_type.startsWith('refund.')
     ) {
-      // Domain events retained for future Books/webhook/merchant delivery consumers (P16.8).
+      // Domain events retained; no external consumer yet.
       return;
     }
     return;

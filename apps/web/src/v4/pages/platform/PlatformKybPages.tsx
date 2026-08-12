@@ -128,6 +128,9 @@ export function PlatformKybDetailPage() {
 
   const kase = detail.case;
   const docs = detail.documents || [];
+  const business = detail.business_profile;
+  const history = detail.history || [];
+  const results = detail.results || [];
 
   return (
     <div>
@@ -153,7 +156,12 @@ export function PlatformKybDetailPage() {
           {t('platform.kyb.statusLabel')} <StatusBadge status={kase.status} />
         </p>
         <p>
-          {t('platform.kyb.labelOrganization')} {detail.organization?.name}
+          {t('platform.kyb.labelOrganization')}{' '}
+          {detail.organization?.id ? (
+            <Link to={`/platform/organizations/${detail.organization.id}`}>{detail.organization.name}</Link>
+          ) : (
+            detail.organization?.name
+          )}
         </p>
         {detail.legal_profile ? (
           <p>
@@ -161,9 +169,50 @@ export function PlatformKybDetailPage() {
             {detail.legal_profile.registration_number}
           </p>
         ) : null}
+        {business ? (
+          <p>
+            {t('platform.orgs.labelBusiness')}: {business.business_type_code || '—'} /{' '}
+            {business.industry_code || '—'}
+            {business.description ? ` — ${business.description}` : ''}
+          </p>
+        ) : null}
+        {detail.organization?.country_code ? (
+          <p>
+            {t('platform.orgs.labelCountry')}: {detail.organization.country_code}
+          </p>
+        ) : null}
       </div>
 
-      <h3>{t('platform.kyb.requirements')}</h3>
+      {history.length > 0 ? (
+        <>
+          <h3>{t('platform.kyb.history')}</h3>
+          <DataTable
+            columns={[t('platform.kyb.colFrom'), t('platform.kyb.colTo'), t('platform.kyb.colNote'), t('common.date')]}
+            rows={history.map((h: any) => [
+              h.from_status || '—',
+              h.to_status || '—',
+              h.reason || '—',
+              formatDate(h.created_at),
+            ])}
+          />
+        </>
+      ) : null}
+
+      {results.length > 0 ? (
+        <>
+          <h3 style={{marginTop: 24}}>{t('platform.kyb.results')}</h3>
+          <DataTable
+            columns={[t('platform.kyb.colResult'), t('platform.kyb.colDetail'), t('common.date')]}
+            rows={results.map((r: any) => [
+              r.check_type || shortId(r.id),
+              r.result || '—',
+              formatDate(r.created_at),
+            ])}
+          />
+        </>
+      ) : null}
+
+      <h3 style={{marginTop: 24}}>{t('platform.kyb.requirements')}</h3>
       <DataTable
         columns={[t('platform.kyb.colRequirement'), t('platform.kyb.colSatisfied'), t('merchant.kyb.colDetail')]}
         rows={(detail.requirements || []).map((r: any) => [

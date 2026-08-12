@@ -1,24 +1,41 @@
 import React, {useEffect, useState} from 'react';
 import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
-import {Alert, Button, Drawer, Field, LoadingState, Modal, PageHeader} from '../../design-system/components';
+import {Alert, Button, Drawer, Field, LoadingState, Modal, PageHeader, StatusBadge} from '../../design-system/components';
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
-import {usePlatformRuntime} from '../../hooks/usePlatformRuntime';
-import {formatDate, shortId} from '../../utils/money';
+import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+
+type FormState = {
+  name: string;
+  email: string;
+  phone: string;
+  external_customer_id: string;
+  source_system: string;
+};
+
+const emptyForm: FormState = {
+  name: '',
+  email: '',
+  phone: '',
+  external_customer_id: '',
+  source_system: '',
+};
 
 export function CustomersPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
-  const {allowSandboxTokens} = usePlatformRuntime();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
-  const [form, setForm] = useState({name: '', email: '', phone: '', default_payment_method_token: ''});
+  const [payments, setPayments] = useState<any[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [form, setForm] = useState<FormState>(emptyForm);
 
   const load = () => {
     if (!token) return;
@@ -30,6 +47,20 @@ export function CustomersPage() {
   };
   useEffect(load, [token]);
 
+  const openCustomer = async (row: any) => {
+    setSelected(row);
+    setPayments([]);
+    if (!token) return;
+    setPaymentsLoading(true);
+    try {
+      setPayments(await v4.customerPayments(token, row.id));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
+
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -37,11 +68,34 @@ export function CustomersPage() {
         name: form.name,
         email: form.email || undefined,
         phone: form.phone || undefined,
-        default_payment_method_token: form.default_payment_method_token || undefined,
+        external_customer_id: form.external_customer_id || undefined,
+        source_system: form.source_system || undefined,
       });
       setOpen(false);
+      setForm(emptyForm);
       push(t('toast.customerCreated'));
       load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) return;
+    try {
+      const updated = await v4.updateCustomer(token, selected.id, {
+        name: form.name,
+        email: form.email || null,
+        phone: form.phone || null,
+        external_customer_id: form.external_customer_id || null,
+        source_system: form.source_system || null,
+      });
+      setEditOpen(false);
+      setSelected(updated);
+      push(t('toast.customerUpdated'));
+      load();
+      await openCustomer(updated);
     } catch (err: any) {
       setError(err.message);
     }
@@ -52,10 +106,16 @@ export function CustomersPage() {
       <PageHeader
         title={t('customers.title')}
         description={t('customers.description')}
-        crumbs={[{label: t('section.billing')}, {label: t('nav.customers')}]}
+        crumbs={[{label: t('section.customers')}, {label: t('nav.customers')}]}
         actions={
           <Can anyOf={['customers.manage', 'billing.manage']}>
-            <Button type="button" onClick={() => setOpen(true)}>
+            <Button
+              type="button"
+              onClick={() => {
+                setForm(emptyForm);
+                setOpen(true);
+              }}
+            >
               {t('customers.create')}
             </Button>
           </Can>
@@ -83,9 +143,9 @@ export function CustomersPage() {
                   <tr
                     key={r.id}
                     style={{cursor: 'pointer'}}
-                    onClick={() => setSelected(r)}
+                    onClick={() => void openCustomer(r)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') setSelected(r);
+                      if (e.key === 'Enter') void openCustomer(r);
                     }}
                     tabIndex={0}
                   >
@@ -119,17 +179,57 @@ export function CustomersPage() {
             <dd>{selected.external_customer_id || '—'}</dd>
             <dt>{t('customers.drawerSource')}</dt>
             <dd>{selected.source_system || '—'}</dd>
-            <dt>{t('customers.drawerPmToken')}</dt>
-            <dd>{selected.default_payment_method_token || '—'}</dd>
             <dt>{t('common.created')}</dt>
             <dd>{formatDate(selected.created_at)}</dd>
-            <dt>{t('customers.drawerUpdated')}</dt>
-            <dd>{formatDate(selected.updated_at)}</dd>
           </dl>
-          <h4>{t('customers.drawerRaw')}</h4>
-          <pre style={{fontSize: '0.75rem', overflow: 'auto', background: 'var(--v4-bg)', padding: '0.75rem'}}>
-            {JSON.stringify(selected, null, 2)}
-          </pre>
+          <Can anyOf={['customers.manage', 'billing.manage']}>
+            <Button
+              type="button"
+              onClick={() => {
+                setForm({
+                  name: selected.name || '',
+                  email: selected.email || '',
+                  phone: selected.phone || '',
+                  external_customer_id: selected.external_customer_id || '',
+                  source_system: selected.source_system || '',
+                });
+                setEditOpen(true);
+              }}
+            >
+              {t('customers.edit')}
+            </Button>
+          </Can>
+          <h4 style={{marginTop: '1.25rem'}}>{t('customers.paymentsTitle')}</h4>
+          {paymentsLoading ? (
+            <LoadingState />
+          ) : payments.length ? (
+            <div className="v4-table-wrap">
+              <table className="v4-table">
+                <thead>
+                  <tr>
+                    <th>{t('customers.colPayment')}</th>
+                    <th>{t('common.amount')}</th>
+                    <th>{t('common.status')}</th>
+                    <th>{t('common.created')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p) => (
+                    <tr key={p.id}>
+                      <td>{shortId(p.id)}</td>
+                      <td>{formatMoney(p.amount_minor, p.currency_code)}</td>
+                      <td>
+                        <StatusBadge status={p.status} />
+                      </td>
+                      <td>{formatDate(p.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>{t('customers.paymentsEmpty')}</p>
+          )}
         </Drawer>
       ) : null}
       {open ? (
@@ -144,18 +244,49 @@ export function CustomersPage() {
             <Field label={t('customers.labelPhone')}>
               <input value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} />
             </Field>
-            {allowSandboxTokens ? (
-              <Field label={t('customers.labelPmToken')} hint={t('customers.pmTokenHint')}>
-                <input
-                  value={form.default_payment_method_token}
-                  onChange={(e) => setForm({...form, default_payment_method_token: e.target.value})}
-                  placeholder="tok_ok"
-                />
-              </Field>
-            ) : (
-              <Alert tone="info">{t('customers.productionAlert')}</Alert>
-            )}
+            <Field label={t('customers.labelExternalId')} hint={t('customers.externalIdHint')}>
+              <input
+                value={form.external_customer_id}
+                onChange={(e) => setForm({...form, external_customer_id: e.target.value})}
+                placeholder="books:cust_123"
+              />
+            </Field>
+            <Field label={t('customers.labelSource')}>
+              <input
+                value={form.source_system}
+                onChange={(e) => setForm({...form, source_system: e.target.value})}
+                placeholder="books"
+              />
+            </Field>
             <Button type="submit">{t('common.create')}</Button>
+          </form>
+        </Modal>
+      ) : null}
+      {editOpen && selected ? (
+        <Modal title={t('customers.modalEditTitle')} onClose={() => setEditOpen(false)}>
+          <form onSubmit={saveEdit}>
+            <Field label={t('common.name')}>
+              <input required value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
+            </Field>
+            <Field label={t('common.email')}>
+              <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
+            </Field>
+            <Field label={t('customers.labelPhone')}>
+              <input value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} />
+            </Field>
+            <Field label={t('customers.labelExternalId')}>
+              <input
+                value={form.external_customer_id}
+                onChange={(e) => setForm({...form, external_customer_id: e.target.value})}
+              />
+            </Field>
+            <Field label={t('customers.labelSource')}>
+              <input
+                value={form.source_system}
+                onChange={(e) => setForm({...form, source_system: e.target.value})}
+              />
+            </Field>
+            <Button type="submit">{t('common.save')}</Button>
           </form>
         </Modal>
       ) : null}

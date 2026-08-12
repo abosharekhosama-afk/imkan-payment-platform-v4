@@ -39,7 +39,7 @@ Set `"one_time": false` + `"max_uses": null` only if you intentionally want mult
 
 ## Deploy checklist (keys-only)
 
-1. `npm run db:migrate:pg`
+1. `npm run db:migrate:pg` (includes `037_merchant_outbound_webhooks.sql`)
 2. `npm run seed:stripe-routes` (or merchant Providers → Stripe)
 3. `npm run seed:platform-owner` (once)
 4. Env (production):
@@ -53,10 +53,16 @@ PAYMENT_PROVIDER=stripe
 REQUIRE_KYB_FOR_PAYMENTS=true
 REQUIRE_EMAIL_VERIFICATION=true
 EMAIL_TRANSPORT=smtp
-# SMTP_* + EMAIL_FROM
+SMTP_HOST=...
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
+EMAIL_FROM=payments@example.com
 APP_PUBLIC_URL=https://app.example
 CORS_ORIGIN=https://app.example
 TRUST_PROXY=true
+SESSION_TRANSPORT=cookie
+OUTBOX_WORKER_ENABLED=true
 STRIPE_ADAPTER_MODE=http
 STRIPE_ENV=live
 STRIPE_ALLOW_LIVE=true
@@ -71,8 +77,20 @@ STRIPE_CANCEL_URL=https://app.example/checkout/return?status=cancel
 
 5. Stripe Dashboard → Webhooks → `https://api.example/api/v1/webhooks/providers/stripe`  
    Events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`
-6. Build web: `VITE_API_URL=https://api.example VITE_SESSION_TRANSPORT=cookie npm run build -w apps/web`
-7. Verify: `/health/ready`, small live charge, payment → SUCCEEDED, link → EXPIRED
+6. Merchant console → **Developers → Outbound Webhooks** → Books HTTPS URL (HMAC secret shown once)
+7. Build web: `VITE_API_URL=https://api.example VITE_SESSION_TRANSPORT=cookie npm run build -w apps/web`
+8. Verify: `/health/ready`, Redis connected, SMTP probe, small live charge → PI `SUCCEEDED` → link `EXPIRED` → Books receives `payment.succeeded`
+
+## Production gate remaining (ops)
+
+| Gate | Required | How to close |
+|---|---|---|
+| Redis + rate limit | `REDIS_URL`, `RATE_LIMIT_STORE=redis` | API refuses production boot without Redis |
+| SMTP + email verification | `EMAIL_TRANSPORT=smtp`, `REQUIRE_EMAIL_VERIFICATION=true`, SMTP_* | Outbox email worker + invite/verify flows |
+| KYB before money | `REQUIRE_KYB_FOR_PAYMENTS=true` | Onboarding gate blocks payment links until approved |
+| Stripe Live | Live keys + inbound webhook secret | Dashboard endpoint + Elements checkout |
+| Cookie sessions | `SESSION_TRANSPORT=cookie` (or dual) + web build flag | No bearer-only production |
+| Books notify | Outbound webhook endpoint | See [BOOKS_PAYMENT_LINK_FLOW.md](../books/BOOKS_PAYMENT_LINK_FLOW.md) |
 
 ## Still outside “keys only”
 
@@ -84,4 +102,4 @@ STRIPE_CANCEL_URL=https://app.example/checkout/return?status=cancel
 | KMS | `SECRET_BACKEND=env` today |
 | API build TS debt | Pre-existing tsc errors in unrelated modules (S3 SDK, PayTabs tests, etc.) |
 
-See also: [STRIPE_PRODUCTION_DEPLOY.md](./STRIPE_PRODUCTION_DEPLOY.md), [PRODUCTION_GATE.md](./PRODUCTION_GATE.md)
+See also: [RENDER_DEPLOY.md](./RENDER_DEPLOY.md), [PRODUCTION_DEPLOY_RUNBOOK.md](./PRODUCTION_DEPLOY_RUNBOOK.md), [STRIPE_PRODUCTION_DEPLOY.md](./STRIPE_PRODUCTION_DEPLOY.md), [PRODUCTION_GATE.md](./PRODUCTION_GATE.md), [BOOKS_PAYMENT_LINK_FLOW.md](../books/BOOKS_PAYMENT_LINK_FLOW.md)

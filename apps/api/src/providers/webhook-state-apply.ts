@@ -84,7 +84,7 @@ export async function applyProviderWebhookToPaymentIntent(
   }
 
   const r = await client.query(
-    `SELECT id, organization_id, status, version, amount_minor, currency_code
+    `SELECT id, organization_id, status, version, amount_minor, currency_code, payment_link_id
      FROM payment_intents WHERE id=$1 AND organization_id=$2 FOR UPDATE`,
     [input.paymentIntentId, input.organizationId],
   );
@@ -97,6 +97,7 @@ export async function applyProviderWebhookToPaymentIntent(
     version: number;
     amount_minor: string;
     currency_code: string;
+    payment_link_id: string | null;
   };
 
   if (intent.status === target) {
@@ -168,6 +169,14 @@ export async function applyProviderWebhookToPaymentIntent(
       },
       client,
     );
+    let externalInvoiceRef: string | null = null;
+    if (intent.payment_link_id) {
+      const link = await client.query<{external_invoice_ref: string | null}>(
+        `SELECT external_invoice_ref FROM payment_links WHERE id=$1 AND organization_id=$2`,
+        [intent.payment_link_id, input.organizationId],
+      );
+      externalInvoiceRef = link.rows[0]?.external_invoice_ref || null;
+    }
     await emitOutboxEvent(
       {
         organizationId: input.organizationId,
@@ -176,7 +185,12 @@ export async function applyProviderWebhookToPaymentIntent(
         aggregateId: input.paymentIntentId,
         payload: {
           payment_intent_id: input.paymentIntentId,
+          payment_link_id: intent.payment_link_id || null,
+          amount_minor: String(intent.amount_minor),
+          currency_code: String(intent.currency_code).trim(),
           status: target,
+          external_invoice_ref: externalInvoiceRef,
+          paid_at: target === 'SUCCEEDED' ? new Date().toISOString() : null,
           provider_event_id: input.providerEventId,
         },
         idempotencyKey: `webhook-apply:${input.providerEventId}:${target}`,

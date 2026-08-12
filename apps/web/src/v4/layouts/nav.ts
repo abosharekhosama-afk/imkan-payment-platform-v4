@@ -25,13 +25,9 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    labelKey: 'section.billing',
+    labelKey: 'section.customers',
     items: [
       {to: '/customers', labelKey: 'nav.customers', anyOf: ['customers.read', 'billing.read', 'billing.manage']},
-      {to: '/products', labelKey: 'nav.products', anyOf: ['products.read', 'plans.read', 'billing.manage']},
-      {to: '/prices', labelKey: 'nav.prices', anyOf: ['prices.read', 'plans.read', 'billing.manage']},
-      {to: '/subscriptions', labelKey: 'nav.subscriptions', anyOf: ['subscriptions.read', 'billing.read', 'billing.manage']},
-      {to: '/invoices', labelKey: 'nav.invoices', anyOf: ['invoices.read', 'billing.read', 'billing.manage']},
     ],
   },
   {
@@ -55,7 +51,10 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     labelKey: 'section.developers',
-    items: [{to: '/developers/api-keys', labelKey: 'nav.apiKeys', anyOf: ['api_keys.read', 'developer.read']}],
+    items: [
+      {to: '/developers/api-keys', labelKey: 'nav.apiKeys', anyOf: ['api_keys.read', 'developer.read']},
+      {to: '/developers/outbound-webhooks', labelKey: 'nav.outboundWebhooks', anyOf: ['webhooks.read', 'developer.read', 'webhooks.manage']},
+    ],
   },
   {
     labelKey: 'section.security',
@@ -88,7 +87,11 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     labelKey: 'section.platform',
     items: [
-      {to: '/platform/kyb', labelKey: 'nav.kybReview', anyOf: ['kyb.review']},
+      {to: '/platform/organizations', labelKey: 'nav.platformOrganizations', anyOf: ['platform.organizations.read', 'platform.admin', 'platform.support']},
+      {to: '/platform/kyb', labelKey: 'nav.kybReview', anyOf: ['kyb.review', 'platform.admin']},
+      {to: '/platform/observability', labelKey: 'nav.platformObservability', anyOf: ['platform.audit_logs.read', 'platform.admin', 'platform.support']},
+      {to: '/platform/webhooks', labelKey: 'nav.platformWebhooks', anyOf: ['webhooks.manage', 'platform.admin', 'platform.support']},
+      {to: '/platform/health', labelKey: 'nav.platformHealth', anyOf: ['platform.system.manage', 'platform.admin', 'platform.support']},
       {to: '/platform/team', labelKey: 'nav.platformTeam', anyOf: ['platform.users.read', 'platform.admin']},
     ],
   },

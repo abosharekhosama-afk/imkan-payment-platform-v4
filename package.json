@@ -28,6 +28,12 @@
     "seed:stripe-routes": "node scripts/seed-stripe-routes.mjs",
     "seed:platform-owner": "node scripts/seed-platform-owner.mjs",
     "prepare:stripe-production": "node scripts/prepare-stripe-production.mjs",
+    "prepare:production": "node scripts/prepare-stripe-production.mjs",
+    "ops:production-preflight": "node scripts/production-preflight.mjs",
+    "build:web:production": "node scripts/build-web-production.mjs",
+    "build:render:api": "npm install --include=dev && npm run build -w apps/api",
+    "build:render:web": "npm install --include=dev && npm run build -w apps/web",
+    "start:api": "node apps/api/dist/server.js",
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web"
   },
