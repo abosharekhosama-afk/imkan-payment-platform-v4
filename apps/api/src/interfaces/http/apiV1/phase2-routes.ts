@@ -3,6 +3,7 @@ import {z} from 'zod';
 import {requireOrganizationContext, requirePermission, requireStepUp} from '../../../foundation/authz.js';
 import {identityPhase2} from '../../../foundation/identity-phase2.js';
 import {identityService} from '../../../foundation/identity-service.js';
+import {platformUsersService} from '../../../foundation/platform-users-service.js';
 import {completeIdempotency, failIdempotency, idempotencyPreHandler} from '../../../foundation/idempotency.js';
 import {created, ok, parsePaging} from '../../../foundation/http.js';
 import {forbidden} from '../../../foundation/errors.js';
@@ -208,6 +209,64 @@ export async function registerPhase2Routes(app: FastifyInstance) {
         request,
         await identityPhase2.deactivateUser(params.organizationId, params.userId, request.auth!.userId),
       );
+    },
+  );
+
+  // ----------------------------------------------------------- platform team
+  // Platform team members hold PLATFORM_* roles with no merchant organization (organization_id NULL).
+  app.get(
+    '/platform/users',
+    {preHandler: [requirePermission('platform.users.read', 'platform.admin')]},
+    async (request) => ok(request, await platformUsersService.listPlatformUsers()),
+  );
+
+  app.get(
+    '/platform/invitations',
+    {preHandler: [requirePermission('platform.users.read', 'platform.admin')]},
+    async (request) => ok(request, await platformUsersService.listInvitations()),
+  );
+
+  app.post(
+    '/platform/invitations',
+    {
+      preHandler: [
+        requirePermission('platform.users.manage', 'platform.admin'),
+        requireStepUp('platform.users.invite'),
+        rateLimit('users.invite'),
+        idempotencyPreHandler('platform.invitation.create'),
+      ],
+    },
+    async (request, reply) => {
+      try {
+        const body = z
+          .object({
+            email: z.string().email(),
+            role_code: z.enum(['PLATFORM_ADMIN', 'PLATFORM_SUPPORT', 'PLATFORM_FINANCE']),
+          })
+          .parse(request.body);
+        const auth = request.auth!;
+        const data = await platformUsersService.createInvitation({
+          email: body.email,
+          roleCode: body.role_code,
+          actorUserId: auth.userId,
+          requestId: request.id,
+        });
+        const payload = {data, meta: {request_id: request.id}};
+        await completeIdempotency(request, 201, payload);
+        return created(reply, request, data);
+      } catch (error) {
+        await failIdempotency(request);
+        throw error;
+      }
+    },
+  );
+
+  app.post(
+    '/platform/invitations/:invitationId/revoke',
+    {preHandler: [requirePermission('platform.users.manage', 'platform.admin'), requireStepUp()]},
+    async (request) => {
+      const params = z.object({invitationId: z.string().uuid()}).parse(request.params);
+      return ok(request, await platformUsersService.revokeInvitation(params.invitationId, request.auth!.userId));
     },
   );
 

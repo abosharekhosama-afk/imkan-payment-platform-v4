@@ -343,29 +343,91 @@ export function ErrorsPage() {
 
 export function OrganizationPage() {
   const {t} = useI18n();
-  const {token} = useAuth();
+  const {token, hasPermission} = useAuth();
   const [org, setOrg] = useState<any>(null);
+  const [form, setForm] = useState({name: '', default_currency: 'SAR', locale: 'en', timezone: 'Asia/Riyadh'});
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const canManage = hasPermission('org.manage');
 
   useEffect(() => {
     if (!token) return;
     v4.orgCurrent(token)
-      .then(setOrg)
+      .then((o) => {
+        setOrg(o);
+        setForm({
+          name: o.name || '',
+          default_currency: o.default_currency || 'SAR',
+          locale: o.locale || 'en',
+          timezone: o.timezone || 'UTC',
+        });
+      })
       .catch((e) => setError(e.message));
   }, [token]);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setBusy(true);
+    setError('');
+    setSaved(false);
+    try {
+      const updated = await v4.updateOrgCurrent(token, form);
+      setOrg(updated);
+      setSaved(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div>
       <PageHeader
         title={t('settings.organization.title')}
+        description={t('settings.organization.description')}
         crumbs={[{label: t('section.settings')}, {label: t('nav.organization')}]}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
+      {saved ? <Alert tone="success">{t('settings.organization.saved')}</Alert> : null}
       {!org ? (
         <LoadingState />
+      ) : canManage ? (
+        <form className="v4-card" onSubmit={(e) => void save(e)} style={{maxWidth: 520}}>
+          <Field label={t('settings.organization.name')}>
+            <input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} required />
+          </Field>
+          <Field label={t('settings.organization.currency')}>
+            <input
+              value={form.default_currency}
+              onChange={(e) => setForm({...form, default_currency: e.target.value.toUpperCase()})}
+              maxLength={3}
+            />
+          </Field>
+          <Field label={t('settings.organization.locale')}>
+            <select value={form.locale} onChange={(e) => setForm({...form, locale: e.target.value})}>
+              <option value="en">English</option>
+              <option value="ar">العربية</option>
+            </select>
+          </Field>
+          <Field label={t('settings.organization.timezone')}>
+            <input value={form.timezone} onChange={(e) => setForm({...form, timezone: e.target.value})} />
+          </Field>
+          <div style={{fontSize: 13, color: 'var(--v4-text-muted)', marginBottom: 12}}>
+            {t('settings.organization.slugReadonly', {slug: org.slug})}
+          </div>
+          <Button type="submit" disabled={busy}>
+            {busy ? t('common.saving') : t('common.save')}
+          </Button>
+        </form>
       ) : (
         <div className="v4-card">
-          <pre style={{whiteSpace: 'pre-wrap'}}>{JSON.stringify(org, null, 2)}</pre>
+          <p>
+            <strong>{org.name}</strong>
+          </p>
+          <p style={{color: 'var(--v4-text-muted)'}}>{org.slug}</p>
         </div>
       )}
     </div>

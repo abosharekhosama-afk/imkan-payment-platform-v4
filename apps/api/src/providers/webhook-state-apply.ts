@@ -11,6 +11,7 @@ import {
   transitionPaymentIntent,
 } from '../payments/payment-state-machine.js';
 import {ledgerService} from '../ledger/ledger-service.js';
+import {finalizeCheckoutArtifacts} from '../payments/finalize-checkout-artifacts.js';
 import {refundsService} from '../refunds/refunds-service.js';
 
 function isRefundEvent(eventType: string): boolean {
@@ -98,7 +99,18 @@ export async function applyProviderWebhookToPaymentIntent(
     currency_code: string;
   };
 
-  if (intent.status === target) return {applied: false, reason: 'already_in_target_status', status: intent.status};
+  if (intent.status === target) {
+    if (target === 'SUCCEEDED') {
+      await finalizeCheckoutArtifacts(client, {
+        organizationId: input.organizationId,
+        paymentIntentId: input.paymentIntentId,
+        providerCode: 'stripe',
+        providerReference: input.providerReference || null,
+      });
+      return {applied: true, reason: 'artifacts_reconciled', status: intent.status};
+    }
+    return {applied: false, reason: 'already_in_target_status', status: intent.status};
+  }
   if (['SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'].includes(intent.status)) {
     return {applied: false, reason: 'terminal_status', status: intent.status};
   }
@@ -138,6 +150,12 @@ export async function applyProviderWebhookToPaymentIntent(
         amountMinor: String(intent.amount_minor),
         currencyCode: String(intent.currency_code),
         environment: 'SANDBOX',
+      });
+      await finalizeCheckoutArtifacts(client, {
+        organizationId: input.organizationId,
+        paymentIntentId: input.paymentIntentId,
+        providerCode: 'stripe',
+        providerReference: input.providerReference || null,
       });
     }
     await writeAuditEvent(

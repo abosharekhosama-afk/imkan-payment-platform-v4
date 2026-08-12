@@ -116,6 +116,34 @@ export const paymentCoreService = {
     return intents.rows.map(money);
   },
 
+  async listTransactions(
+    organizationId: string,
+    filter: {status?: string; providerCode?: string; limit: number; offset: number},
+  ) {
+    const params: unknown[] = [organizationId];
+    let where = 'WHERE pt.organization_id=$1';
+    if (filter.status) {
+      params.push(filter.status);
+      where += ` AND pt.status=$${params.length}`;
+    }
+    if (filter.providerCode) {
+      params.push(filter.providerCode);
+      where += ` AND pt.provider_code=$${params.length}`;
+    }
+    params.push(filter.limit, filter.offset);
+    const rows = await pgQuery(
+      `SELECT pt.id, pt.payment_intent_id, pt.amount_minor, pt.currency_code, pt.status,
+              pt.provider_code, pt.provider_transaction_id, pt.customer_name, pt.customer_email,
+              pt.reference, pt.captured_at, pt.created_at
+       FROM payment_transactions pt
+       ${where}
+       ORDER BY pt.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    );
+    return rows.rows.map(money);
+  },
+
   async getPayment(organizationId: string, paymentIntentId: string) {
     const intent = await pgQuery(`SELECT * FROM payment_intents WHERE id=$1 AND organization_id=$2`, [
       paymentIntentId,
@@ -279,6 +307,23 @@ export const paymentCoreService = {
       if (link.max_uses != null && Number(link.use_count) >= Number(link.max_uses)) {
         throw new AppError('PAYMENT_LINK_USAGE_LIMIT', 'Payment link usage limit reached', 409);
       }
+      // One-time / exhausted: refuse if a successful payment already exists for this link.
+      if (link.one_time === true || link.max_uses === 1) {
+        const paid = await client.query(
+          `SELECT 1 FROM payment_intents
+           WHERE payment_link_id=$1 AND organization_id=$2 AND status='SUCCEEDED'
+           LIMIT 1`,
+          [link.id, link.organization_id],
+        );
+        if (paid.rows[0]) {
+          await client.query(
+            `UPDATE payment_links SET status='EXPIRED', version=version+1, updated_at=NOW()
+             WHERE id=$1 AND status='ACTIVE'`,
+            [link.id],
+          );
+          throw new AppError('PAYMENT_LINK_USAGE_LIMIT', 'Payment link already used', 409);
+        }
+      }
 
       let amountMinor: string;
       if (link.amount_mode === 'FIXED') {
@@ -297,10 +342,17 @@ export const paymentCoreService = {
       const cfg = await client.query(`SELECT * FROM merchant_payment_config WHERE organization_id=$1`, [
         link.organization_id,
       ]);
+      const publicBase = (process.env.APP_PUBLIC_URL || 'http://localhost:5173').replace(/\/$/, '');
       const successUrl =
-        successUrlSafe ?? assertSafePublicUrl(cfg.rows[0]?.default_success_url, 'success_url') ?? null;
+        successUrlSafe ??
+        assertSafePublicUrl(link.success_url, 'success_url') ??
+        assertSafePublicUrl(cfg.rows[0]?.default_success_url, 'success_url') ??
+        `${publicBase}/checkout/return?status=success`;
       const cancelUrl =
-        cancelUrlSafe ?? assertSafePublicUrl(cfg.rows[0]?.default_cancel_url, 'cancel_url') ?? null;
+        cancelUrlSafe ??
+        assertSafePublicUrl(link.cancel_url, 'cancel_url') ??
+        assertSafePublicUrl(cfg.rows[0]?.default_cancel_url, 'cancel_url') ??
+        `${publicBase}/checkout/return?status=cancel`;
 
       const order = await client.query(
         `INSERT INTO payment_orders (
@@ -1100,5 +1152,103 @@ export const paymentCoreService = {
         query_before_retry: false,
       };
     });
+  },
+
+  /**
+   * Public return-page sync: confirm Stripe PaymentIntent status and finalize local checkout.
+   * Works without webhooks (local/dev) and is idempotent with webhook apply.
+   */
+  async syncStripeCheckoutPayment(stripePaymentIntentId: string) {
+    const ref = String(stripePaymentIntentId || '').trim();
+    if (!ref.startsWith('pi_')) {
+      throw new AppError('INVALID_PROVIDER_REFERENCE', 'Expected a Stripe payment_intent id (pi_…)', 400);
+    }
+
+    const mapped = await pgQuery(
+      `SELECT pt.organization_id, pt.payment_intent_id, pt.provider_reference
+       FROM provider_transactions pt
+       WHERE pt.provider_reference = $1
+       ORDER BY pt.created_at DESC
+       LIMIT 1`,
+      [ref],
+    );
+    let organizationId = mapped.rows[0]?.organization_id as string | undefined;
+    let paymentIntentId = mapped.rows[0]?.payment_intent_id as string | undefined;
+
+    const {StripeAdapter} = await import('../providers/stripe/adapter.js');
+    const adapter = new StripeAdapter();
+    const statusResult = await adapter.getStatus({
+      organizationId: organizationId || 'unknown',
+      providerReference: ref,
+    });
+
+    // Prefer metadata correlation when present on Stripe object details
+    const metaPi =
+      (statusResult.details as any)?.metadata?.payment_intent_id ||
+      (statusResult.details as any)?.payment_intent_id;
+    if ((!paymentIntentId || !organizationId) && metaPi) {
+      const byMeta = await pgQuery(
+        `SELECT id, organization_id FROM payment_intents WHERE id=$1`,
+        [String(metaPi)],
+      );
+      if (byMeta.rows[0]) {
+        paymentIntentId = byMeta.rows[0].id;
+        organizationId = byMeta.rows[0].organization_id;
+      }
+    }
+
+    if (!paymentIntentId || !organizationId) {
+      throw notFound('Payment not found for Stripe reference', 'PAYMENT_NOT_FOUND');
+    }
+
+    const eventType =
+      statusResult.status === 'SUCCEEDED'
+        ? 'payment_intent.succeeded'
+        : statusResult.status === 'FAILED'
+          ? 'payment_intent.payment_failed'
+          : statusResult.status === 'CANCELLED'
+            ? 'payment_intent.canceled'
+            : null;
+
+    if (!eventType) {
+      const intent = await pgQuery(`SELECT * FROM payment_intents WHERE id=$1 AND organization_id=$2`, [
+        paymentIntentId,
+        organizationId,
+      ]);
+      return {
+        status: intent.rows[0]?.status || statusResult.status || 'UNKNOWN',
+        payment_intent_id: paymentIntentId,
+        organization_id: organizationId,
+        provider_status: statusResult.status,
+        synced: false,
+      };
+    }
+
+    const {withPgTransaction} = await import('../infrastructure/db/postgres.js');
+    const {applyProviderWebhookToPaymentIntent} = await import('../providers/webhook-state-apply.js');
+    const applied = await withPgTransaction(async (client) =>
+      applyProviderWebhookToPaymentIntent(client, {
+        organizationId,
+        paymentIntentId,
+        eventType,
+        providerEventId: `sync:${ref}:${eventType}`,
+        providerReference: ref,
+      }),
+    );
+
+    const intent = await pgQuery(`SELECT * FROM payment_intents WHERE id=$1 AND organization_id=$2`, [
+      paymentIntentId,
+      organizationId,
+    ]);
+    return {
+      status: intent.rows[0]?.status || statusResult.status,
+      payment_intent_id: paymentIntentId,
+      organization_id: organizationId,
+      provider_status: statusResult.status,
+      synced: applied.applied,
+      apply_reason: applied.reason,
+      success_url: intent.rows[0]?.success_url || null,
+      cancel_url: intent.rows[0]?.cancel_url || null,
+    };
   },
 };

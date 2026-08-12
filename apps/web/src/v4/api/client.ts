@@ -24,6 +24,32 @@ export function getCsrfTokenFromDocument(): string | null {
   }
 }
 
+export function storeCsrfToken(token: string | null | undefined) {
+  try {
+    if (token) sessionStorage.setItem('v4_csrf_token', token);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function refreshCsrfFromMe(token?: string | null): Promise<string | null> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeader(token),
+  };
+  const res = await fetch(`${API_ORIGIN}${API_PREFIX}/auth/me`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) return null;
+  const data = json && typeof json === 'object' && 'data' in json ? (json as any).data : json;
+  const csrf = data?.csrf_token as string | undefined;
+  if (csrf) storeCsrfToken(csrf);
+  return csrf || null;
+}
+
 export class ApiError extends Error {
   code?: string;
   requestId?: string;
@@ -88,33 +114,53 @@ export async function apiV1<T = unknown>(path: string, options: ApiRequestOption
   assertV4Path(relative);
 
   const method = options.method || (options.body !== undefined ? 'POST' : 'GET');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...authHeader(options.token),
-    ...(options.headers || {}),
+  const doFetch = async (csrfOverride?: string | null) => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...authHeader(options.token),
+      ...(options.headers || {}),
+    };
+
+    if (options.idempotent || options.idempotencyKey) {
+      headers['Idempotency-Key'] = options.idempotencyKey || crypto.randomUUID();
+    }
+    if (options.stepUpToken) {
+      headers['X-Step-Up-Token'] = options.stepUpToken;
+    }
+
+    const csrf = csrfOverride !== undefined ? csrfOverride : getCsrfTokenFromDocument();
+    if (csrf && method !== 'GET' && method !== 'HEAD') {
+      headers['X-CSRF-Token'] = csrf;
+    }
+
+    return fetch(`${API_ORIGIN}${relative}`, {
+      method,
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: options.signal,
+      credentials: 'include',
+    });
   };
 
-  if (options.idempotent || options.idempotencyKey) {
-    headers['Idempotency-Key'] = options.idempotencyKey || crypto.randomUUID();
-  }
-  if (options.stepUpToken) {
-    headers['X-Step-Up-Token'] = options.stepUpToken;
+  let res = await doFetch();
+  let json = await res.json().catch(() => ({}));
+
+  // Cookie-session mutations can fail CSRF after API restart; refresh token once and retry.
+  const errCode = (json as any)?.error?.code;
+  if (
+    !res.ok &&
+    errCode === 'CSRF_INVALID' &&
+    method !== 'GET' &&
+    method !== 'HEAD' &&
+    !relative.includes('/auth/me')
+  ) {
+    const fresh = await refreshCsrfFromMe(options.token);
+    if (fresh) {
+      res = await doFetch(fresh);
+      json = await res.json().catch(() => ({}));
+    }
   }
 
-  const csrf = getCsrfTokenFromDocument();
-  if (csrf && method !== 'GET' && method !== 'HEAD' && !headers.Authorization) {
-    headers['X-CSRF-Token'] = csrf;
-  }
-
-  const res = await fetch(`${API_ORIGIN}${relative}`, {
-    method,
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-    signal: options.signal,
-    credentials: 'include',
-  });
-
-  const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = (json as any)?.error || {};
     throw new ApiError(err.message || `Request failed (${res.status})`, {
@@ -126,7 +172,11 @@ export async function apiV1<T = unknown>(path: string, options: ApiRequestOption
   }
 
   if (json && typeof json === 'object' && 'data' in (json as object)) {
-    return (json as {data: T}).data;
+    const data = (json as {data: T}).data;
+    if (data && typeof data === 'object' && (data as any).csrf_token) {
+      storeCsrfToken((data as any).csrf_token);
+    }
+    return data;
   }
   return json as T;
 }

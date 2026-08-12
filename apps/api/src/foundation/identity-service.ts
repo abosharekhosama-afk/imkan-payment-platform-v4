@@ -487,6 +487,65 @@ export class IdentityService {
     );
     return r.rows;
   }
+
+  async updateOrganizationForUser(
+    organizationId: string,
+    userId: string,
+    input: {
+      name?: string;
+      defaultCurrency?: string | null;
+      locale?: string;
+      timezone?: string;
+    },
+    audit?: {requestId?: string},
+  ) {
+    await this.getOrganizationForUser(organizationId, userId);
+    return withPgTransaction(async (client) => {
+      if (input.name?.trim()) {
+        await client.query(`UPDATE organizations SET name=$2, updated_at=NOW() WHERE id=$1`, [
+          organizationId,
+          input.name.trim(),
+        ]);
+      }
+      const settings = await client.query(`SELECT organization_id FROM organization_settings WHERE organization_id=$1`, [
+        organizationId,
+      ]);
+      if (!settings.rows[0]) {
+        await client.query(`INSERT INTO organization_settings (organization_id) VALUES ($1)`, [organizationId]);
+      }
+      if (input.defaultCurrency !== undefined || input.locale !== undefined || input.timezone !== undefined) {
+        await client.query(
+          `UPDATE organization_settings SET
+             default_currency=COALESCE($2, default_currency),
+             locale=COALESCE($3, locale),
+             timezone=COALESCE($4, timezone),
+             updated_at=NOW()
+           WHERE organization_id=$1`,
+          [organizationId, input.defaultCurrency ?? null, input.locale ?? null, input.timezone ?? null],
+        );
+      }
+      await writeAuditEvent(
+        {
+          organizationId,
+          actorUserId: userId,
+          action: 'organization.updated',
+          resourceType: 'organization',
+          resourceId: organizationId,
+          requestId: audit?.requestId,
+          metadata: {fields: Object.keys(input).filter((k) => (input as any)[k] !== undefined)},
+        },
+        client,
+      );
+      const r = await client.query(
+        `SELECT o.id, o.name, o.slug, o.status, o.created_at, os.default_currency, os.locale, os.timezone
+         FROM organizations o
+         LEFT JOIN organization_settings os ON os.organization_id = o.id
+         WHERE o.id=$1`,
+        [organizationId],
+      );
+      return r.rows[0];
+    });
+  }
 }
 
 function cryptoRandomUuid(): string {

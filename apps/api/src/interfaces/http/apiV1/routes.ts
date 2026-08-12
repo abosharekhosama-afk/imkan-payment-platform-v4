@@ -21,6 +21,7 @@ import {rateLimitStoreReady} from '../../../foundation/rate-limit-bootstrap.js';
 import {
   clearSessionCookies,
   maybeOmitAccessToken,
+  readSessionTokenFromRequest,
   setSessionCookies,
 } from '../../../foundation/session-cookies.js';
 import {evaluateAlerts} from '../../../observability/alerts.js';
@@ -274,14 +275,38 @@ export async function apiV1Routes(app: FastifyInstance) {
     return ok(request, {logged_out: true});
   });
 
-  app.get('/auth/me', async (request) => {
+  app.get('/auth/me', async (request, reply) => {
     const auth = request.auth!;
+    const isPlatform =
+      !auth.organizationId &&
+      ((auth.roles || []).some((r) => String(r).startsWith('PLATFORM_')) ||
+        (auth.permissions || []).some((p) => ['platform.admin', 'platform.support', 'platform.finance'].includes(p)));
+
+    // Cookie/dual browser sessions: always mint a fresh CSRF so POSTs work after refresh
+    // (sessionStorage may be empty while HttpOnly session cookie still authenticates).
+    let csrf: string | null = null;
+    if (auth.authKind === 'session') {
+      const sessionToken =
+        (typeof request.headers.authorization === 'string' &&
+        request.headers.authorization.toLowerCase().startsWith('bearer ')
+          ? request.headers.authorization.slice(7).trim()
+          : null) || readSessionTokenFromRequest(request);
+      if (sessionToken) {
+        csrf = setSessionCookies(reply, {
+          accessToken: sessionToken,
+          expiresAt: new Date(Date.now() + config.sessionTtlHours * 3600_000),
+        });
+      }
+    }
+
     return ok(request, {
       user: {id: auth.userId, email: auth.email},
       organization_id: auth.organizationId,
       roles: auth.roles,
       permissions: auth.permissions,
       session_id: auth.sessionId,
+      account_type: isPlatform ? 'platform' : 'merchant',
+      ...(csrf ? {csrf_token: csrf} : {}),
     });
   });
 
@@ -305,6 +330,34 @@ export async function apiV1Routes(app: FastifyInstance) {
     async (request) => {
       const auth = request.auth!;
       const org = await identityService.getOrganizationForUser(auth.organizationId!, auth.userId);
+      return ok(request, org);
+    },
+  );
+
+  app.patch(
+    '/organizations/current',
+    {preHandler: [requireOrganizationContext(), requirePermission('org.manage', 'platform.admin')]},
+    async (request) => {
+      const auth = request.auth!;
+      const body = z
+        .object({
+          name: z.string().min(1).max(300).optional(),
+          default_currency: z.string().length(3).optional().nullable(),
+          locale: z.string().min(2).max(10).optional(),
+          timezone: z.string().min(2).max(64).optional(),
+        })
+        .parse(request.body || {});
+      const org = await identityService.updateOrganizationForUser(
+        auth.organizationId!,
+        auth.userId,
+        {
+          name: body.name,
+          defaultCurrency: body.default_currency,
+          locale: body.locale,
+          timezone: body.timezone,
+        },
+        {requestId: request.id},
+      );
       return ok(request, org);
     },
   );

@@ -6,6 +6,7 @@ import {created, ok, parsePaging} from '../../../foundation/http.js';
 import {paymentConfigService} from '../../../payments/payment-config-service.js';
 import {paymentLinksService} from '../../../payments/payment-links-service.js';
 import {paymentCoreService} from '../../../payments/payment-core-service.js';
+import {merchantReadinessService} from '../../../payments/merchant-readiness-service.js';
 import {dashboardSummaryService} from '../../../payments/dashboard-summary-service.js';
 import {rateLimitPrep} from '../../../payments/rate-limit-prep.js';
 
@@ -222,6 +223,49 @@ export async function registerPhase4Routes(app: FastifyInstance) {
   );
 
   app.get(
+    '/merchant/payments/readiness',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('payments.read', 'org.read'),
+        rateLimitPrep('payments.read'),
+      ],
+    },
+    async (request) =>
+      ok(
+        request,
+        await merchantReadinessService.getPaymentsReadiness(
+          request.auth!.organizationId!,
+          request.auth!.userId,
+        ),
+      ),
+  );
+
+  app.get(
+    '/merchant/transactions',
+    {preHandler: [requireOrganizationContext(), requirePermission('payments.read'), rateLimitPrep('payments.read')]},
+    async (request) => {
+      const query = z
+        .object({
+          status: z.enum(['SUCCEEDED', 'FAILED']).optional(),
+          provider_code: z.string().max(64).optional(),
+        })
+        .parse(request.query);
+      const {limit, offset} = parsePaging(request.query);
+      return ok(
+        request,
+        await paymentCoreService.listTransactions(request.auth!.organizationId!, {
+          status: query.status,
+          providerCode: query.provider_code,
+          limit,
+          offset,
+        }),
+        {limit, offset},
+      );
+    },
+  );
+
+  app.get(
     '/merchant/payments',
     {preHandler: [requireOrganizationContext(), requirePermission('payments.read'), rateLimitPrep('payments.read')]},
     async (request) => {
@@ -274,6 +318,27 @@ export async function registerPhase4Routes(app: FastifyInstance) {
   );
 
   // -------------------------------------------------------- public checkout
+
+  app.post(
+    '/checkout/stripe/sync',
+    {preHandler: [rateLimitPrep('checkout.payment'), idempotencyPreHandler('checkout.stripe.sync')]},
+    async (request) => {
+      try {
+        const body = z
+          .object({
+            payment_intent: z.string().min(3).max(200),
+          })
+          .parse(request.body || {});
+        const row = await paymentCoreService.syncStripeCheckoutPayment(body.payment_intent);
+        const payload = ok(request, row);
+        await completeIdempotency(request, 200, payload);
+        return payload;
+      } catch (error) {
+        await failIdempotency(request);
+        throw error;
+      }
+    },
+  );
 
   app.get(
     '/checkout/:token',

@@ -86,8 +86,8 @@ export const paymentLinksService = {
     actor: Actor,
   ) {
     const currency = input.currencyCode.toUpperCase();
-    const oneTime = input.oneTime ?? false;
-    const reusable = oneTime ? false : (input.reusable ?? true);
+    const oneTime = input.oneTime ?? true;
+    const reusable = oneTime ? false : (input.reusable ?? false);
     let maxUses = input.maxUses ?? (oneTime ? 1 : null);
     if (oneTime) maxUses = 1;
 

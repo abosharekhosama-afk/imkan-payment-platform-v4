@@ -55,7 +55,7 @@ export function CheckoutPage() {
       const success =
         session.session?.success_url ||
         session.intent?.success_url ||
-        `${window.location.origin}/checkout/return`;
+        `${window.location.origin}/checkout/return?status=success`;
       setReturnUrl(String(success));
       const stripe = session.stripe as StripeCheckoutConfig | undefined;
       if (stripe?.client_secret && stripe?.publishable_key && isLiveStripeKey(stripe.publishable_key)) {

@@ -252,18 +252,58 @@ export function ResendVerificationPage() {
 export function CheckoutReturnPage() {
   const {t} = useI18n();
   const [params] = useSearchParams();
-  const status = params.get('status') || 'unknown';
-  const tone = status === 'success' ? 'success' : status === 'cancel' ? 'warning' : 'info';
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState('');
+
+  const rawStatus = (params.get('status') || params.get('redirect_status') || '').toLowerCase();
+  const stripePi = params.get('payment_intent') || '';
+
+  const normalized =
+    rawStatus === 'success' || rawStatus === 'succeeded' || rawStatus === 'complete'
+      ? 'success'
+      : rawStatus === 'cancel' || rawStatus === 'cancelled' || rawStatus === 'canceled'
+        ? 'cancel'
+        : rawStatus === 'failed' || rawStatus === 'requires_payment_method'
+          ? 'failed'
+          : stripePi
+            ? 'pending'
+            : 'unknown';
+
+  useEffect(() => {
+    if (!stripePi || !stripePi.startsWith('pi_')) return;
+    let cancelled = false;
+    v4
+      .checkoutStripeSync({payment_intent: stripePi})
+      .then((row) => {
+        if (cancelled) return;
+        const st = String(row.status || '').toUpperCase();
+        setSyncStatus(st.includes('SUCCEED') ? 'success' : st.includes('FAIL') ? 'failed' : st.includes('CANCEL') ? 'cancel' : null);
+      })
+      .catch((e) => {
+        if (!cancelled) setSyncError(e.message || 'sync failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [stripePi]);
+
+  const status = syncStatus || normalized;
+  const tone = status === 'success' ? 'success' : status === 'cancel' || status === 'failed' ? 'warning' : 'info';
   const statusText =
     status === 'success'
       ? t('checkout.completed')
       : status === 'cancel'
         ? t('checkout.cancelled')
-        : t('checkout.unknown');
+        : status === 'failed'
+          ? t('checkout.failed')
+          : status === 'pending'
+            ? t('checkout.confirming')
+            : t('checkout.unknown');
 
   return (
     <AuthPublicShell title={t('checkout.returnTitle')}>
       <Alert tone={tone}>{statusText}.</Alert>
+      {syncError ? <Alert tone="warning">{syncError}</Alert> : null}
       <p>{t('checkout.closeWindow')}</p>
     </AuthPublicShell>
   );

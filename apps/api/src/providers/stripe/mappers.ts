@@ -93,6 +93,7 @@ export function mapPaymentIntent(pi: StripePaymentIntent): ProviderOperationResu
     details: {
       stripe_status: pi.status,
       client_secret: pi.client_secret ? '[PRESENT]' : undefined,
+      metadata: pi.metadata || {},
     },
   };
 }

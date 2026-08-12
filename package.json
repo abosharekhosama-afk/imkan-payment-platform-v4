@@ -26,6 +26,7 @@
     "paytabs:preflight": "node scripts/paytabs-sandbox-preflight.mjs",
     "stripe:preflight": "node scripts/stripe-preflight.mjs",
     "seed:stripe-routes": "node scripts/seed-stripe-routes.mjs",
+    "seed:platform-owner": "node scripts/seed-platform-owner.mjs",
     "prepare:stripe-production": "node scripts/prepare-stripe-production.mjs",
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web"

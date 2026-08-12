@@ -22,7 +22,7 @@ function defaultSuccessUrl(): string {
   return (
     process.env.STRIPE_SUCCESS_URL ||
     process.env.PAYTABS_SANDBOX_RETURN_URL ||
-    (publicUrl ? `${publicUrl}/checkout/return` : 'http://localhost:5173/checkout/return')
+    (publicUrl ? `${publicUrl}/checkout/return?status=success` : 'http://localhost:5173/checkout/return?status=success')
   );
 }
 
@@ -30,7 +30,7 @@ function defaultCancelUrl(): string {
   const publicUrl = (process.env.APP_PUBLIC_URL || '').replace(/\/$/, '');
   return (
     process.env.STRIPE_CANCEL_URL ||
-    (publicUrl ? `${publicUrl}/checkout/return?status=cancelled` : 'http://localhost:5173/checkout/return?status=cancelled')
+    (publicUrl ? `${publicUrl}/checkout/return?status=cancel` : 'http://localhost:5173/checkout/return?status=cancel')
   );
 }
 

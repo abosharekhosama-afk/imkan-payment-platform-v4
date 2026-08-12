@@ -84,8 +84,8 @@ const env = {
   STRIPE_TEST_SECRET_KEY: process.env.STRIPE_TEST_SECRET_KEY || '',
   STRIPE_TEST_PUBLISHABLE_KEY: process.env.STRIPE_TEST_PUBLISHABLE_KEY || '',
   STRIPE_TEST_WEBHOOK_SECRET: process.env.STRIPE_TEST_WEBHOOK_SECRET || '',
-  STRIPE_SUCCESS_URL: process.env.STRIPE_SUCCESS_URL || 'http://127.0.0.1:5173/checkout/return',
-  STRIPE_CANCEL_URL: process.env.STRIPE_CANCEL_URL || 'http://127.0.0.1:5173/checkout/return?status=cancelled',
+  STRIPE_SUCCESS_URL: process.env.STRIPE_SUCCESS_URL || 'http://127.0.0.1:5173/checkout/return?status=success',
+  STRIPE_CANCEL_URL: process.env.STRIPE_CANCEL_URL || 'http://127.0.0.1:5173/checkout/return?status=cancel',
 };
 
 console.log('Migrating PostgreSQL...');
@@ -193,6 +193,7 @@ await setMerchantRole(viewer.user_id, 'MERCHANT_VIEWER');
 viewer.access_token = await login(VIEWER_EMAIL);
 
 async function seedStripeRoutesForOrg(orgId) {
+  if (!orgId) return;
   const acc = await pool.query(
     `SELECT pa.id
      FROM provider_accounts pa
@@ -246,7 +247,7 @@ const platforms = {};
 for (const role of PLATFORM_ROLES) {
   const email = `e2e-${role.toLowerCase()}@example.test`;
   const u = await register(email, `E2E ${role} Org`);
-  // Keep merchant membership for session org + add platform role (NULL org)
+  // Platform accounts are SEPARATE from merchants: platform role (NULL org), no merchant org, no KYB.
   await pool.query(
     `INSERT INTO user_roles (user_id, role_id, organization_id)
      SELECT $1, r.id, NULL
@@ -258,15 +259,21 @@ for (const role of PLATFORM_ROLES) {
        )`,
     [u.user_id, role],
   );
+  // Remove the merchant organization created during registration (cascades membership + merchant roles).
+  await pool.query(`DELETE FROM organizations WHERE id=$1`, [u.organization_id]);
+  // Re-login so the session resolves to a platform account (organization_id = NULL).
+  const platformToken = await login(email);
   platforms[role] = {
     email,
     password: PASSWORD,
-    organization_id: u.organization_id,
+    organization_id: null,
     user_id: u.user_id,
+    access_token: platformToken,
   };
 }
 
-for (const entry of Object.values({...merchants, ...platforms})) {
+// Only merchants receive Stripe SANDBOX routes; platform accounts have no organization.
+for (const entry of Object.values(merchants)) {
   await seedStripeRoutesForOrg(entry.organization_id);
 }
 

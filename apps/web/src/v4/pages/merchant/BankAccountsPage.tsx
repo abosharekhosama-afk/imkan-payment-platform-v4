@@ -60,6 +60,7 @@ export function BankAccountsPage() {
           </Link>
         }
       />
+      <Alert tone="info">{t('merchant.bank.stripeMoneyPath')}</Alert>
       <Alert tone="warning">{t('merchant.bank.optionalAlert')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {mfaSecretOnce ? (

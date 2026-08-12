@@ -5,6 +5,7 @@ import {v4} from '../api/endpoints';
 import {Alert, LoadingState, PageHeader, StatusBadge} from '../design-system/components';
 import {formatDate, formatMoney, shortId} from '../utils/money';
 import {useI18n} from '../i18n/I18nProvider';
+import {ProductionReadinessCard} from '../components/ProductionReadinessCard';
 
 export function DashboardPage() {
   const {t} = useI18n();
@@ -47,6 +48,8 @@ export function DashboardPage() {
         crumbs={[{label: t('section.overview')}, {label: t('nav.dashboard')}]}
       />
       <Alert tone="warning">{t('dashboard.envWarning')}</Alert>
+
+      <ProductionReadinessCard />
 
       {kyb ? (
         <div className="v4-card" style={{marginBottom: '1rem'}}>

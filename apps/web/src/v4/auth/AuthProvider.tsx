@@ -1,6 +1,6 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
 import {v4} from '../api/endpoints';
-import {ApiError, setSessionTransportHint} from '../api/client';
+import {ApiError, setSessionTransportHint, storeCsrfToken} from '../api/client';
 
 export type AuthUser = {
   id: string;
@@ -13,6 +13,8 @@ export type AuthState = {
   organizationId: string | null;
   roles: string[];
   permissions: string[];
+  accountType: 'platform' | 'merchant';
+  isPlatform: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<{mfaRequired: boolean; mfaToken?: string}>;
   verifyMfa: (mfaToken: string, code: string) => Promise<void>;
@@ -70,6 +72,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [accountType, setAccountType] = useState<'platform' | 'merchant'>('merchant');
   const [loading, setLoading] = useState(true);
 
   const applySession = useCallback(async (sessionToken: string | null) => {
@@ -82,17 +85,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       setToken(sessionToken || 'cookie-session');
       writeStoredToken(null);
     }
-    if (me.csrf_token) {
-      try {
-        sessionStorage.setItem('v4_csrf_token', me.csrf_token);
-      } catch {
-        /* ignore */
-      }
-    }
+    if (me.csrf_token) storeCsrfToken(me.csrf_token);
     setUser(me.user);
     setOrganizationId(me.organization_id || null);
     setRoles(me.roles || []);
     setPermissions(me.permissions || []);
+    setAccountType(me.account_type === 'platform' ? 'platform' : 'merchant');
   }, []);
 
   const refresh = useCallback(async () => {
@@ -105,6 +103,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       setOrganizationId(null);
       setRoles([]);
       setPermissions([]);
+      setAccountType('merchant');
     } finally {
       setLoading(false);
     }
@@ -120,13 +119,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       if (result.mfa_required || result.mfa_token) {
         return {mfaRequired: true, mfaToken: result.mfa_token as string};
       }
-      if (result.csrf_token) {
-        try {
-          sessionStorage.setItem('v4_csrf_token', result.csrf_token);
-        } catch {
-          /* ignore */
-        }
-      }
+      if (result.csrf_token) storeCsrfToken(result.csrf_token);
       const sessionToken = result.access_token || result.token || result.session_token || null;
       if (!sessionToken && !cookieOnly && result.token_delivery !== 'cookie') {
         throw new ApiError('Login succeeded without session token', {status: 500});
@@ -140,13 +133,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const verifyMfa = useCallback(
     async (mfaToken: string, code: string) => {
       const result = await v4.mfaVerify({mfa_token: mfaToken, totp: code});
-      if (result.csrf_token) {
-        try {
-          sessionStorage.setItem('v4_csrf_token', result.csrf_token);
-        } catch {
-          /* ignore */
-        }
-      }
+      if (result.csrf_token) storeCsrfToken(result.csrf_token);
       const sessionToken = result.access_token || result.token || result.session_token || null;
       if (!sessionToken && !cookieOnly && result.token_delivery !== 'cookie') {
         throw new ApiError('MFA succeeded without session token', {status: 500});
@@ -173,6 +160,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     setOrganizationId(null);
     setRoles([]);
     setPermissions([]);
+    setAccountType('merchant');
   }, [token]);
 
   const hasPermission = useCallback(
@@ -191,6 +179,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       organizationId,
       roles,
       permissions,
+      accountType,
+      isPlatform: accountType === 'platform',
       loading,
       login,
       verifyMfa,
@@ -198,7 +188,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       refresh,
       hasPermission,
     }),
-    [token, user, organizationId, roles, permissions, loading, login, verifyMfa, logout, refresh, hasPermission],
+    [token, user, organizationId, roles, permissions, accountType, loading, login, verifyMfa, logout, refresh, hasPermission],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

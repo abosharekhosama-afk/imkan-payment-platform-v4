@@ -53,6 +53,7 @@ import {
   PlatformKybDetailPage,
   PlatformKybListPage,
 } from '../pages/platform/PlatformKybPages';
+import {PlatformTeamPage} from '../pages/platform/PlatformTeamPage';
 import {ComingSoonPage} from '../pages/ComingSoonPage';
 import {ForbiddenPage} from '../pages/ForbiddenPage';
 import {RequirePermission} from '../rbac/RequirePermission';
@@ -74,6 +75,17 @@ function RequireAuth({children}: {children: React.ReactNode}) {
 
 function RP({anyOf, children}: {anyOf: string[]; children: React.ReactNode}) {
   return <RequirePermission anyOf={anyOf}>{children}</RequirePermission>;
+}
+
+/** Home ('/') sends platform team accounts to the platform workspace; merchants see the dashboard. */
+function HomeRedirect() {
+  const {isPlatform} = useAuth();
+  if (isPlatform) return <Navigate to="/platform" replace />;
+  return (
+    <RP anyOf={['payments.read', 'org.read', 'billing.read', 'platform.admin', 'platform.support']}>
+      <DashboardPage />
+    </RP>
+  );
 }
 
 export function AppRoutes() {
@@ -106,14 +118,7 @@ export function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route
-          index
-          element={
-            <RP anyOf={['payments.read', 'org.read', 'billing.read', 'platform.admin', 'platform.support']}>
-              <DashboardPage />
-            </RP>
-          }
-        />
+        <Route index element={<HomeRedirect />} />
         <Route path="forbidden" element={<ForbiddenPage />} />
         <Route path="payment-config" element={<RP anyOf={['payment_config.read']}><PaymentConfigPage /></RP>} />
         <Route path="payment-links" element={<RP anyOf={['payment_links.read']}><PaymentLinksPage /></RP>} />
@@ -151,6 +156,8 @@ export function AppRoutes() {
         <Route path="payouts" element={<RP anyOf={['payouts.read', 'payouts.manage']}><PayoutsPage /></RP>} />
         <Route path="disputes" element={<RP anyOf={['disputes.read', 'disputes.manage']}><DisputesPage /></RP>} />
         <Route path="risk" element={<RP anyOf={['disputes.read', 'platform.risk.manage']}><RiskPage /></RP>} />
+        <Route path="platform" element={<Navigate to="/platform/team" replace />} />
+        <Route path="platform/team" element={<RP anyOf={['platform.users.read', 'platform.admin']}><PlatformTeamPage /></RP>} />
         <Route path="platform/kyb" element={<RP anyOf={['kyb.review']}><PlatformKybListPage /></RP>} />
         <Route path="platform/kyb/:caseId" element={<RP anyOf={['kyb.review']}><PlatformKybDetailPage /></RP>} />
         <Route path="coming-soon/:feature" element={<ComingSoonPage />} />

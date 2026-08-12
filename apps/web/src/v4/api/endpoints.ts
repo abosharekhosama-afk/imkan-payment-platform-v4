@@ -33,6 +33,10 @@ export const v4 = {
     apiV1<any>('/invitations/accept', {method: 'POST', body}),
 
   orgCurrent: (token: Tok) => apiV1<any>('/organizations/current', withToken(token)),
+  updateOrgCurrent: (token: Tok, body: unknown) =>
+    apiV1<any>('/organizations/current', withToken(token, {method: 'PATCH', body})),
+  paymentsReadiness: (token: Tok) => apiV1<any>('/merchant/payments/readiness', withToken(token)),
+  transactions: (token: Tok, query = '') => apiV1<any[]>(`/merchant/transactions${query}`, withToken(token)),
   members: (token: Tok, orgId: string) =>
     apiV1<any[]>(`/organizations/${orgId}/members`, withToken(token)),
   auditEvents: (token: Tok) => apiV1<any[]>('/audit-events', withToken(token)),
@@ -157,6 +161,8 @@ export const v4 = {
     apiV1<any>(`/checkout/${publicToken}/session`, {method: 'POST', body, idempotent: true}),
   checkoutPay: (publicToken: string, body: unknown) =>
     apiV1<any>(`/checkout/${publicToken}/payment`, {method: 'POST', body, idempotent: true}),
+  checkoutStripeSync: (body: {payment_intent: string}) =>
+    apiV1<any>('/checkout/stripe/sync', {method: 'POST', body, idempotent: true}),
 
   // Billing
   customers: (token: Tok) => apiV1<any[]>('/customers', withToken(token)),
@@ -212,6 +218,14 @@ export const v4 = {
       `/organizations/${orgId}/invitations`,
       withToken(token, {method: 'POST', body, idempotent: true, stepUpToken}),
     ),
+
+  // Platform team (separate accounts, no merchant organization)
+  platformUsers: (token: Tok) => apiV1<any[]>('/platform/users', withToken(token)),
+  platformInvitations: (token: Tok) => apiV1<any[]>('/platform/invitations', withToken(token)),
+  createPlatformInvitation: (token: Tok, body: unknown, stepUpToken?: string) =>
+    apiV1<any>('/platform/invitations', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
+  revokePlatformInvitation: (token: Tok, id: string, stepUpToken?: string) =>
+    apiV1<any>(`/platform/invitations/${id}/revoke`, withToken(token, {method: 'POST', body: {}, stepUpToken})),
 
   // RBAC / custom roles (Phase 6.6)
   rbacRoles: (token: Tok) => apiV1<any>('/rbac/roles', withToken(token)),

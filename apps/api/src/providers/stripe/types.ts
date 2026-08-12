@@ -27,6 +27,7 @@ export type StripePaymentIntent = {
   currency?: string;
   last_payment_error?: {code?: string; message?: string} | null;
   livemode?: boolean;
+  metadata?: Record<string, string> | null;
 };
 
 export type StripeRefund = {

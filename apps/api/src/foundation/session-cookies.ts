@@ -68,6 +68,15 @@ export function setSessionCookies(
   return csrf;
 }
 
+/** Mint/refresh CSRF cookie for an existing cookie/dual session (e.g. GET /auth/me). */
+export function refreshCsrfCookie(reply: FastifyReply, maxAgeSeconds = config.sessionTtlHours * 3600) {
+  const transport = resolveSessionTransport();
+  if (transport === 'bearer') return null;
+  const csrf = createCsrfToken();
+  reply.setCookie(CSRF_COOKIE_NAME, csrf, csrfCookieOptions(Math.max(60, maxAgeSeconds)));
+  return csrf;
+}
+
 export function clearSessionCookies(reply: FastifyReply) {
   reply.clearCookie(SESSION_COOKIE_NAME, {path: '/'});
   reply.clearCookie(CSRF_COOKIE_NAME, {path: '/'});

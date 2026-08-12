@@ -289,6 +289,16 @@ export class IdentityPhase2Service {
   }
 
   async acceptInvitation(token: string, input: {password?: string; name?: string; existingUserId?: string}) {
+    // Platform team invitations (org-less) are handled by the platform users service.
+    const platformInv = await pgQuery(
+      `SELECT 1 FROM platform_invitations WHERE token_hash=$1 AND status='PENDING' AND expires_at > NOW()`,
+      [hashToken(token)],
+    );
+    if (platformInv.rows[0]) {
+      const {platformUsersService} = await import('./platform-users-service.js');
+      const result = await platformUsersService.acceptInvitation(token, input);
+      if (result) return result;
+    }
     return withPgTransaction(async (client) => {
       const inv = await client.query<{
         id: string;

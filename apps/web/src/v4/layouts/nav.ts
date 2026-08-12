@@ -87,7 +87,10 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     labelKey: 'section.platform',
-    items: [{to: '/platform/kyb', labelKey: 'nav.kybReview', anyOf: ['kyb.review']}],
+    items: [
+      {to: '/platform/kyb', labelKey: 'nav.kybReview', anyOf: ['kyb.review']},
+      {to: '/platform/team', labelKey: 'nav.platformTeam', anyOf: ['platform.users.read', 'platform.admin']},
+    ],
   },
   {
     labelKey: 'section.later',

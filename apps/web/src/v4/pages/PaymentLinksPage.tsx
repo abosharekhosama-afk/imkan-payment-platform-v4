@@ -58,6 +58,9 @@ export function PaymentLinksPage() {
         amount_minor: form.amount_minor,
         currency_code: form.currency_code,
         activate: form.activate,
+        one_time: true,
+        max_uses: 1,
+        reusable: false,
       });
       setOpen(false);
       push(t('toast.paymentLinkCreated'));

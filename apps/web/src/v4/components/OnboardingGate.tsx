@@ -10,7 +10,7 @@ import {isOnboardingAllowlistedPath, shouldForceOnboarding} from '../pages/Onboa
  * Money-moving APIs enforce KYB independently via assertMerchantPaymentsAllowed.
  */
 export function OnboardingGate({children}: {children: React.ReactNode}) {
-  const {token, loading} = useAuth();
+  const {token, loading, isPlatform} = useAuth();
   const location = useLocation();
   const [checking, setChecking] = useState(true);
   const [force, setForce] = useState(false);
@@ -20,6 +20,12 @@ export function OnboardingGate({children}: {children: React.ReactNode}) {
     (async () => {
       if (!token) {
         setChecking(false);
+        return;
+      }
+      // Platform team accounts have no merchant organization and no KYB.
+      if (isPlatform) {
+        setChecking(false);
+        setForce(false);
         return;
       }
       if (isOnboardingAllowlistedPath(location.pathname)) {
@@ -40,7 +46,7 @@ export function OnboardingGate({children}: {children: React.ReactNode}) {
     return () => {
       cancelled = true;
     };
-  }, [token, location.pathname]);
+  }, [token, location.pathname, isPlatform]);
 
   if (loading || checking) return <LoadingState label="Checking onboarding…" />;
   if (force) return <Navigate to="/onboarding" replace />;
