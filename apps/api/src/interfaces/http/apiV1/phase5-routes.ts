@@ -343,7 +343,7 @@ export async function registerPhase5Routes(app: FastifyInstance) {
   app.post(
     '/webhooks/providers/:providerCode',
     {
-      config: {rawBody: true},
+      config: {rawBody: true} as Record<string, unknown>,
       preHandler: [rateLimit('webhooks.ingress')],
     },
     async (request, reply) => {

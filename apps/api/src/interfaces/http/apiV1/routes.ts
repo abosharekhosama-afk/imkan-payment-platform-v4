@@ -65,7 +65,9 @@ export async function apiV1Routes(app: FastifyInstance) {
     const finalCode = isZod ? 'VALIDATION_ERROR' : String(code);
     const message = isZod
       ? ((error as any).issues || []).map((i: any) => `${(i.path || []).join('.') || 'request'}: ${i.message}`).join(' | ')
-      : error.message || 'Unexpected error';
+      : error instanceof Error
+        ? error.message
+        : 'Unexpected error';
     request.log.error({err: error, request_id: request.id}, 'api v1 error');
     try {
       await pgQuery(

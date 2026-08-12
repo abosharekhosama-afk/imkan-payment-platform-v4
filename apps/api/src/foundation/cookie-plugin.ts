@@ -67,7 +67,7 @@ declare module 'fastify' {
 
 export async function registerCookiePlugin(app: FastifyInstance) {
   // Fastify forbids decorating requests with shared object references.
-  app.decorateRequest('cookies', null);
+  app.decorateRequest('cookies', {} as Record<string, string>);
 
   app.addHook('onRequest', async (request) => {
     request.cookies = parseCookieHeader(

@@ -1211,13 +1211,14 @@ export const paymentCoreService = {
       throw notFound('Payment not found for Stripe reference', 'PAYMENT_NOT_FOUND');
     }
 
+    const stripeStatus = String((statusResult.details as {stripe_status?: string} | undefined)?.stripe_status || '').toLowerCase();
     const eventType =
       statusResult.status === 'SUCCEEDED'
         ? 'payment_intent.succeeded'
-        : statusResult.status === 'FAILED'
-          ? 'payment_intent.payment_failed'
-          : statusResult.status === 'CANCELLED'
-            ? 'payment_intent.canceled'
+        : statusResult.status === 'FAILED' && (stripeStatus === 'canceled' || stripeStatus === 'cancelled')
+          ? 'payment_intent.canceled'
+          : statusResult.status === 'FAILED'
+            ? 'payment_intent.payment_failed'
             : null;
 
     if (!eventType) {

@@ -357,7 +357,6 @@ export const settlementService = {
             settlement_id: input.settlementId,
             organization_id: input.organizationId,
             environment: settlement.environment,
-            currency_code: settlement.currency_code,
             ...totals,
             line_count: lineCount,
             finalized_at: settlement.finalized_at,

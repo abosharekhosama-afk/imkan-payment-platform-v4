@@ -45,7 +45,7 @@ export class KmsSecretResolver implements SecretResolver {
     );
   }
 
-  async rotate(input: {secretRef: string; newVersion?: string}) {
+  async rotate(input: {secretRef: string; newVersion?: string}): Promise<{secretRef: string; version: string}> {
     throw new SecretBackendNotConfiguredError(
       `KMS rotation for ${input.secretRef} requires a wired vendor SDK (not in P15.2).`,
     );
