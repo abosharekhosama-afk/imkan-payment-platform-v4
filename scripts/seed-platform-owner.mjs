@@ -7,28 +7,13 @@
  *   PLATFORM_OWNER_EMAIL=ops@imkan.example PLATFORM_OWNER_PASSWORD='StrongPass123!' node scripts/seed-platform-owner.mjs
  */
 import crypto from 'node:crypto';
-import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import pg from 'pg';
+import {loadRootDotEnv, resolvePgConnectionString} from './lib/pg-connection.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-function loadDotEnv() {
-  const envPath = path.join(root, '.env');
-  if (!fs.existsSync(envPath)) return;
-  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq <= 0) continue;
-    const key = trimmed.slice(0, eq).trim();
-    const val = trimmed.slice(eq + 1).trim();
-    if (!process.env[key]) process.env[key] = val;
-  }
-}
-
-loadDotEnv();
+loadRootDotEnv(root);
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16);
@@ -46,8 +31,7 @@ if (password.length < 10) {
   process.exit(1);
 }
 
-const connectionString =
-  process.env.DATABASE_URL_PG || process.env.POSTGRES_URL || 'postgres://imkan:imkan@127.0.0.1:5432/imkan_payments';
+const connectionString = resolvePgConnectionString();
 const pool = new pg.Pool({connectionString});
 
 const client = await pool.connect();

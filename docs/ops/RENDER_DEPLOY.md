@@ -40,6 +40,22 @@
 3. Render يقرأ `render.yaml` من الجذر
 4. أنشئ الخدمتين: `imkan-payments-api` + `imkan-payments-web`
 
+> **Free tier:** `preDeployCommand` غير مدعوم — `npm run db:migrate:pg` يعمل داخل `buildCommand` عند كل deploy (يحتاج `DATABASE_URL_PG` في env).
+
+---
+
+## 2b) التحديث التلقائي عند Push
+
+بعد ربط GitHub:
+
+```text
+git push origin main  →  Render يبني وينشر API + Web تلقائياً
+```
+
+تأكد في كل خدمة: **Settings → Build & Deploy → Auto-Deploy = Yes** و **Branch = main**.
+
+عند إضافة migrations SQL جديدة في المستقبل، `db:migrate:pg` في build يطبّقها تلقائياً على Neon.
+
 ---
 
 ## 3) متغيرات البيئة (API)
@@ -79,26 +95,23 @@
 
 ---
 
-## 5) أول تشغيل — Seed
+## 5) Seed (مرة واحدة — إن لم تفعل محلياً)
 
-بعد نجاح أول deploy للـ API:
+إذا سبق وشغّلت على Neon محلياً:
 
-1. **Render Shell** (API service → Shell):
+```powershell
+npm run seed:platform-owner
+npm run seed:stripe-routes
+```
+
+**لا حاجة** إعادة seed على Render.
+
+Otherwise — **Render Shell** (API service → Shell) أو محلياً مع `DATABASE_URL_PG`:
 
 ```bash
 npm run seed:platform-owner
 npm run seed:stripe-routes
 ```
-
-2. أو محلياً مع `DATABASE_URL_PG` يشير إلى Neon:
-
-```powershell
-$env:DATABASE_URL_PG="postgres://..."
-npm run seed:platform-owner
-npm run seed:stripe-routes
-```
-
-3. سجّل أول Platform Owner (اتبع output السكربت) أو أنشئ عبر `/signup` ثم ارفع الصلاحيات في DB.
 
 ---
 
