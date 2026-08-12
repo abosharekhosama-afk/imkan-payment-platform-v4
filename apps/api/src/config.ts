@@ -53,16 +53,15 @@ function assertProductionInfrastructure() {
     throw new Error('Production requires OUTBOX_WORKER_ENABLED=true for webhooks and email delivery');
   }
   const providerForStripe = (process.env.PAYMENT_PROVIDER || '').toLowerCase();
-  if (providerForStripe === 'stripe' && (process.env.APP_ENV || 'production').toLowerCase() === 'production') {
+  if (providerForStripe === 'stripe') {
     if ((process.env.STRIPE_ADAPTER_MODE || 'http').toLowerCase() !== 'http') {
       throw new Error('Production Stripe requires STRIPE_ADAPTER_MODE=http');
     }
-    if ((process.env.STRIPE_ALLOW_LIVE || '').toLowerCase() !== 'true') {
-      throw new Error('Production Stripe requires STRIPE_ALLOW_LIVE=true');
-    }
-    const stripeEnv = (process.env.STRIPE_ENV || '').toLowerCase();
-    if (!['live', 'production', 'prod'].includes(stripeEnv)) {
-      throw new Error('Production Stripe requires STRIPE_ENV=live');
+    const stripeEnv = (process.env.STRIPE_ENV || 'test').toLowerCase();
+    if (['live', 'production', 'prod'].includes(stripeEnv)) {
+      if ((process.env.STRIPE_ALLOW_LIVE || '').toLowerCase() !== 'true') {
+        throw new Error('Production Stripe requires STRIPE_ALLOW_LIVE=true when STRIPE_ENV=live');
+      }
     }
   }
 }
