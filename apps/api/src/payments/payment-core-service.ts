@@ -424,12 +424,20 @@ export const paymentCoreService = {
       }, `payment-created-${requiresPayment.id}`);
 
       const branding = await paymentConfigService.getPublicBranding(link.organization_id);
+      const stripeEmbedded =
+        resolved.providerCode === 'stripe' && providerPrep.details?.embedded && providerPrep.details?.client_secret
+          ? {
+              publishable_key: String(providerPrep.details.publishable_key || ''),
+              client_secret: String(providerPrep.details.client_secret),
+            }
+          : null;
       return {
         session: money({...session.rows[0], public_token: sessionToken}),
         intent: money(requiresPayment),
         order: money(order.rows[0]),
         branding,
         provider: {code: resolved.providerCode, status: providerPrep.status, environment: resolved.environment},
+        stripe: stripeEmbedded,
       };
     });
   },

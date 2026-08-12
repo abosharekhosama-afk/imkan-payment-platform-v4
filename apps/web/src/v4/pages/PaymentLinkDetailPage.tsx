@@ -92,7 +92,7 @@ export function PaymentLinkDetailPage() {
             variant="secondary"
             onClick={() => {
               void navigator.clipboard?.writeText(webUrl);
-              push('Copied');
+              push(t('toast.copied'));
             }}
           >
             {t('paymentLinkDetail.copyUrl')}

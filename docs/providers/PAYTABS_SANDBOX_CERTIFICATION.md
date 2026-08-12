@@ -157,3 +157,19 @@ P15.4 adds contract/security hardening + credential gate; full CERTIFIED require
 | PT5-PFL-02 | Accept public HTTPS callback | PASS |
 | PT5-PFL-03 | Safe summary without secrets | PASS |
 | PT5-PFL-04 | e2eReady false without credentials | PASS |
+
+---
+
+## GCC activation kickoff (2026-08-11)
+
+See [GCC_PAYTABS_ACTIVATION.md](./GCC_PAYTABS_ACTIVATION.md).
+
+| Check | Result |
+|---|---|
+| `npm run paytabs:preflight` | Exit 2 — `e2eReady=false` (expected) |
+| Credentials | Missing PROFILE_ID + SERVER_KEY |
+| Public HTTPS webhook | Not configured |
+| `PAYTABS_REAL_SANDBOX_CERT` | false in current env |
+| LIVE | Still blocked |
+
+**Next human action:** Create PayTabs GCC sandbox merchant, set local `.env`, re-run preflight until `e2eReady=true`, then execute GCC-PT-01..06.

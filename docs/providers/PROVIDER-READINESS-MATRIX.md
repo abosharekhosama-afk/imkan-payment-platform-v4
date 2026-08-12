@@ -11,7 +11,8 @@
 | **Internal Sandbox** (V4 adapter via Router) | n/a | **VERIFIED** (contract + PG integration) | **UNSUPPORTED** (`supports_live=false`; LIVE resolve rejected) | **VERIFIED** (HMAC + replay/dedupe tests) | **UNSUPPORTED** | **VERIFIED** (coalesced) | **PARTIAL** (local only) | **PARTIAL** (opaque ref, no vault) | ⚠️ TEST/SANDBOX ONLY — not production activation |
 | PayTabs (legacy MySQL adapter) | PARTIAL (legacy) | PARTIAL (legacy) | UNKNOWN | PARTIAL (legacy; bypass risk on old path) | UNSUPPORTED | UNKNOWN | UNKNOWN | PARTIAL | 🟡 Legacy only — not on V4 Router |
 | Generic Remote | PARTIAL | UNKNOWN | UNKNOWN | UNSUPPORTED | PARTIAL | UNKNOWN | UNKNOWN | PARTIAL | 🟡 Legacy shell |
-| Stripe / Adyen / Checkout.com / others | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 No V4 adapter |
+| **Stripe** (`stripe`) | **VERIFIED** (Bearer sk_*) | **VERIFIED** (simulate + test keys) | **PARTIAL** (`supports_live=TRUE`; runtime `STRIPE_ALLOW_LIVE`) | **VERIFIED** (Stripe-Signature) | **VERIFIED** (simulate) | **VERIFIED** (coalesced) | **PARTIAL** (PI cancel) | **UNSUPPORTED** (hosted only) | 🟡 V4 adapter — see [STRIPE_V4_ADAPTER.md](./STRIPE_V4_ADAPTER.md) |
+| Adyen / Checkout.com / others | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 No V4 adapter yet |
 | **Bank of Palestine Gateway** (`bop`) | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 DISCOVERED — [palestine/RESEARCH.md](./palestine/RESEARCH.md); no public API |
 | **Arab Bank PS** (`arabbank_ps`) | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 DISCOVERED — CyberSource via bank; no public acquiring docs |
 | **Jawwal Pay** (`jawwalpay`) | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 🔴 DISCOVERED — contact for online gateway pack |

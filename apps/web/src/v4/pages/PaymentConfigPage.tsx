@@ -42,7 +42,7 @@ export function PaymentConfigPage() {
     if (!canManage) return;
     try {
       await v4.putPaymentConfig(token, form);
-      push('Payment configuration saved');
+      push(t('toast.paymentConfigSaved'));
     } catch (err: any) {
       setError(err.message);
     }

@@ -116,7 +116,7 @@ export function MerchantProfilePage() {
               ],
             })
             .then(() => {
-              push('Legal profile and registered address saved');
+              push(t('toast.legalProfileSaved'));
               load();
             })
             .catch((err) => setError(err.message))

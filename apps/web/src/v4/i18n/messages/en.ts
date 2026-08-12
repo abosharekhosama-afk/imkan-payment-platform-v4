@@ -7,7 +7,9 @@ export const en = {
   'app.logout': 'Log out',
   'app.session': 'session',
   'app.railTitle': 'Active payment rail for this deployment',
+  'app.mainNav': 'Main navigation',
   'env.sandbox': 'Sandbox rail',
+  'env.live': 'Live rail',
 
   'section.overview': 'Overview',
   'section.payments': 'Payments',
@@ -167,6 +169,8 @@ export const en = {
   'checkout.sandboxTokenHint': 'No PAN/CVV. Hosted card fields not available yet.',
   'checkout.processing': 'Processing…',
   'checkout.paySecurely': 'Pay securely',
+  'checkout.stripeCardHint': 'Enter your card details below. Card data is processed securely by Stripe — it never touches IMKAN servers.',
+  'checkout.stripeFailed': 'Stripe payment could not be completed',
   'checkout.productionAlert': 'Production checkout requires a hosted payment page or saved payment method.',
 
   'settings.appearance.title': 'Appearance',
@@ -489,7 +493,21 @@ export const en = {
   'providers.colNotes': 'Notes',
 
   'providers.accounts.title': 'Provider accounts & routes',
-  'providers.accounts.description': 'Sandbox accounts and routing configuration.',
+  'providers.accounts.description': 'Connect your organization to Stripe (or Sandbox) for checkout payments.',
+  'providers.accounts.routingHint':
+    'Each organization needs a payment provider route. Select Stripe for card checkout (Payment Element). Sandbox uses tok_* test tokens for internal testing.',
+  'providers.accounts.configure': 'Configure payment provider',
+  'providers.accounts.configureHint':
+    'Applies the default route for all currencies and card payments in the selected environment. Requires step-up (TOTP).',
+  'providers.accounts.colProvider': 'Provider',
+  'providers.accounts.platformShared': 'platform',
+  'providers.accounts.applyRoute': 'Apply provider route',
+  'providers.accounts.routeSaved': 'Payment provider route updated',
+  'providers.accounts.routeFailed': 'Could not update provider route',
+  'providers.accounts.currentRoute': 'Current default route: {provider} ({environment})',
+  'providers.accounts.noRoute': 'No default route for {environment} — checkout falls back to internal Sandbox (tok_ok).',
+  'providers.accounts.mfaEnrolled': 'MFA enrolled — enter a fresh TOTP code and apply again.',
+  'providers.accounts.mfaSetup': 'Scan this MFA secret in your authenticator app, then enter a TOTP code:',
   'providers.accounts.colAccount': 'Account',
   'providers.accounts.colEnvironment': 'Environment',
   'providers.accounts.colDefault': 'Default',
@@ -717,6 +735,27 @@ export const en = {
   'common.mfaEnrolled': 'MFA enrolled — enter a TOTP from your authenticator and submit again.',
   'common.processing': 'Processing…',
   'common.id': 'ID',
+  'common.breadcrumb': 'Breadcrumb',
+
+  'toast.documentUploaded': 'Document uploaded',
+  'toast.paymentLinkCreated': 'Payment link created',
+  'toast.checkoutUrlCopied': 'Checkout URL copied',
+  'toast.priceCreated': 'Price created',
+  'toast.productCreated': 'Product created',
+  'toast.customerCreated': 'Customer created',
+  'toast.subscriptionCreated': 'Subscription created',
+  'toast.bankAccountCreated': 'Bank account created',
+  'toast.businessProfileSaved': 'Business profile saved',
+  'toast.personAdded': 'Person added',
+  'toast.kybSubmitted': 'KYB submitted for review',
+  'toast.legalProfileSaved': 'Legal profile and registered address saved',
+  'toast.paymentConfigSaved': 'Payment configuration saved',
+  'toast.refundCreated': 'Refund created',
+  'toast.paymentCancelled': 'Payment cancelled',
+  'toast.collected': 'Collected',
+  'toast.copied': 'Copied',
+
+  'merchant.documents.uploadIntentMissingId': 'Upload intent missing document id',
 } as const;
 
 export type MessageKey = keyof typeof en;

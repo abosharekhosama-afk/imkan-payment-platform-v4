@@ -77,6 +77,14 @@ export const providerAdminService = {
         throw new AppError('PROVIDER_ACCOUNT_DISABLED', 'Provider account is not active', 409);
       }
 
+      // Replace default wildcard route for this org + environment (one primary provider per plane).
+      await client.query(
+        `DELETE FROM provider_routes
+         WHERE organization_id=$1 AND environment=$2
+           AND currency_code IS NULL AND payment_method_type_code IS NULL`,
+        [input.organizationId, input.environment],
+      );
+
       const r = await client.query(
         `INSERT INTO provider_routes (
            organization_id, environment, currency_code, payment_method_type_code,

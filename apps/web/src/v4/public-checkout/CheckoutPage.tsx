@@ -5,10 +5,20 @@ import {Alert, Button, Field} from '../design-system/components';
 import {useI18n} from '../i18n/I18nProvider';
 import {formatMoney} from '../utils/money';
 import {usePlatformRuntime} from '../hooks/usePlatformRuntime';
+import {StripePaymentSection} from './StripePaymentSection';
+
+type StripeCheckoutConfig = {
+  publishable_key: string;
+  client_secret: string;
+};
+
+function isLiveStripeKey(key: string) {
+  return key.startsWith('pk_test_') || key.startsWith('pk_live_');
+}
 
 /**
  * Public V4 Checkout — /checkout/:token → /api/v1/checkout/:token
- * Sandbox tokens only (no PAN/CVV). Magic tokens: tok_ok, FAIL, TIMEOUT, AMBIGUOUS.
+ * Sandbox: opaque tok_* tokens. Stripe: Payment Element (card data stays in Stripe.js — never hits IMKAN API).
  */
 export function CheckoutPage() {
   const {t} = useI18n();
@@ -16,6 +26,8 @@ export function CheckoutPage() {
   const {runtime, allowSandboxTokens} = usePlatformRuntime();
   const [page, setPage] = useState<any>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [stripeConfig, setStripeConfig] = useState<StripeCheckoutConfig | null>(null);
+  const [returnUrl, setReturnUrl] = useState<string>('');
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -40,6 +52,17 @@ export function CheckoutPage() {
       const st = session.session?.public_token || session.public_token || session.session_token;
       if (!st) throw new Error('Checkout session missing public_token');
       setSessionToken(st);
+      const success =
+        session.session?.success_url ||
+        session.intent?.success_url ||
+        `${window.location.origin}/checkout/return`;
+      setReturnUrl(String(success));
+      const stripe = session.stripe as StripeCheckoutConfig | undefined;
+      if (stripe?.client_secret && stripe?.publishable_key && isLiveStripeKey(stripe.publishable_key)) {
+        setStripeConfig(stripe);
+      } else {
+        setStripeConfig(null);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -47,7 +70,7 @@ export function CheckoutPage() {
     }
   };
 
-  const pay = async () => {
+  const paySandbox = async () => {
     if (!sessionToken) return;
     setBusy(true);
     setError('');
@@ -120,8 +143,8 @@ export function CheckoutPage() {
             </div>
             <h1 style={{margin: '0.25rem 0 0', fontFamily: 'var(--v4-font-display)', color: primary}}>{company}</h1>
           </div>
-          <span className={`v4-badge ${allowSandboxTokens ? 'sandbox' : ''}`}>
-            {allowSandboxTokens ? t('env.sandbox') : t('checkout.secure')}
+          <span className={`v4-badge ${stripeConfig ? 'live' : allowSandboxTokens ? 'sandbox' : ''}`}>
+            {stripeConfig ? 'Stripe' : allowSandboxTokens ? t('env.sandbox') : t('checkout.secure')}
           </span>
         </div>
         <p style={{color: 'var(--v4-text-muted)'}}>
@@ -139,9 +162,6 @@ export function CheckoutPage() {
               {t('checkout.processedViaProvider', {provider: result?.provider_code || 'provider'})}
             </div>
           </Alert>
-        ) : null}
-        {sessionToken && !status && result?.status === 'REQUIRES_ACTION' ? (
-          <Alert tone="info">{t('checkout.redirecting')}</Alert>
         ) : null}
         {!sessionToken && !status ? (
           <form
@@ -165,30 +185,37 @@ export function CheckoutPage() {
             </Button>
           </form>
         ) : null}
-        {sessionToken && !status ? (
-          allowSandboxTokens ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void pay();
-              }}
-            >
-              <Alert tone="info">{t('checkout.sandboxAlert')}</Alert>
-              <Field label={t('checkout.sandboxToken')} hint={t('checkout.sandboxTokenHint')}>
-                <select value={methodToken} onChange={(e) => setMethodToken(e.target.value)}>
-                  <option value="tok_ok">tok_ok — succeed</option>
-                  <option value="tok_FAIL">tok_FAIL — fail</option>
-                  <option value="tok_TIMEOUT">tok_TIMEOUT — timeout</option>
-                  <option value="tok_AMBIGUOUS">tok_AMBIGUOUS — ambiguous</option>
-                </select>
-              </Field>
-              <Button type="submit" disabled={busy} style={{width: '100%', background: primary}}>
-                {busy ? t('checkout.processing') : t('checkout.paySecurely')}
-              </Button>
-            </form>
-          ) : (
-            <Alert tone="warning">{t('checkout.productionAlertLong')}</Alert>
-          )
+        {sessionToken && !status && stripeConfig ? (
+          <StripePaymentSection
+            publishableKey={stripeConfig.publishable_key}
+            clientSecret={stripeConfig.client_secret}
+            returnUrl={returnUrl || `${window.location.origin}/checkout/return`}
+            accent={primary}
+          />
+        ) : null}
+        {sessionToken && !status && !stripeConfig && allowSandboxTokens ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void paySandbox();
+            }}
+          >
+            <Alert tone="info">{t('checkout.sandboxAlert')}</Alert>
+            <Field label={t('checkout.sandboxToken')} hint={t('checkout.sandboxTokenHint')}>
+              <select value={methodToken} onChange={(e) => setMethodToken(e.target.value)}>
+                <option value="tok_ok">tok_ok — succeed</option>
+                <option value="tok_FAIL">tok_FAIL — fail</option>
+                <option value="tok_TIMEOUT">tok_TIMEOUT — timeout</option>
+                <option value="tok_AMBIGUOUS">tok_AMBIGUOUS — ambiguous</option>
+              </select>
+            </Field>
+            <Button type="submit" disabled={busy} style={{width: '100%', background: primary}}>
+              {busy ? t('checkout.processing') : t('checkout.paySecurely')}
+            </Button>
+          </form>
+        ) : null}
+        {sessionToken && !status && !stripeConfig && !allowSandboxTokens ? (
+          <Alert tone="warning">{t('checkout.productionAlertLong')}</Alert>
         ) : null}
       </div>
     </div>

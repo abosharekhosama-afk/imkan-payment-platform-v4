@@ -1,4 +1,4 @@
-import {apiV1, ApiError, type ApiRequestOptions} from './client';
+import {apiV1, ApiError, getCsrfTokenFromDocument, type ApiRequestOptions} from './client';
 
 type Tok = string | null | undefined;
 
@@ -73,6 +73,10 @@ export const v4 = {
     };
     if (token && token !== 'cookie-session' && !token.startsWith('pk_')) {
       headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
+    const csrf = getCsrfTokenFromDocument();
+    if (csrf && !headers.Authorization) {
+      headers['X-CSRF-Token'] = csrf;
     }
     const res = await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/v1/merchant/documents/${documentId}/content`, {
       method: 'PUT',
@@ -188,6 +192,8 @@ export const v4 = {
     apiV1<any[]>(`/providers/${code}/capabilities`, withToken(token)),
   providerAccounts: (token: Tok) => apiV1<any[]>('/provider-accounts', withToken(token)),
   providerRoutes: (token: Tok) => apiV1<any[]>('/provider-routes', withToken(token)),
+  createProviderRoute: (token: Tok, body: unknown, stepUpToken?: string) =>
+    apiV1<any>('/provider-routes', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
   providerWebhooks: (token: Tok) => apiV1<any[]>('/provider-webhooks', withToken(token)),
   apiKeys: (token: Tok) => apiV1<any[]>('/api-keys', withToken(token)),
   enableMfa: (token: Tok) => apiV1<any>('/auth/mfa/enable', withToken(token, {method: 'POST', body: {}})),

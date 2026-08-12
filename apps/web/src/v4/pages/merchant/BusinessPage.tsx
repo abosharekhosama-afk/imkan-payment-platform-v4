@@ -81,7 +81,7 @@ export function BusinessPage() {
               products_services: form.products_services.trim() || undefined,
             })
             .then(() => {
-              push('Business profile saved');
+              push(t('toast.businessProfileSaved'));
               load();
             })
             .catch((err) => setError(err.message))

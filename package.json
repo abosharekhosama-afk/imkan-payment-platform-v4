@@ -24,6 +24,9 @@
     "e2e:v4:stack": "node scripts/e2e-v4-stack.mjs",
     "e2e:v4": "npm run test:e2e -w apps/web",
     "paytabs:preflight": "node scripts/paytabs-sandbox-preflight.mjs",
+    "stripe:preflight": "node scripts/stripe-preflight.mjs",
+    "seed:stripe-routes": "node scripts/seed-stripe-routes.mjs",
+    "prepare:stripe-production": "node scripts/prepare-stripe-production.mjs",
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web"
   },

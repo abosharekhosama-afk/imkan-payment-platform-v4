@@ -24,6 +24,7 @@ function pickHeaders(headers: Record<string, string | string[] | undefined>): Re
     'x-sandbox-timestamp',
     'x-sandbox-event-id',
     'x-sandbox-nonce',
+    'stripe-signature',
     'content-type',
     'user-agent',
   ];

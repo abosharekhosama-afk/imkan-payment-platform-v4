@@ -6,6 +6,7 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {CurrencySelect} from '../../design-system/CurrencySelect';
 
 export function PricesPage() {
   const {t} = useI18n();
@@ -51,7 +52,7 @@ export function PricesPage() {
         nickname: form.nickname || undefined,
       });
       setOpen(false);
-      push('Price created');
+      push(t('toast.priceCreated'));
       load();
     } catch (err: any) {
       setError(err.message);
@@ -113,11 +114,10 @@ export function PricesPage() {
               />
             </Field>
             <Field label={t('common.currency')}>
-              <input
-                required
-                maxLength={3}
+              <CurrencySelect
                 value={form.currency_code}
-                onChange={(e) => setForm({...form, currency_code: e.target.value.toUpperCase()})}
+                onChange={(currency_code) => setForm({...form, currency_code})}
+                required
               />
             </Field>
             <Field label={t('prices.labelInterval')}>

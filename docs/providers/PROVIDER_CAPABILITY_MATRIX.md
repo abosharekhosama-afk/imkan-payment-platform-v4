@@ -56,7 +56,7 @@ Add rows for Stripe, Adyen, Checkout.com, etc. when integration starts. Do not m
 
 | Provider | Status |
 |---|---|
-| Stripe | DISCOVERED |
+| Stripe | **V4 adapter** — [STRIPE_V4_ADAPTER.md](./STRIPE_V4_ADAPTER.md) (test + live gated) |
 | Adyen | DISCOVERED |
 | Checkout.com | DISCOVERED |
 | MyFatoorah | DISCOVERED |

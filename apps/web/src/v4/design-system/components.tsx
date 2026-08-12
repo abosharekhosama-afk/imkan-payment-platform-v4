@@ -13,13 +13,15 @@ export function PageHeader({
   actions?: React.ReactNode;
   crumbs?: {label: string; to?: string}[];
 }) {
+  const {t, locale} = useI18n();
+  const crumbSep = locale === 'ar' ? ' ‹ ' : ' / ';
   return (
     <div>
       {crumbs && crumbs.length > 0 && (
-        <nav className="v4-breadcrumbs" aria-label="Breadcrumb">
+        <nav className="v4-breadcrumbs" aria-label={t('common.breadcrumb')}>
           {crumbs.map((c, i) => (
             <span key={`${c.label}-${i}`}>
-              {i > 0 && ' / '}
+              {i > 0 && crumbSep}
               {c.to ? <Link to={c.to}>{c.label}</Link> : c.label}
             </span>
           ))}

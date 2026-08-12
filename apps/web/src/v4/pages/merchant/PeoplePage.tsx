@@ -115,7 +115,7 @@ export function PeoplePage() {
           }
           void request
             .then(() => {
-              push('Person added');
+              push(t('toast.personAdded'));
               setForm({full_name: '', ownership_percent: '100', role_title: '', title: ''});
               load();
             })

@@ -16,7 +16,8 @@ export function DocumentsPage() {
   const {push} = useToast();
   const docTypes = useMasterOptions(token, 'document-types');
   const [rows, setRows] = useState<any[]>([]);
-  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [uploadError, setUploadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -26,8 +27,11 @@ export function DocumentsPage() {
     if (!token) return;
     setLoading(true);
     v4.documents(token)
-      .then(setRows)
-      .catch((e) => setError(e.message))
+      .then((docs) => {
+        setRows(docs);
+        setLoadError('');
+      })
+      .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false));
   };
 
@@ -37,7 +41,7 @@ export function DocumentsPage() {
     e.preventDefault();
     if (!canManage || !token || !file) return;
     setSaving(true);
-    setError('');
+    setUploadError('');
     try {
       const intent = await v4.documentUploadIntent(token, {
         document_type_code: form.document_type_code,
@@ -47,13 +51,20 @@ export function DocumentsPage() {
         size_bytes: file.size,
       });
       const docId = intent.document?.id || intent.document_id;
-      if (!docId) throw new Error('Upload intent missing document id');
+      if (!docId) throw new Error(t('merchant.documents.uploadIntentMissingId'));
       await v4.uploadDocumentContent(token, docId, file);
-      push('Document uploaded');
+      push(t('toast.documentUploaded'));
       setFile(null);
-      load();
+      setUploadError('');
+      try {
+        const docs = await v4.documents(token);
+        setRows(docs);
+        setLoadError('');
+      } catch (reloadErr: any) {
+        setLoadError(reloadErr.message);
+      }
     } catch (err: any) {
-      setError(err.message);
+      setUploadError(err.message);
     } finally {
       setSaving(false);
     }
@@ -74,7 +85,8 @@ export function DocumentsPage() {
         }
       />
       <Alert tone="info">{t('merchant.documents.uploadAlertLong')}</Alert>
-      {error ? <Alert tone="danger">{error}</Alert> : null}
+      {loadError ? <Alert tone="danger">{loadError}</Alert> : null}
+      {uploadError ? <Alert tone="danger">{uploadError}</Alert> : null}
 
       {loading ? (
         <LoadingState />

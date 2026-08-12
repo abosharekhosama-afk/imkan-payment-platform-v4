@@ -17,6 +17,7 @@ import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../utils/money';
 import {useI18n} from '../i18n/I18nProvider';
+import {CurrencySelect} from '../design-system/CurrencySelect';
 
 export function PaymentLinksPage() {
   const {t} = useI18n();
@@ -28,7 +29,7 @@ export function PaymentLinksPage() {
   const [error, setError] = useState('');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    title: 'Demo payment',
+    title: '',
     amount_minor: '1000',
     currency_code: 'SAR',
     description: '',
@@ -59,10 +60,10 @@ export function PaymentLinksPage() {
         activate: form.activate,
       });
       setOpen(false);
-      push('Payment link created');
+      push(t('toast.paymentLinkCreated'));
       if (created?.public_token) {
         await navigator.clipboard?.writeText(checkoutWebUrl(created.public_token));
-        push('Checkout URL copied');
+        push(t('toast.checkoutUrlCopied'));
       }
       load();
     } catch (err: any) {
@@ -135,10 +136,9 @@ export function PaymentLinksPage() {
               />
             </Field>
             <Field label={t('common.currency')}>
-              <input
+              <CurrencySelect
                 value={form.currency_code}
-                onChange={(e) => setForm({...form, currency_code: e.target.value.toUpperCase()})}
-                maxLength={3}
+                onChange={(currency_code) => setForm({...form, currency_code})}
                 required
               />
             </Field>

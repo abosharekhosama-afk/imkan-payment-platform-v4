@@ -40,7 +40,7 @@ export function CustomersPage() {
         default_payment_method_token: form.default_payment_method_token || undefined,
       });
       setOpen(false);
-      push('Customer created');
+      push(t('toast.customerCreated'));
       load();
     } catch (err: any) {
       setError(err.message);

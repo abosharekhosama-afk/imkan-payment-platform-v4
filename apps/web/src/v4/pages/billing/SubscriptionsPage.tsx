@@ -59,7 +59,7 @@ export function SubscriptionsPage() {
     try {
       await v4.createSubscription(token, form);
       setOpen(false);
-      push('Subscription created');
+      push(t('toast.subscriptionCreated'));
       load();
     } catch (err: any) {
       setError(err.message);

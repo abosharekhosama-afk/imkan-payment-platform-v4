@@ -1,3 +1,4 @@
+import './load-env.js';
 import crypto from 'node:crypto';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
@@ -12,6 +13,7 @@ import {redisPing, closeRedis} from './infrastructure/db/redis.js';
 import {outboxWorker} from './foundation/outbox-worker.js';
 import {billingRenewalWorker} from './billing/renewal-service.js';
 import {bootstrapRateLimitStore} from './foundation/rate-limit-bootstrap.js';
+import {bootstrapStripeRoutesDev} from './providers/bootstrap-stripe-routes.js';
 import {correlationFields, sanitizeLogFields} from './observability/logging.js';
 import {incrMetric} from './observability/metrics.js';
 
@@ -211,6 +213,9 @@ async function shutdown(signal: string) {
 }
 process.once('SIGTERM', () => void shutdown('SIGTERM'));
 process.once('SIGINT', () => void shutdown('SIGINT'));
+await bootstrapStripeRoutesDev().catch((err) => {
+  app.log.warn({err}, 'stripe route bootstrap skipped');
+});
 await app.listen({port: config.port, host: '0.0.0.0'});
 const redisStatus = await redisPing();
 app.log.info(

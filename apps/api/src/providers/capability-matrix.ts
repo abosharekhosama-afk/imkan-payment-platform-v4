@@ -55,6 +55,24 @@ export const PAYTABS_CAPABILITIES: ProviderCapabilityFlags = {
   idempotency: true,
 };
 
+/** Stripe Checkout + PaymentIntents — test + live planes (live gated by STRIPE_ALLOW_LIVE). */
+export const STRIPE_CAPABILITIES: ProviderCapabilityFlags = {
+  payment: true,
+  authorization: true,
+  capture: true,
+  cancel: true,
+  refund: true,
+  partial_refund: true,
+  tokenization: true,
+  recurring: false,
+  three_ds: true,
+  webhooks: true,
+  disputes: true,
+  settlement: false,
+  payout: false,
+  idempotency: true,
+};
+
 const MATRIX: Record<string, {environment: string; live_blocked_by?: string; capabilities: ProviderCapabilityFlags}> =
   {
     SANDBOX: {environment: 'SANDBOX', capabilities: SANDBOX_CAPABILITIES},
@@ -62,6 +80,10 @@ const MATRIX: Record<string, {environment: string; live_blocked_by?: string; cap
       environment: 'SANDBOX',
       live_blocked_by: 'DEC-009',
       capabilities: PAYTABS_CAPABILITIES,
+    },
+    STRIPE: {
+      environment: 'SANDBOX|LIVE',
+      capabilities: STRIPE_CAPABILITIES,
     },
   };
 
@@ -81,12 +103,14 @@ export function getCapabilityProfile(code: string) {
     code: key,
     found: true,
     ...profile,
-      note:
+    note:
       key === 'SANDBOX'
         ? 'Sandbox adapter is active'
         : key === 'PAYTABS'
           ? 'PayTabs V4 adapter registered — SANDBOX only in P15.3; LIVE blocked by DEC-009'
-          : 'Live adapter registration BLOCKED BY: DEC-009',
+          : key === 'STRIPE'
+            ? 'Stripe V4 adapter — test (sk_test) + live (sk_live) when STRIPE_ALLOW_LIVE=true'
+            : 'Live adapter registration BLOCKED BY: DEC-009',
   };
 }
 

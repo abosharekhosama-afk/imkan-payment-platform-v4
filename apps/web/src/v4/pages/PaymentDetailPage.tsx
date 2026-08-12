@@ -63,7 +63,7 @@ export function PaymentDetailPage() {
         },
         step?.step_up_token || step?.token,
       );
-      push('Refund created');
+      push(t('toast.refundCreated'));
       setRefundOpen(false);
       setRefundAmount('');
       setRefundReason('');
@@ -226,7 +226,7 @@ export function PaymentDetailPage() {
             void v4
               .cancelPayment(token, id)
               .then(() => {
-                push('Payment cancelled');
+                push(t('toast.paymentCancelled'));
                 setConfirmCancel(false);
                 load();
               })

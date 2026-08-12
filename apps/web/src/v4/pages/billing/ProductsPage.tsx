@@ -32,7 +32,7 @@ export function ProductsPage() {
     try {
       await v4.createProduct(token, form);
       setOpen(false);
-      push('Product created');
+      push(t('toast.productCreated'));
       load();
     } catch (err: any) {
       setError(err.message);

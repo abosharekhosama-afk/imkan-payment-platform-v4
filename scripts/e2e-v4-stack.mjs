@@ -26,6 +26,22 @@ const OWNER_EMAIL = process.env.V4_E2E_EMAIL || 'e2e-owner@example.test';
 const VIEWER_EMAIL = process.env.V4_E2E_VIEWER_EMAIL || 'e2e-viewer@example.test';
 const PASSWORD = process.env.V4_E2E_PASSWORD || 'SecurePass!123';
 
+function loadDotEnv() {
+  const envPath = path.join(root, '.env');
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim();
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
+
+loadDotEnv();
+
 fs.mkdirSync(path.join(root, '.tmp'), {recursive: true});
 if (fs.existsSync(dataDir)) fs.rmSync(dataDir, {recursive: true, force: true});
 fs.mkdirSync(dataDir, {recursive: true});
@@ -63,6 +79,13 @@ const env = {
   // Browser E2E issues many authenticated requests; avoid 429 clearing the session probe.
   RATE_LIMIT_MAX: '10000',
   RATE_LIMIT_WINDOW: '1 minute',
+  STRIPE_ADAPTER_MODE: process.env.STRIPE_ADAPTER_MODE || 'http',
+  STRIPE_CHECKOUT_UI: process.env.STRIPE_CHECKOUT_UI || 'elements',
+  STRIPE_TEST_SECRET_KEY: process.env.STRIPE_TEST_SECRET_KEY || '',
+  STRIPE_TEST_PUBLISHABLE_KEY: process.env.STRIPE_TEST_PUBLISHABLE_KEY || '',
+  STRIPE_TEST_WEBHOOK_SECRET: process.env.STRIPE_TEST_WEBHOOK_SECRET || '',
+  STRIPE_SUCCESS_URL: process.env.STRIPE_SUCCESS_URL || 'http://127.0.0.1:5173/checkout/return',
+  STRIPE_CANCEL_URL: process.env.STRIPE_CANCEL_URL || 'http://127.0.0.1:5173/checkout/return?status=cancelled',
 };
 
 console.log('Migrating PostgreSQL...');
@@ -169,6 +192,29 @@ async function login(email) {
 await setMerchantRole(viewer.user_id, 'MERCHANT_VIEWER');
 viewer.access_token = await login(VIEWER_EMAIL);
 
+async function seedStripeRoutesForOrg(orgId) {
+  const acc = await pool.query(
+    `SELECT pa.id
+     FROM provider_accounts pa
+     JOIN providers p ON p.id = pa.provider_id
+     WHERE p.code = 'stripe' AND pa.organization_id IS NULL AND pa.environment = 'SANDBOX'
+     LIMIT 1`,
+  );
+  if (!acc.rows[0]?.id) {
+    console.warn('[e2e] Platform Stripe SANDBOX account missing — run db:migrate:pg (035_stripe_provider.sql)');
+    return;
+  }
+  await pool.query(`DELETE FROM provider_routes WHERE organization_id = $1 AND environment = 'SANDBOX'`, [orgId]);
+  await pool.query(
+    `INSERT INTO provider_routes (organization_id, environment, provider_account_id, priority, is_active)
+     VALUES ($1, 'SANDBOX', $2, 10, TRUE)`,
+    [orgId, acc.rows[0].id],
+  );
+}
+
+await seedStripeRoutesForOrg(owner.organization_id);
+await seedStripeRoutesForOrg(viewer.organization_id);
+
 const merchants = {
   MERCHANT_OWNER: {
     email: owner.email,
@@ -218,6 +264,10 @@ for (const role of PLATFORM_ROLES) {
     organization_id: u.organization_id,
     user_id: u.user_id,
   };
+}
+
+for (const entry of Object.values({...merchants, ...platforms})) {
+  await seedStripeRoutesForOrg(entry.organization_id);
 }
 
 // Enable MFA for owner (API key step-up / sensitive ops in E2E)

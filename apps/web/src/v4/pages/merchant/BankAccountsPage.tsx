@@ -119,7 +119,7 @@ export function BankAccountsPage() {
                 },
                 step.stepUpToken,
               );
-              push('Bank account created');
+              push(t('toast.bankAccountCreated'));
               setTotp('');
               setMfaSecretOnce(null);
               load();

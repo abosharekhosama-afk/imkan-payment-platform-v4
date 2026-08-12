@@ -66,7 +66,7 @@ export function KybPage() {
                   void v4
                     .kybSubmit(token, {})
                     .then(() => {
-                      push('KYB submitted for review');
+                      push(t('toast.kybSubmitted'));
                       load();
                       navigate('/');
                     })

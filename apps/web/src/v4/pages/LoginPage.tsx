@@ -6,7 +6,7 @@ import {ApiError} from '../api/client';
 import {useI18n} from '../i18n/I18nProvider';
 
 export function LoginPage() {
-  const {t} = useI18n();
+  const {t, dir} = useI18n();
   const {token, login, verifyMfa, loading} = useAuth();
   const [email, setEmail] = useState('owner@example.com');
   const [password, setPassword] = useState('Password123!');
@@ -36,12 +36,12 @@ export function LoginPage() {
   };
 
   return (
-    <div className="v4-login">
+    <div className="v4-login" dir={dir}>
       <div className="v4-card v4-login-card">
         <div className="v4-brand" style={{marginBottom: '1.5rem'}}>
           <div className="v4-brand-mark">V4</div>
           <div>
-            <h1 style={{margin: 0, fontFamily: 'var(--v4-font-display)'}}>{t('app.name')}</h1>
+            <h1 style={{margin: 0}}>{t('app.name')}</h1>
             <p style={{margin: 0, color: 'var(--v4-text-muted)'}}>{t('auth.loginSubtitle')}</p>
           </div>
         </div>

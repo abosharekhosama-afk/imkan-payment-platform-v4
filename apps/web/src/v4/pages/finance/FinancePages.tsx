@@ -5,6 +5,7 @@ import {Alert, Button, Field, LoadingState, PageHeader} from '../../design-syste
 import {Can} from '../../rbac/Can';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
+import {CurrencySelect} from '../../design-system/CurrencySelect';
 
 export function RefundsPage() {
   const {t} = useI18n();
@@ -79,11 +80,10 @@ export function RefundsPage() {
               />
             </Field>
             <Field label={t('common.currency')}>
-              <input
-                required
-                maxLength={3}
+              <CurrencySelect
                 value={form.currency_code}
-                onChange={(e) => setForm({...form, currency_code: e.target.value.toUpperCase()})}
+                onChange={(currency_code) => setForm({...form, currency_code})}
+                required
               />
             </Field>
             <Field label={t('finance.refunds.labelReason')}>

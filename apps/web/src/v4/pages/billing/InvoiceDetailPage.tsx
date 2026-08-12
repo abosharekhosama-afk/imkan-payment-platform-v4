@@ -40,7 +40,7 @@ export function InvoiceDetailPage() {
         return;
       }
       await v4.collectInvoice(token, id, result.stepUpToken);
-      push('Collected');
+      push(t('toast.collected'));
       setCollectOpen(false);
       setTotp('');
       load();

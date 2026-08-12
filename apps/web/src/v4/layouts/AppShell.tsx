@@ -3,18 +3,16 @@ import {NavLink, Outlet} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {Button} from '../design-system/components';
 import {NAV_SECTIONS} from './nav';
-import {usePlatformRuntime} from '../hooks/usePlatformRuntime';
 import {useI18n} from '../i18n/I18nProvider';
 
 export function AppShell() {
   const {user, roles, logout, hasPermission} = useAuth();
-  const {runtime} = usePlatformRuntime();
-  const {t, locale, setLocale, theme, setTheme} = useI18n();
+  const {t, locale, setLocale, theme, setTheme, dir} = useI18n();
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="v4-shell">
-      <aside className={`v4-sidebar ${open ? 'open' : ''}`} aria-label="Main navigation">
+    <div className="v4-shell" dir={dir}>
+      <aside className={`v4-sidebar ${open ? 'open' : ''}`} aria-label={t('app.mainNav')}>
         <div className="v4-brand">
           <div className="v4-brand-mark">V4</div>
           <div>
@@ -23,7 +21,7 @@ export function AppShell() {
           </div>
         </div>
         <div className="v4-env-pill" title={t('app.railTitle')}>
-          ● {runtime.labels.console_rail}
+          ● {t('env.sandbox')}
         </div>
         <nav>
           {NAV_SECTIONS.map((section) => {
@@ -54,7 +52,9 @@ export function AppShell() {
             <Button className="v4-mobile-toggle" variant="secondary" type="button" onClick={() => setOpen((v) => !v)}>
               {t('app.menu')}
             </Button>
-            <strong style={{fontFamily: 'var(--v4-font-display)'}}>{t('app.consoleShort')}</strong>
+            <strong style={{fontFamily: locale === 'ar' ? 'var(--v4-font-arabic)' : 'var(--v4-font-display)'}}>
+              {t('app.consoleShort')}
+            </strong>
           </div>
           <div className="v4-toolbar" style={{margin: 0}}>
             <select
