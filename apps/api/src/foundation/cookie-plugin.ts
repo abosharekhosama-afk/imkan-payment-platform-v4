@@ -1,7 +1,20 @@
 /**
  * Minimal cookie parse/set for Fastify (P15.2) — no external cookie package required.
  */
-import type {FastifyInstance, FastifyReply} from 'fastify';
+import type {FastifyInstance, FastifyReply, FastifyRequest} from 'fastify';
+
+const cookiesByRequest = new WeakMap<FastifyRequest, Record<string, string>>();
+
+function cookiesForRequest(request: FastifyRequest): Record<string, string> {
+  let cookies = cookiesByRequest.get(request);
+  if (!cookies) {
+    cookies = parseCookieHeader(
+      typeof request.headers.cookie === 'string' ? request.headers.cookie : undefined,
+    );
+    cookiesByRequest.set(request, cookies);
+  }
+  return cookies;
+}
 
 function parseCookieHeader(header?: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -66,13 +79,13 @@ declare module 'fastify' {
 }
 
 export async function registerCookiePlugin(app: FastifyInstance) {
-  // Fastify forbids decorating requests with shared object references.
-  app.decorateRequest('cookies', {} as Record<string, string>);
-
-  app.addHook('onRequest', async (request) => {
-    request.cookies = parseCookieHeader(
-      typeof request.headers.cookie === 'string' ? request.headers.cookie : undefined,
-    );
+  app.decorateRequest('cookies', {
+    getter(this: FastifyRequest) {
+      return cookiesForRequest(this);
+    },
+    setter(this: FastifyRequest, value: Record<string, string>) {
+      cookiesByRequest.set(this, value);
+    },
   });
 
   app.decorateReply(
