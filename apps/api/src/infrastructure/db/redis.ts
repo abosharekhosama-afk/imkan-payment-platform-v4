@@ -7,13 +7,25 @@ let connecting: Promise<any> | null = null;
 
 const REDIS_CONNECT_MS = Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 2000);
 
+/** Normalize Upstash / copy-paste mistakes (redis-cli snippet, missing TLS). */
+export function normalizeRedisUrl(raw: string): string {
+  let url = raw.trim();
+  const cliMatch = url.match(/redis-cli\s+(?:--tls\s+)?-u\s+(\S+)/i);
+  if (cliMatch) url = cliMatch[1];
+  if (/upstash\.io/i.test(url) && url.startsWith('redis://')) {
+    url = `rediss://${url.slice('redis://'.length)}`;
+  }
+  return url;
+}
+
 function redisClientOptions(url: string) {
+  const normalized = normalizeRedisUrl(url);
   return {
-    url,
+    url: normalized,
     socket: {
       connectTimeout: REDIS_CONNECT_MS,
       reconnectStrategy: (retries: number) => {
-        if (retries >= 1) return new Error('redis unavailable');
+        if (retries >= 3) return new Error('redis unavailable');
         return Math.min(retries * 200, 500);
       },
     },

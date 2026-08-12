@@ -19,8 +19,8 @@
 
 ### ب) Upstash (Redis)
 
-1. أنشئ Redis database → انسخ **Redis URL**  
-   غالباً: `rediss://default:xxx@xxx.upstash.io:6379`
+1. أنشئ Redis database → انسخ **Redis URL** (يبدأ بـ `rediss://` — ليس أمر `redis-cli`)
+   مثال: `rediss://default:xxx@sought-bug-170112.upstash.io:6379`
 
 ### ج) SMTP (اختياري للبداية — مطلوب للدعوات)
 
@@ -65,7 +65,7 @@ git push origin main  →  Render يبني وينشر API + Web تلقائياً
 | المتغير | القيمة |
 |---------|--------|
 | `DATABASE_URL_PG` | Connection string من Neon |
-| `REDIS_URL` | URL من Upstash |
+| `REDIS_URL` | **Redis URL** من Upstash (`rediss://...` — لا تلصق `redis-cli --tls -u`) |
 | `APP_PUBLIC_URL` | `https://imkan-payments-web.onrender.com` (URL الواجهة) |
 | `CORS_ORIGIN` | نفس URL الواجهة |
 | `SMTP_HOST` | مثال `smtp-relay.brevo.com` |
