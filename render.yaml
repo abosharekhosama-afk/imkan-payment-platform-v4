@@ -109,7 +109,6 @@ services:
   - type: web
     name: imkan-payments-web
     runtime: static
-    plan: free
     buildCommand: npm install --include=dev && npm run build -w apps/web
     staticPublishPath: apps/web/dist
     envVars:
