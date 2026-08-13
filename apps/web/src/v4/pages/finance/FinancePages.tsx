@@ -6,10 +6,12 @@ import {Can} from '../../rbac/Can';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {CurrencySelect} from '../../design-system/CurrencySelect';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function RefundsPage() {
   const {t} = useI18n();
   const {token} = useAuth();
+  const {busy, run} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -34,23 +36,25 @@ export function RefundsPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    try {
-      const step = form.totp ? await v4.stepUp(token, form.totp) : null;
-      await v4.createRefund(
-        token,
-        {
-          payment_intent_id: form.payment_intent_id,
-          amount_minor: form.amount_minor,
-          currency_code: form.currency_code,
-          reason: form.reason || undefined,
-        },
-        step?.step_up_token || step?.token,
-      );
-      setForm({...form, payment_intent_id: '', amount_minor: '', reason: '', totp: ''});
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        const step = form.totp ? await v4.stepUp(token, form.totp) : null;
+        await v4.createRefund(
+          token,
+          {
+            payment_intent_id: form.payment_intent_id,
+            amount_minor: form.amount_minor,
+            currency_code: form.currency_code,
+            reason: form.reason || undefined,
+          },
+          step?.step_up_token || step?.token,
+        );
+        setForm({...form, payment_intent_id: '', amount_minor: '', reason: '', totp: ''});
+        load();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    });
   };
 
   return (
@@ -92,7 +96,7 @@ export function RefundsPage() {
             <Field label={t('finance.refunds.labelTotp')}>
               <input value={form.totp} onChange={(e) => setForm({...form, totp: e.target.value})} />
             </Field>
-            <Button type="submit">{t('finance.refunds.create')}</Button>
+            <Button type="submit" busy={busy}>{t('finance.refunds.create')}</Button>
           </form>
         </div>
       </Can>

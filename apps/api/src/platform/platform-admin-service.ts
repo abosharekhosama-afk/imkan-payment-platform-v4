@@ -130,26 +130,32 @@ export const platformAdminService = {
         [organizationId],
       ),
       pgQuery(
-        `SELECT id, actor_user_id, action, resource_type, resource_id, request_id, created_at
-         FROM audit_events
-         WHERE organization_id=$1
-         ORDER BY created_at DESC
+        `SELECT ae.id, ae.actor_user_id, ae.action, ae.resource_type, ae.resource_id, ae.request_id, ae.created_at,
+                u.name AS actor_name, u.email AS actor_email
+         FROM audit_events ae
+         LEFT JOIN users u ON u.id = ae.actor_user_id
+         WHERE ae.organization_id=$1
+         ORDER BY ae.created_at DESC
          LIMIT 25`,
         [organizationId],
       ),
       pgQuery(
-        `SELECT id, user_id, event_type, success, ip, created_at
-         FROM security_events
-         WHERE organization_id=$1
-         ORDER BY created_at DESC
+        `SELECT se.id, se.user_id, se.event_type, se.success, se.ip, se.created_at,
+                u.name AS actor_name, u.email AS actor_email
+         FROM security_events se
+         LEFT JOIN users u ON u.id = se.user_id
+         WHERE se.organization_id=$1
+         ORDER BY se.created_at DESC
          LIMIT 25`,
         [organizationId],
       ),
       pgQuery(
-        `SELECT id, user_id, request_id, method, route, status_code, error_code, message, created_at
-         FROM error_reports
-         WHERE organization_id=$1
-         ORDER BY created_at DESC
+        `SELECT er.id, er.user_id, er.request_id, er.method, er.route, er.status_code, er.error_code, er.message, er.created_at,
+                u.name AS actor_name, u.email AS actor_email
+         FROM error_reports er
+         LEFT JOIN users u ON u.id = er.user_id
+         WHERE er.organization_id=$1
+         ORDER BY er.created_at DESC
          LIMIT 25`,
         [organizationId],
       ),
@@ -180,9 +186,11 @@ export const platformAdminService = {
     params.push(filter.limit, filter.offset);
     const r = await pgQuery(
       `SELECT ae.id, ae.organization_id, o.name AS organization_name, ae.actor_user_id, ae.action,
-              ae.resource_type, ae.resource_id, ae.request_id, ae.created_at
+              ae.resource_type, ae.resource_id, ae.request_id, ae.created_at,
+              u.name AS actor_name, u.email AS actor_email
        FROM audit_events ae
        LEFT JOIN organizations o ON o.id = ae.organization_id
+       LEFT JOIN users u ON u.id = ae.actor_user_id
        ${where}
        ORDER BY ae.created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -201,9 +209,11 @@ export const platformAdminService = {
     params.push(filter.limit, filter.offset);
     const r = await pgQuery(
       `SELECT se.id, se.organization_id, o.name AS organization_name, se.user_id, se.event_type,
-              se.success, se.ip, se.created_at
+              se.success, se.ip, se.created_at,
+              u.name AS actor_name, u.email AS actor_email
        FROM security_events se
        LEFT JOIN organizations o ON o.id = se.organization_id
+       LEFT JOIN users u ON u.id = se.user_id
        ${where}
        ORDER BY se.created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -222,9 +232,11 @@ export const platformAdminService = {
     params.push(filter.limit, filter.offset);
     const r = await pgQuery(
       `SELECT er.id, er.organization_id, o.name AS organization_name, er.user_id, er.request_id,
-              er.method, er.route, er.status_code, er.error_code, er.message, er.created_at
+              er.method, er.route, er.status_code, er.error_code, er.message, er.created_at,
+              u.name AS actor_name, u.email AS actor_email
        FROM error_reports er
        LEFT JOIN organizations o ON o.id = er.organization_id
+       LEFT JOIN users u ON u.id = er.user_id
        ${where}
        ORDER BY er.created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,

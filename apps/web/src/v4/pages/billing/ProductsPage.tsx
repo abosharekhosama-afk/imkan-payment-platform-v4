@@ -6,11 +6,13 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function ProductsPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, run} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -29,14 +31,16 @@ export function ProductsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await v4.createProduct(token, form);
-      setOpen(false);
-      push(t('toast.productCreated'));
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        await v4.createProduct(token, form);
+        setOpen(false);
+        push(t('toast.productCreated'));
+        load();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    });
   };
 
   return (
@@ -89,7 +93,7 @@ export function ProductsPage() {
                 <option value="ONE_TIME">ONE_TIME</option>
               </select>
             </Field>
-            <Button type="submit">{t('common.create')}</Button>
+            <Button type="submit" busy={busy}>{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

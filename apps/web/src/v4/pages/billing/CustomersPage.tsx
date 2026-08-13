@@ -6,6 +6,7 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 type FormState = {
   name: string;
@@ -27,6 +28,7 @@ export function CustomersPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -63,42 +65,46 @@ export function CustomersPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await v4.createCustomer(token, {
-        name: form.name,
-        email: form.email || undefined,
-        phone: form.phone || undefined,
-        external_customer_id: form.external_customer_id || undefined,
-        source_system: form.source_system || undefined,
-      });
-      setOpen(false);
-      setForm(emptyForm);
-      push(t('toast.customerCreated'));
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        await v4.createCustomer(token, {
+          name: form.name,
+          email: form.email || undefined,
+          phone: form.phone || undefined,
+          external_customer_id: form.external_customer_id || undefined,
+          source_system: form.source_system || undefined,
+        });
+        setOpen(false);
+        setForm(emptyForm);
+        push(t('toast.customerCreated'));
+        load();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, 'create');
   };
 
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected) return;
-    try {
-      const updated = await v4.updateCustomer(token, selected.id, {
-        name: form.name,
-        email: form.email || null,
-        phone: form.phone || null,
-        external_customer_id: form.external_customer_id || null,
-        source_system: form.source_system || null,
-      });
-      setEditOpen(false);
-      setSelected(updated);
-      push(t('toast.customerUpdated'));
-      load();
-      await openCustomer(updated);
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        const updated = await v4.updateCustomer(token, selected.id, {
+          name: form.name,
+          email: form.email || null,
+          phone: form.phone || null,
+          external_customer_id: form.external_customer_id || null,
+          source_system: form.source_system || null,
+        });
+        setEditOpen(false);
+        setSelected(updated);
+        push(t('toast.customerUpdated'));
+        load();
+        await openCustomer(updated);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, 'edit');
   };
 
   return (
@@ -258,7 +264,7 @@ export function CustomersPage() {
                 placeholder="books"
               />
             </Field>
-            <Button type="submit">{t('common.create')}</Button>
+            <Button type="submit" busy={busyKey === 'create'}>{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}
@@ -286,7 +292,7 @@ export function CustomersPage() {
                 onChange={(e) => setForm({...form, source_system: e.target.value})}
               />
             </Field>
-            <Button type="submit">{t('common.save')}</Button>
+            <Button type="submit" busy={busyKey === 'edit'}>{t('common.save')}</Button>
           </form>
         </Modal>
       ) : null}

@@ -441,10 +441,13 @@ export async function apiV1Routes(app: FastifyInstance) {
       const auth = request.auth!;
       const {limit, offset} = parsePaging(request.query);
       const r = await pgQuery(
-        `SELECT id, organization_id, actor_user_id, action, resource_type, resource_id, request_id, created_at
-         FROM audit_events
-         WHERE organization_id=$1
-         ORDER BY created_at DESC
+        `SELECT ae.id, ae.organization_id, ae.actor_user_id, ae.action, ae.resource_type, ae.resource_id,
+                ae.request_id, ae.created_at,
+                u.name AS actor_name, u.email AS actor_email
+         FROM audit_events ae
+         LEFT JOIN users u ON u.id = ae.actor_user_id
+         WHERE ae.organization_id=$1
+         ORDER BY ae.created_at DESC
          LIMIT $2 OFFSET $3`,
         [auth.organizationId, limit, offset],
       );
@@ -459,10 +462,13 @@ export async function apiV1Routes(app: FastifyInstance) {
       const auth = request.auth!;
       const {limit, offset} = parsePaging(request.query);
       const r = await pgQuery(
-        `SELECT id, organization_id, user_id, event_type, success, ip, user_agent, metadata_json, created_at
-         FROM security_events
-         WHERE organization_id=$1
-         ORDER BY created_at DESC
+        `SELECT se.id, se.organization_id, se.user_id, se.event_type, se.success, se.ip, se.user_agent,
+                se.metadata_json, se.created_at,
+                u.name AS actor_name, u.email AS actor_email
+         FROM security_events se
+         LEFT JOIN users u ON u.id = se.user_id
+         WHERE se.organization_id=$1
+         ORDER BY se.created_at DESC
          LIMIT $2 OFFSET $3`,
         [auth.organizationId, limit, offset],
       );

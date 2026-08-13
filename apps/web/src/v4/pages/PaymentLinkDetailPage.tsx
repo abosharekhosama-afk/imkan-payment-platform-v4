@@ -8,12 +8,14 @@ import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney} from '../utils/money';
 import {useI18n} from '../i18n/I18nProvider';
+import {useBusyAction} from '../hooks/useBusyAction';
 
 export function PaymentLinkDetailPage() {
   const {t} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const [row, setRow] = useState<any>(null);
   const [error, setError] = useState('');
 
@@ -27,13 +29,15 @@ export function PaymentLinkDetailPage() {
   useEffect(load, [token, id]);
 
   const act = async (action: string) => {
-    try {
-      await v4.paymentLinkAction(token, id, action);
-      push(`Link ${action}`);
-      load();
-    } catch (e: any) {
-      setError(e.message);
-    }
+    await run(async () => {
+      try {
+        await v4.paymentLinkAction(token, id, action);
+        push(`Link ${action}`);
+        load();
+      } catch (e: any) {
+        setError(e.message);
+      }
+    }, action);
   };
 
   if (!row && !error) return <LoadingState />;
@@ -56,17 +60,17 @@ export function PaymentLinkDetailPage() {
           <Can anyOf={['payment_links.manage']}>
             <>
               {row.status === 'DRAFT' || row.status === 'INACTIVE' ? (
-                <Button type="button" onClick={() => void act('activate')}>
+                <Button type="button" busy={busyKey === 'activate'} onClick={() => void act('activate')}>
                   {t('paymentLinkDetail.activate')}
                 </Button>
               ) : null}
               {row.status === 'ACTIVE' ? (
-                <Button variant="secondary" type="button" onClick={() => void act('deactivate')}>
+                <Button variant="secondary" type="button" busy={busyKey === 'deactivate'} onClick={() => void act('deactivate')}>
                   {t('paymentLinkDetail.deactivate')}
                 </Button>
               ) : null}
               {['DRAFT', 'ACTIVE', 'INACTIVE'].includes(row.status) ? (
-                <Button variant="danger" type="button" onClick={() => void act('cancel')}>
+                <Button variant="danger" type="button" busy={busyKey === 'cancel'} disabled={busy} onClick={() => void act('cancel')}>
                   {t('paymentLinkDetail.cancel')}
                 </Button>
               ) : null}

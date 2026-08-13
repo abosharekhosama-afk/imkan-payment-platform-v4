@@ -18,11 +18,13 @@ import {useToast} from '../../hooks/useToast';
 import {usePlatformRuntime} from '../../hooks/usePlatformRuntime';
 import {formatDate, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function SubscriptionsPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const {allowSandboxTokens} = usePlatformRuntime();
   const [rows, setRows] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -56,35 +58,39 @@ export function SubscriptionsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await v4.createSubscription(token, form);
-      setOpen(false);
-      push(t('toast.subscriptionCreated'));
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        await v4.createSubscription(token, form);
+        setOpen(false);
+        push(t('toast.subscriptionCreated'));
+        load();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, 'create');
   };
 
   const runRenewals = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    try {
-      const result = await obtainStepUp(token, totp);
-      if (result.enrolled) {
-        setMfaSecretOnce(result.mfaSecret || null);
-        setError('MFA enrolled — enter a TOTP from your authenticator and submit again.');
+    await run(async () => {
+      try {
+        const result = await obtainStepUp(token, totp);
+        if (result.enrolled) {
+          setMfaSecretOnce(result.mfaSecret || null);
+          setError('MFA enrolled — enter a TOTP from your authenticator and submit again.');
+          setTotp('');
+          return;
+        }
+        const r = await v4.runRenewals(token, result.stepUpToken);
+        push(`Renewals run: processed ${Array.isArray(r?.processed) ? r.processed.length : r?.processed ?? 'ok'}`);
+        setRenewOpen(false);
         setTotp('');
-        return;
+        load();
+      } catch (err: any) {
+        setError(err.message);
       }
-      const r = await v4.runRenewals(token, result.stepUpToken);
-      push(`Renewals run: processed ${Array.isArray(r?.processed) ? r.processed.length : r?.processed ?? 'ok'}`);
-      setRenewOpen(false);
-      setTotp('');
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    }, 'renew');
   };
 
   return (
@@ -165,7 +171,7 @@ export function SubscriptionsPage() {
             ) : (
               <Alert tone="info">{t('subscriptions.productionTokenAlert')}</Alert>
             )}
-            <Button type="submit">{t('common.create')}</Button>
+            <Button type="submit" busy={busyKey === 'create'}>{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}
@@ -186,7 +192,7 @@ export function SubscriptionsPage() {
                 inputMode="numeric"
               />
             </Field>
-            <Button type="submit">{t('subscriptions.confirmRenewals')}</Button>
+            <Button type="submit" busy={busyKey === 'renew'}>{t('subscriptions.confirmRenewals')}</Button>
           </form>
         </Modal>
       ) : null}

@@ -83,6 +83,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: var(--v4-space-3);
+  flex-shrink: 0;
 }
 
 .v4-brand-mark {
@@ -180,6 +181,8 @@ textarea {
   gap: 0.55rem;
   padding-top: var(--v4-space-3);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .v4-sidebar-user {

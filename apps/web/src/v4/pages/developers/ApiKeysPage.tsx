@@ -16,6 +16,7 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, shortId} from '../../utils/money';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 const SCOPE_OPTIONS = [
   'payments.read',
@@ -58,6 +59,7 @@ export function ApiKeysPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -81,45 +83,49 @@ export function ApiKeysPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    try {
-      const result = await obtainStepUp(token, totp);
-      if (result.enrolled) {
-        setMfaSecretOnce(result.mfaSecret || null);
-        setError(t('common.mfaEnrolled'));
+    await run(async () => {
+      try {
+        const result = await obtainStepUp(token, totp);
+        if (result.enrolled) {
+          setMfaSecretOnce(result.mfaSecret || null);
+          setError(t('common.mfaEnrolled'));
+          setTotp('');
+          return;
+        }
+        const created = await v4.createApiKey(token, form, result.stepUpToken);
+        setSecretOnce(created.secret || null);
+        setOpen(false);
         setTotp('');
-        return;
+        push('API key created — copy the secret now');
+        load();
+      } catch (err: any) {
+        setError(err.message);
       }
-      const created = await v4.createApiKey(token, form, result.stepUpToken);
-      setSecretOnce(created.secret || null);
-      setOpen(false);
-      setTotp('');
-      push('API key created — copy the secret now');
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    }, 'create');
   };
 
   const revoke = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!revokeId) return;
     setError('');
-    try {
-      const result = await obtainStepUp(token, totp);
-      if (result.enrolled) {
-        setMfaSecretOnce(result.mfaSecret || null);
-        setError(t('common.mfaEnrolled'));
+    await run(async () => {
+      try {
+        const result = await obtainStepUp(token, totp);
+        if (result.enrolled) {
+          setMfaSecretOnce(result.mfaSecret || null);
+          setError(t('common.mfaEnrolled'));
+          setTotp('');
+          return;
+        }
+        await v4.revokeApiKey(token, revokeId, result.stepUpToken);
+        push('API key revoked');
+        setRevokeId(null);
         setTotp('');
-        return;
+        load();
+      } catch (err: any) {
+        setError(err.message);
       }
-      await v4.revokeApiKey(token, revokeId, result.stepUpToken);
-      push('API key revoked');
-      setRevokeId(null);
-      setTotp('');
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    }, 'revoke');
   };
 
   return (
@@ -241,7 +247,7 @@ export function ApiKeysPage() {
                 onChange={(e) => setTotp(e.target.value)}
               />
             </Field>
-            <Button type="submit">{t('common.create')}</Button>
+            <Button type="submit" busy={busyKey === 'create'}>{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}
@@ -259,7 +265,7 @@ export function ApiKeysPage() {
                 onChange={(e) => setTotp(e.target.value)}
               />
             </Field>
-            <Button type="submit" variant="danger">
+            <Button type="submit" variant="danger" busy={busyKey === 'revoke'}>
               {t('developers.apiKeys.revoke')}
             </Button>
           </form>

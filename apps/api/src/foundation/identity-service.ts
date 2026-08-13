@@ -13,6 +13,7 @@ import {
 } from './crypto.js';
 import {AppError, conflict, forbidden, unauthorized} from './errors.js';
 import {identityPhase2} from './identity-phase2.js';
+import {provisionMfaAndEmail} from './mfa-provision.js';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -143,6 +144,16 @@ export class IdentityService {
         },
         client,
       );
+
+      await provisionMfaAndEmail(client, {
+        userId,
+        email,
+        name: input.name || null,
+        organizationId: orgId,
+        reason: 'account_created',
+        actorUserId: userId,
+        requestId: input.requestId,
+      });
 
       const verificationToken = await identityPhase2.issueEmailVerification(userId, email, client);
       return {

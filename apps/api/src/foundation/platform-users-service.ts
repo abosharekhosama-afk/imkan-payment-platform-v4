@@ -4,6 +4,7 @@ import {pgQuery, withPgTransaction} from '../infrastructure/db/postgres.js';
 import {emitOutboxEvent, writeAuditEvent, writeSecurityEvent} from './audit.js';
 import {hashPassword, hashToken, randomToken} from './crypto.js';
 import {AppError, conflict, forbidden, notFound, unauthorized} from './errors.js';
+import {provisionMfaAndEmail} from './mfa-provision.js';
 
 const PLATFORM_ROLES = new Set(['PLATFORM_ADMIN', 'PLATFORM_SUPPORT', 'PLATFORM_FINANCE']);
 
@@ -167,6 +168,14 @@ export const platformUsersService = {
            VALUES ($1,$2,$3,$4,$5,'ACTIVE',NOW())`,
           [userId, invitation.email, invitation.email_normalized, hashPassword(input.password), input.name || null],
         );
+        await provisionMfaAndEmail(client, {
+          userId,
+          email: invitation.email,
+          name: input.name || null,
+          organizationId: null,
+          reason: 'invitation_accepted',
+          actorUserId: userId,
+        });
       }
 
       const role = await client.query<{id: string}>(
@@ -237,6 +246,39 @@ export const platformUsersService = {
         [userId, role.rows[0].id],
       );
       return {user_id: userId, email: email.trim(), role_code: 'PLATFORM_OWNER', created};
+    });
+  },
+
+  async deactivatePlatformUser(targetUserId: string, actorUserId: string) {
+    if (targetUserId === actorUserId) throw conflict('Cannot deactivate yourself', 'CANNOT_DEACTIVATE_SELF');
+    return withPgTransaction(async (client) => {
+      const membership = await client.query(
+        `SELECT r.code FROM user_roles ur
+         JOIN roles r ON r.id = ur.role_id AND r.scope='PLATFORM'
+         WHERE ur.user_id=$1 AND ur.organization_id IS NULL`,
+        [targetUserId],
+      );
+      if (!membership.rows[0]) throw notFound('Platform member not found', 'PLATFORM_MEMBER_NOT_FOUND');
+      if (membership.rows.some((r: {code: string}) => r.code === 'PLATFORM_OWNER')) {
+        throw forbidden('Cannot deactivate the platform owner', 'CANNOT_DEACTIVATE_PLATFORM_OWNER');
+      }
+      await client.query(`UPDATE users SET status='DISABLED', updated_at=NOW() WHERE id=$1`, [targetUserId]);
+      await client.query(`UPDATE sessions SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL`, [targetUserId]);
+      await writeAuditEvent(
+        {
+          organizationId: null,
+          actorUserId,
+          action: 'platform.user.deactivated',
+          resourceType: 'user',
+          resourceId: targetUserId,
+        },
+        client,
+      );
+      await writeSecurityEvent(
+        {userId: actorUserId, eventType: 'platform.user.deactivated', metadata: {target_user_id: targetUserId}},
+        client,
+      );
+      return {user_id: targetUserId, status: 'DISABLED'};
     });
   },
 };

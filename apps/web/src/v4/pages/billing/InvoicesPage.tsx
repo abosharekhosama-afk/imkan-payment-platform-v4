@@ -7,11 +7,13 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function InvoicesPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {run, isBusy} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -27,13 +29,15 @@ export function InvoicesPage() {
   useEffect(load, [token]);
 
   const collect = async (id: string) => {
-    try {
-      await v4.collectInvoice(token, id);
-      push('Collection attempted via Payment Core → Router → Sandbox');
-      load();
-    } catch (e: any) {
-      setError(e.message);
-    }
+    await run(async () => {
+      try {
+        await v4.collectInvoice(token, id);
+        push('Collection attempted via Payment Core → Router → Sandbox');
+        load();
+      } catch (e: any) {
+        setError(e.message);
+      }
+    }, id);
   };
 
   return (
@@ -69,7 +73,7 @@ export function InvoicesPage() {
               <Link to={`/invoices/${r.id}`}>{t('common.open')}</Link>
               <Can anyOf={['invoices.pay', 'invoices.manage', 'billing.manage']}>
                 {['OPEN', 'OVERDUE'].includes(r.status) ? (
-                  <Button className="ghost" type="button" onClick={() => void collect(r.id)}>
+                  <Button className="ghost" type="button" busy={isBusy(r.id)} onClick={() => void collect(r.id)}>
                     {t('common.collect')}
                   </Button>
                 ) : null}

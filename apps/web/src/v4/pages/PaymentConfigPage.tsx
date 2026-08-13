@@ -5,12 +5,14 @@ import {Alert, Button, Field, LoadingState, PageHeader} from '../design-system/c
 import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {useI18n} from '../i18n/I18nProvider';
+import {useBusyAction} from '../hooks/useBusyAction';
 
 export function PaymentConfigPage() {
   const {t} = useI18n();
   const {token, hasPermission} = useAuth();
   const canManage = hasPermission('payment_config.manage');
   const {push} = useToast();
+  const {busy, run} = useBusyAction();
   const [form, setForm] = useState({
     company_display_name: '',
     brand_primary_color: '#0b6e4f',
@@ -40,12 +42,14 @@ export function PaymentConfigPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManage) return;
-    try {
-      await v4.putPaymentConfig(token, form);
-      push(t('toast.paymentConfigSaved'));
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        await v4.putPaymentConfig(token, form);
+        push(t('toast.paymentConfigSaved'));
+      } catch (err: any) {
+        setError(err.message);
+      }
+    });
   };
 
   if (loading) return <LoadingState />;
@@ -94,7 +98,7 @@ export function PaymentConfigPage() {
           </Field>
         </fieldset>
         <Can anyOf={['payment_config.manage']}>
-          <Button type="submit">{t('common.save')}</Button>
+          <Button type="submit" busy={busy}>{t('common.save')}</Button>
         </Can>
       </form>
     </div>

@@ -8,12 +8,14 @@ import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function InvoiceDetailPage() {
   const {t} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, run} = useBusyAction();
   const [row, setRow] = useState<any>(null);
   const [error, setError] = useState('');
   const [collectOpen, setCollectOpen] = useState(false);
@@ -31,22 +33,24 @@ export function InvoiceDetailPage() {
   const collect = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    try {
-      const result = await obtainStepUp(token, totp);
-      if (result.enrolled) {
-        setMfaSecretOnce(result.mfaSecret || null);
-        setError('MFA enrolled — enter a TOTP from your authenticator and submit again.');
+    await run(async () => {
+      try {
+        const result = await obtainStepUp(token, totp);
+        if (result.enrolled) {
+          setMfaSecretOnce(result.mfaSecret || null);
+          setError('MFA enrolled — enter a TOTP from your authenticator and submit again.');
+          setTotp('');
+          return;
+        }
+        await v4.collectInvoice(token, id, result.stepUpToken);
+        push(t('toast.collected'));
+        setCollectOpen(false);
         setTotp('');
-        return;
+        load();
+      } catch (err: any) {
+        setError(err.message);
       }
-      await v4.collectInvoice(token, id, result.stepUpToken);
-      push(t('toast.collected'));
-      setCollectOpen(false);
-      setTotp('');
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    });
   };
 
   if (!row && !error) return <LoadingState />;
@@ -99,7 +103,7 @@ export function InvoiceDetailPage() {
             <Field label={t('subscriptions.labelTotp')}>
               <input value={totp} onChange={(e) => setTotp(e.target.value)} required inputMode="numeric" />
             </Field>
-            <Button type="submit">{t('invoiceDetail.confirmCollect')}</Button>
+            <Button type="submit" busy={busy}>{t('invoiceDetail.confirmCollect')}</Button>
           </form>
         </Modal>
       ) : null}

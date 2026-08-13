@@ -7,11 +7,13 @@ import {useToast} from '../../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
 import {CurrencySelect} from '../../design-system/CurrencySelect';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function PricesPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, run} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -42,21 +44,23 @@ export function PricesPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await v4.createPrice(token, {
-        product_id: form.product_id,
-        currency_code: form.currency_code,
-        unit_amount_minor: form.unit_amount_minor,
-        interval_unit: form.interval_unit,
-        interval_count: form.interval_count,
-        nickname: form.nickname || undefined,
-      });
-      setOpen(false);
-      push(t('toast.priceCreated'));
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        await v4.createPrice(token, {
+          product_id: form.product_id,
+          currency_code: form.currency_code,
+          unit_amount_minor: form.unit_amount_minor,
+          interval_unit: form.interval_unit,
+          interval_count: form.interval_count,
+          nickname: form.nickname || undefined,
+        });
+        setOpen(false);
+        push(t('toast.priceCreated'));
+        load();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    });
   };
 
   return (
@@ -127,7 +131,7 @@ export function PricesPage() {
                 ))}
               </select>
             </Field>
-            <Button type="submit">{t('common.create')}</Button>
+            <Button type="submit" busy={busy}>{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

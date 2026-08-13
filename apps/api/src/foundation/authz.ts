@@ -146,6 +146,36 @@ export function requireRole(...roleCodes: string[]) {
   };
 }
 
+/**
+ * Company owner controls for member/invite lifecycle, with platform owner/admin override.
+ */
+export function requireMerchantOwnerOrPlatformAdmin() {
+  return async (request: FastifyRequest) => {
+    if (!request.auth) throw unauthorized();
+    const roles = request.auth.roles || [];
+    if (
+      roles.includes('MERCHANT_OWNER') ||
+      roles.includes('PLATFORM_OWNER') ||
+      authHasPermission(request.auth.permissions, PERMISSIONS.PLATFORM_ADMIN)
+    ) {
+      return;
+    }
+    throw forbidden('Only the company owner or platform admin can perform this action', 'OWNER_REQUIRED');
+  };
+}
+
+/** Platform owner or platform.admin for sensitive platform-user / TOTP approval actions. */
+export function requirePlatformOwnerOrAdmin() {
+  return async (request: FastifyRequest) => {
+    if (!request.auth) throw unauthorized();
+    const roles = request.auth.roles || [];
+    if (roles.includes('PLATFORM_OWNER') || authHasPermission(request.auth.permissions, PERMISSIONS.PLATFORM_ADMIN)) {
+      return;
+    }
+    throw forbidden('Platform owner or platform admin required', 'PLATFORM_OWNER_REQUIRED');
+  };
+}
+
 /** Ensures caller has a platform-scoped role (not merely a high merchant role). */
 export function requirePlatformRole(...roleCodes: string[]) {
   const allowed = roleCodes.length ? roleCodes : [...PLATFORM_SYSTEM_ROLES];

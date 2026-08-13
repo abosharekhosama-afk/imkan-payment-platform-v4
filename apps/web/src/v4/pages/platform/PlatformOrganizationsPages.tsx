@@ -13,6 +13,7 @@ import {
 } from '../../design-system/components';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
+import {formatActor, formatEventAction} from '../../i18n/humanize';
 import {Can} from '../../rbac/Can';
 import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
@@ -123,7 +124,7 @@ function DetailRow({label, value}: {label: string; value: React.ReactNode}) {
 }
 
 export function PlatformOrganizationDetailPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {organizationId = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
@@ -427,8 +428,8 @@ export function PlatformOrganizationDetailPage() {
       <DataTable
         columns={[t('security.audit.colAction'), t('security.audit.colActor'), t('common.date')]}
         rows={(detail.recent_audit || []).map((e: any) => [
-          e.action,
-          shortId(e.actor_user_id),
+          formatEventAction(e.action, locale),
+          formatActor(e),
           formatDate(e.created_at),
         ])}
         empty={<p>{t('platform.orgs.auditEmpty')}</p>}
@@ -440,7 +441,7 @@ export function PlatformOrganizationDetailPage() {
 type ObsTab = 'audit' | 'security' | 'errors';
 
 export function PlatformObservabilityPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token} = useAuth();
   const [tab, setTab] = useState<ObsTab>('audit');
   const [rows, setRows] = useState<any[]>([]);
@@ -520,29 +521,43 @@ export function PlatformObservabilityPage() {
           columns={[t('platform.obs.colOrg'), t('security.audit.colAction'), t('security.audit.colActor'), t('common.date')]}
           rows={rows.map((r) => [
             r.organization_name || shortId(r.organization_id),
-            r.action,
-            shortId(r.actor_user_id),
+            formatEventAction(r.action, locale),
+            formatActor(r),
             formatDate(r.created_at),
           ])}
           empty={<p>{t('platform.obs.empty')}</p>}
         />
       ) : tab === 'security' ? (
         <DataTable
-          columns={[t('platform.obs.colOrg'), t('security.events.colType'), t('common.status'), t('common.date')]}
+          columns={[
+            t('platform.obs.colOrg'),
+            t('security.events.colType'),
+            t('security.audit.colActor'),
+            t('common.status'),
+            t('common.date'),
+          ]}
           rows={rows.map((r) => [
             r.organization_name || shortId(r.organization_id),
-            r.event_type,
-            r.success === false ? t('common.no') : t('common.yes'),
+            formatEventAction(r.event_type, locale),
+            formatActor(r),
+            r.success === false ? t('common.failed') : t('common.success'),
             formatDate(r.created_at),
           ])}
           empty={<p>{t('platform.obs.empty')}</p>}
         />
       ) : (
         <DataTable
-          columns={[t('platform.obs.colOrg'), t('security.errors.colRoute'), t('security.errors.colCode'), t('common.date')]}
+          columns={[
+            t('platform.obs.colOrg'),
+            t('security.audit.colActor'),
+            t('security.errors.colRoute'),
+            t('security.errors.colCode'),
+            t('common.date'),
+          ]}
           rows={rows.map((r) => [
             r.organization_name || shortId(r.organization_id),
-            `${r.method || ''} ${r.route || ''}`.trim(),
+            formatActor(r),
+            `${r.method || ''} ${r.route || ''}`.trim() || r.message || '—',
             r.error_code || r.status_code,
             formatDate(r.created_at),
           ])}

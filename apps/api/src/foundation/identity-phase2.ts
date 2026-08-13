@@ -3,6 +3,7 @@ import {pgQuery, withPgTransaction} from '../infrastructure/db/postgres.js';
 import {emitOutboxEvent, writeAuditEvent, writeSecurityEvent} from './audit.js';
 import {hashPassword, hashToken, randomToken, verifyPassword, verifyTotp} from './crypto.js';
 import {AppError, conflict, forbidden, notFound, unauthorized} from './errors.js';
+import {provisionMfaAndEmail} from './mfa-provision.js';
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -346,6 +347,14 @@ export class IdentityPhase2Service {
             input.name || null,
           ],
         );
+        await provisionMfaAndEmail(client, {
+          userId,
+          email: invitation.email,
+          name: input.name || null,
+          organizationId: invitation.organization_id,
+          reason: 'invitation_accepted',
+          actorUserId: userId,
+        });
       }
 
       await client.query(
@@ -393,6 +402,17 @@ export class IdentityPhase2Service {
         [organizationId, targetUserId],
       );
       if (!membership.rows[0]) throw notFound('Member not found', 'MEMBER_NOT_FOUND');
+
+      const targetOwner = await client.query(
+        `SELECT 1 FROM user_roles ur
+         JOIN roles r ON r.id = ur.role_id
+         WHERE ur.user_id=$1 AND ur.organization_id=$2 AND r.code='MERCHANT_OWNER'`,
+        [targetUserId, organizationId],
+      );
+      if (targetOwner.rows[0]) {
+        throw forbidden('Cannot deactivate the company owner', 'CANNOT_DEACTIVATE_OWNER');
+      }
+
       await client.query(
         `UPDATE organization_users SET status='DISABLED', updated_at=NOW()
          WHERE organization_id=$1 AND user_id=$2`,
@@ -418,6 +438,56 @@ export class IdentityPhase2Service {
         client,
       );
       return {user_id: targetUserId, status: 'DISABLED'};
+    });
+  }
+
+  async removeMember(organizationId: string, targetUserId: string, actorUserId: string) {
+    if (targetUserId === actorUserId) throw conflict('Cannot remove yourself', 'CANNOT_REMOVE_SELF');
+    return withPgTransaction(async (client) => {
+      const membership = await client.query(
+        `SELECT 1 FROM organization_users WHERE organization_id=$1 AND user_id=$2`,
+        [organizationId, targetUserId],
+      );
+      if (!membership.rows[0]) throw notFound('Member not found', 'MEMBER_NOT_FOUND');
+
+      const targetOwner = await client.query(
+        `SELECT 1 FROM user_roles ur
+         JOIN roles r ON r.id = ur.role_id
+         WHERE ur.user_id=$1 AND ur.organization_id=$2 AND r.code='MERCHANT_OWNER'`,
+        [targetUserId, organizationId],
+      );
+      if (targetOwner.rows[0]) {
+        throw forbidden('Cannot remove the company owner', 'CANNOT_REMOVE_OWNER');
+      }
+
+      await client.query(`DELETE FROM user_roles WHERE user_id=$1 AND organization_id=$2`, [
+        targetUserId,
+        organizationId,
+      ]);
+      await client.query(`DELETE FROM organization_users WHERE organization_id=$1 AND user_id=$2`, [
+        organizationId,
+        targetUserId,
+      ]);
+      await client.query(
+        `UPDATE sessions SET revoked_at=NOW()
+         WHERE user_id=$1 AND organization_id=$2 AND revoked_at IS NULL`,
+        [targetUserId, organizationId],
+      );
+      await writeAuditEvent(
+        {
+          organizationId,
+          actorUserId,
+          action: 'user.removed',
+          resourceType: 'user',
+          resourceId: targetUserId,
+        },
+        client,
+      );
+      await writeSecurityEvent(
+        {organizationId, userId: actorUserId, eventType: 'user.removed', metadata: {target_user_id: targetUserId}},
+        client,
+      );
+      return {user_id: targetUserId, status: 'REMOVED'};
     });
   }
 

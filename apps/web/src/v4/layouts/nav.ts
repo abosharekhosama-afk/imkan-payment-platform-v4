@@ -97,6 +97,7 @@ export const NAV_SECTIONS: NavSection[] = [
       {to: '/platform/webhooks', labelKey: 'nav.platformWebhooks', icon: 'webhook', anyOf: ['webhooks.manage', 'platform.admin', 'platform.support']},
       {to: '/platform/health', labelKey: 'nav.platformHealth', icon: 'heart', anyOf: ['platform.system.manage', 'platform.admin', 'platform.support']},
       {to: '/platform/team', labelKey: 'nav.platformTeam', icon: 'team', anyOf: ['platform.users.read', 'platform.admin']},
+      {to: '/platform/totp-requests', labelKey: 'nav.platformTotp', icon: 'shield', anyOf: ['platform.users.manage', 'platform.admin']},
     ],
   },
   {

@@ -234,9 +234,9 @@ export function PaymentDetailPage() {
             <Field label={t('finance.refunds.labelTotp')}>
               <input required value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" />
             </Field>
-            <Button type="submit" disabled={busy}>
-              {busy ? t('common.processing') : t('paymentDetail.confirmRefund')}
-            </Button>
+          <Button type="submit" busy={busy}>
+            {t('paymentDetail.confirmRefund')}
+          </Button>
           </form>
         </Modal>
       ) : null}

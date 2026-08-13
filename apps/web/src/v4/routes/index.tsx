@@ -55,6 +55,7 @@ import {
 } from '../pages/platform/PlatformKybPages';
 import {PlatformBankDetailPage, PlatformBankListPage} from '../pages/platform/PlatformBankPages';
 import {PlatformTeamPage} from '../pages/platform/PlatformTeamPage';
+import {PlatformTotpRequestsPage} from '../pages/platform/PlatformTotpRequestsPage';
 import {PlatformSystemHealthPage} from '../pages/platform/PlatformSystemHealthPage';
 import {PlatformWebhooksPage} from '../pages/platform/PlatformWebhooksPage';
 import {ComingSoonPage} from '../pages/ComingSoonPage';
@@ -175,6 +176,7 @@ export function AppRoutes() {
         <Route path="platform/webhooks" element={<RP anyOf={['webhooks.manage', 'platform.admin', 'platform.support']}><PlatformWebhooksPage /></RP>} />
         <Route path="platform/health" element={<RP anyOf={['platform.system.manage', 'platform.admin', 'platform.support']}><PlatformSystemHealthPage /></RP>} />
         <Route path="platform/team" element={<RP anyOf={['platform.users.read', 'platform.admin']}><PlatformTeamPage /></RP>} />
+        <Route path="platform/totp-requests" element={<RP anyOf={['platform.users.manage', 'platform.admin']}><PlatformTotpRequestsPage /></RP>} />
         <Route path="platform/kyb" element={<RP anyOf={['kyb.review', 'platform.admin']}><PlatformKybListPage /></RP>} />
         <Route path="platform/kyb/:caseId" element={<RP anyOf={['kyb.review', 'platform.admin']}><PlatformKybDetailPage /></RP>} />
         <Route path="platform/bank-accounts" element={<RP anyOf={['bank.review', 'platform.admin']}><PlatformBankListPage /></RP>} />

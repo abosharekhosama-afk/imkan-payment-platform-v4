@@ -1,9 +1,10 @@
 import type {FastifyInstance} from 'fastify';
 import {z} from 'zod';
-import {requireOrganizationContext, requirePermission, requireStepUp} from '../../../foundation/authz.js';
+import {requireMerchantOwnerOrPlatformAdmin, requireOrganizationContext, requirePermission, requirePlatformOwnerOrAdmin, requireStepUp} from '../../../foundation/authz.js';
 import {identityPhase2} from '../../../foundation/identity-phase2.js';
 import {identityService} from '../../../foundation/identity-service.js';
 import {platformUsersService} from '../../../foundation/platform-users-service.js';
+import {mfaTotpRequestService} from '../../../foundation/mfa-totp-request-service.js';
 import {completeIdempotency, failIdempotency, idempotencyPreHandler} from '../../../foundation/idempotency.js';
 import {created, ok, parsePaging} from '../../../foundation/http.js';
 import {forbidden} from '../../../foundation/errors.js';
@@ -186,7 +187,13 @@ export async function registerPhase2Routes(app: FastifyInstance) {
 
   app.post(
     '/organizations/:organizationId/invitations/:invitationId/revoke',
-    {preHandler: [requirePermission('invites.manage', 'users.manage'), requireStepUp()]},
+    {
+      preHandler: [
+        requireMerchantOwnerOrPlatformAdmin(),
+        requirePermission('invites.manage', 'users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
     async (request) => {
       const params = z
         .object({organizationId: z.string().uuid(), invitationId: z.string().uuid()})
@@ -201,7 +208,13 @@ export async function registerPhase2Routes(app: FastifyInstance) {
 
   app.post(
     '/organizations/:organizationId/users/:userId/deactivate',
-    {preHandler: [requirePermission('users.deactivate', 'users.manage'), requireStepUp()]},
+    {
+      preHandler: [
+        requireMerchantOwnerOrPlatformAdmin(),
+        requirePermission('users.deactivate', 'users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
     async (request) => {
       const params = z.object({organizationId: z.string().uuid(), userId: z.string().uuid()}).parse(request.params);
       assertOrgAccess(request.auth!, params.organizationId);
@@ -209,6 +222,96 @@ export async function registerPhase2Routes(app: FastifyInstance) {
         request,
         await identityPhase2.deactivateUser(params.organizationId, params.userId, request.auth!.userId),
       );
+    },
+  );
+
+  app.post(
+    '/organizations/:organizationId/users/:userId/remove',
+    {
+      preHandler: [
+        requireMerchantOwnerOrPlatformAdmin(),
+        requirePermission('users.remove', 'users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
+    async (request) => {
+      const params = z.object({organizationId: z.string().uuid(), userId: z.string().uuid()}).parse(request.params);
+      assertOrgAccess(request.auth!, params.organizationId);
+      return ok(
+        request,
+        await identityPhase2.removeMember(params.organizationId, params.userId, request.auth!.userId),
+      );
+    },
+  );
+
+  app.post(
+    '/auth/mfa/totp-request',
+    {preHandler: [rateLimit('auth.mfa')]},
+    async (request) => {
+      const auth = request.auth!;
+      const body = z.object({reason: z.string().max(500).optional()}).parse(request.body || {});
+      return ok(
+        request,
+        await mfaTotpRequestService.createRequest({
+          userId: auth.userId,
+          organizationId: auth.organizationId,
+          reason: body.reason,
+        }),
+      );
+    },
+  );
+
+  app.get(
+    '/platform/mfa-totp-requests',
+    {preHandler: [requirePermission('platform.users.manage', 'platform.admin')]},
+    async (request) => {
+      const q = z
+        .object({
+          status: z.enum(['PENDING', 'APPROVED', 'DENIED', 'CANCELLED']).optional(),
+          limit: z.coerce.number().int().min(1).max(200).optional(),
+          offset: z.coerce.number().int().min(0).optional(),
+        })
+        .parse(request.query || {});
+      return ok(
+        request,
+        await mfaTotpRequestService.listRequests({
+          status: q.status,
+          limit: q.limit ?? 50,
+          offset: q.offset ?? 0,
+        }),
+      );
+    },
+  );
+
+  app.post(
+    '/platform/mfa-totp-requests/:requestId/approve',
+    {
+      preHandler: [
+        requirePlatformOwnerOrAdmin(),
+        requirePermission('platform.users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
+    async (request) => {
+      const params = z.object({requestId: z.string().uuid()}).parse(request.params);
+      const body = z.object({note: z.string().max(500).optional()}).parse(request.body || {});
+      return ok(request, await mfaTotpRequestService.approve(params.requestId, request.auth!.userId, body.note));
+    },
+  );
+
+  app.post(
+    '/platform/mfa-totp-requests/:requestId/deny',
+    {
+      preHandler: [
+        requirePlatformOwnerOrAdmin(),
+        requirePermission('platform.users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
+    async (request) => {
+      const params = z.object({requestId: z.string().uuid()}).parse(request.params);
+      const body = z.object({note: z.string().max(500).optional()}).parse(request.body || {});
+      return ok(request, await mfaTotpRequestService.deny(params.requestId, request.auth!.userId, body.note));
     },
   );
 
@@ -263,10 +366,31 @@ export async function registerPhase2Routes(app: FastifyInstance) {
 
   app.post(
     '/platform/invitations/:invitationId/revoke',
-    {preHandler: [requirePermission('platform.users.manage', 'platform.admin'), requireStepUp()]},
+    {
+      preHandler: [
+        requirePlatformOwnerOrAdmin(),
+        requirePermission('platform.users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
     async (request) => {
       const params = z.object({invitationId: z.string().uuid()}).parse(request.params);
       return ok(request, await platformUsersService.revokeInvitation(params.invitationId, request.auth!.userId));
+    },
+  );
+
+  app.post(
+    '/platform/users/:userId/deactivate',
+    {
+      preHandler: [
+        requirePlatformOwnerOrAdmin(),
+        requirePermission('platform.users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
+    async (request) => {
+      const params = z.object({userId: z.string().uuid()}).parse(request.params);
+      return ok(request, await platformUsersService.deactivatePlatformUser(params.userId, request.auth!.userId));
     },
   );
 
@@ -277,10 +401,13 @@ export async function registerPhase2Routes(app: FastifyInstance) {
       const auth = request.auth!;
       const {limit, offset} = parsePaging(request.query);
       const r = await pgQuery(
-        `SELECT id, organization_id, user_id, request_id, method, route, status_code, error_code, message, created_at
-         FROM error_reports
-         WHERE organization_id=$1
-         ORDER BY created_at DESC
+        `SELECT er.id, er.organization_id, er.user_id, er.request_id, er.method, er.route, er.status_code,
+                er.error_code, er.message, er.created_at,
+                u.name AS actor_name, u.email AS actor_email
+         FROM error_reports er
+         LEFT JOIN users u ON u.id = er.user_id
+         WHERE er.organization_id=$1
+         ORDER BY er.created_at DESC
          LIMIT $2 OFFSET $3`,
         [auth.organizationId, limit, offset],
       );

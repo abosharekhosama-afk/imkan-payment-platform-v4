@@ -21,6 +21,7 @@ export type AuthState = {
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   hasPermission: (...codes: string[]) => boolean;
+  hasRole: (...codes: string[]) => boolean;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -172,6 +173,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     [permissions],
   );
 
+  const hasRole = useCallback((...codes: string[]) => codes.some((c) => roles.includes(c)), [roles]);
+
   const value = useMemo(
     () => ({
       token: cookieOnly ? (user ? 'cookie-session' : null) : token,
@@ -187,8 +190,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       logout,
       refresh,
       hasPermission,
+      hasRole,
     }),
-    [token, user, organizationId, roles, permissions, accountType, loading, login, verifyMfa, logout, refresh, hasPermission],
+    [token, user, organizationId, roles, permissions, accountType, loading, login, verifyMfa, logout, refresh, hasPermission, hasRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

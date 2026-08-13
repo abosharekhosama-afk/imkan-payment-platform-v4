@@ -52,3 +52,30 @@ export function formatReason(reason: string | null | undefined, locale: Locale =
   const slug = reason.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   return lookup(`reason.${slug}`, locale) || reason;
 }
+
+/** invitation.created / bank_account.activate → readable label */
+export function formatEventAction(code: string | null | undefined, locale: Locale = 'en'): string {
+  if (!code) return '—';
+  const key = String(code).trim();
+  return lookup(`event.${key}`, locale) || titleCase(key);
+}
+
+/** Prefer display name, then email — never raw UUID for people. */
+export function formatActor(
+  row: {
+    actor_name?: string | null;
+    actor_email?: string | null;
+    user_name?: string | null;
+    user_email?: string | null;
+    name?: string | null;
+    email?: string | null;
+  } | null | undefined,
+): string {
+  if (!row) return '—';
+  const name = row.actor_name || row.user_name || row.name;
+  const email = row.actor_email || row.user_email || row.email;
+  if (name && email && name !== email) return `${name} · ${email}`;
+  if (name) return name;
+  if (email) return email;
+  return '—';
+}

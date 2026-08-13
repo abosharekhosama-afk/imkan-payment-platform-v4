@@ -40,11 +40,26 @@ export function PageHeader({
 }
 
 export function Button(
-  props: React.ButtonHTMLAttributes<HTMLButtonElement> & {variant?: 'primary' | 'secondary' | 'danger' | 'ghost'},
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+    /** Disables the button and swaps label while an async action runs */
+    busy?: boolean;
+    busyLabel?: string;
+  },
 ) {
-  const {variant = 'primary', className = '', ...rest} = props;
+  const {t} = useI18n();
+  const {variant = 'primary', className = '', busy, busyLabel, children, disabled, ...rest} = props;
   const v = variant === 'primary' ? '' : variant;
-  return <button className={`v4-btn ${v} ${className}`.trim()} {...rest} />;
+  return (
+    <button
+      className={`v4-btn ${v} ${className}`.trim()}
+      disabled={Boolean(disabled || busy)}
+      aria-busy={busy || undefined}
+      {...rest}
+    >
+      {busy ? busyLabel || t('common.processing') : children}
+    </button>
+  );
 }
 
 export function Field({label, children, hint, fullWidth}: {label: string; children: React.ReactNode; hint?: string; fullWidth?: boolean}) {

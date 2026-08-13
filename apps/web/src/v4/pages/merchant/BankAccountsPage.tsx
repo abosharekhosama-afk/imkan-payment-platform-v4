@@ -11,12 +11,14 @@ import {useMasterOptions} from '../../hooks/useMasterOptions';
 import {obtainStepUp} from '../../rbac/stepUp';
 import {formatDate, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function BankAccountsPage() {
   const {t} = useI18n();
   const {token, hasPermission} = useAuth();
   const canManage = hasPermission('bank.manage');
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const payoutMethods = useMasterOptions(token, 'payout-methods');
   const countries = useMasterOptions(token, 'countries');
   const currencies = useMasterOptions(token, 'currencies');
@@ -49,24 +51,26 @@ export function BankAccountsPage() {
 
   useEffect(load, [token]);
 
-  const runAccountAction = async (fn: (stepUpToken?: string) => Promise<unknown>, okMsg: string) => {
+  const runAccountAction = async (key: string, fn: (stepUpToken?: string) => Promise<unknown>, okMsg: string) => {
     if (!token) return;
     setError('');
-    try {
-      const step = await obtainStepUp(token, actionTotp);
-      if (step.enrolled && step.mfaSecret) {
-        setMfaSecretOnce(step.mfaSecret);
-        setError(t('merchant.bank.mfaEnrolled'));
-        return;
+    await run(async () => {
+      try {
+        const step = await obtainStepUp(token, actionTotp);
+        if (step.enrolled && step.mfaSecret) {
+          setMfaSecretOnce(step.mfaSecret);
+          setError(t('merchant.bank.mfaEnrolled'));
+          return;
+        }
+        if (!step.stepUpToken) throw new Error('Step-up token required');
+        await fn(step.stepUpToken);
+        push(okMsg);
+        setActionTotp('');
+        load();
+      } catch (err: any) {
+        setError(err.message);
       }
-      if (!step.stepUpToken) throw new Error('Step-up token required');
-      await fn(step.stepUpToken);
-      push(okMsg);
-      setActionTotp('');
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    }, key);
   };
 
   return (
@@ -126,8 +130,11 @@ export function BankAccountsPage() {
                     <Button
                       type="button"
                       variant="secondary"
+                      busy={busyKey === `activate:${r.id}`}
+                      disabled={busy}
                       onClick={() =>
                         void runAccountAction(
+                          `activate:${r.id}`,
                           (step) => v4.activateBankAccount(token, r.id, step),
                           t('merchant.bank.activated'),
                         )
@@ -140,8 +147,11 @@ export function BankAccountsPage() {
                     <Button
                       type="button"
                       variant="secondary"
+                      busy={busyKey === `deactivate:${r.id}`}
+                      disabled={busy}
                       onClick={() =>
                         void runAccountAction(
+                          `deactivate:${r.id}`,
                           (step) => v4.deactivateBankAccount(token, r.id, undefined, step),
                           t('merchant.bank.deactivated'),
                         )
@@ -154,8 +164,11 @@ export function BankAccountsPage() {
                     <Button
                       type="button"
                       variant="secondary"
+                      busy={busyKey === `default:${r.id}`}
+                      disabled={busy}
                       onClick={() =>
                         void runAccountAction(
+                          `default:${r.id}`,
                           (step) => v4.setDefaultBankAccount(token, r.id, step),
                           t('merchant.bank.defaultSet'),
                         )
@@ -290,8 +303,8 @@ export function BankAccountsPage() {
             </Field>
           </FormSection>
           <Can anyOf={['bank.manage']}>
-            <Button type="submit" disabled={saving}>
-              {saving ? t('common.saving') : t('merchant.bank.create')}
+            <Button type="submit" busy={saving} busyLabel={t('common.saving')}>
+              {t('merchant.bank.create')}
             </Button>
           </Can>
         </fieldset>

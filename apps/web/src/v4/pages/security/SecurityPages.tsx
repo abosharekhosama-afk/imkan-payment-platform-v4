@@ -12,17 +12,19 @@ import {
 } from '../../design-system/components';
 import {Can} from '../../rbac/Can';
 import {obtainStepUp} from '../../rbac/stepUp';
+import {useBusyAction} from '../../hooks/useBusyAction';
 import {useToast} from '../../hooks/useToast';
 import {useI18n} from '../../i18n/I18nProvider';
 import type {Locale} from '../../i18n/index';
 import type {ThemeMode} from '../../theme';
 import {formatDate, shortId} from '../../utils/money';
-import {formatPermission, formatRole, formatRoles} from '../../i18n/humanize';
+import {formatActor, formatEventAction, formatPermission, formatRole, formatRoles} from '../../i18n/humanize';
 
 export function UsersPage() {
   const {t, locale} = useI18n();
-  const {token, organizationId} = useAuth();
+  const {token, organizationId, user, hasRole, hasPermission} = useAuth();
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -31,6 +33,9 @@ export function UsersPage() {
   const [roleCode, setRoleCode] = useState('MERCHANT_VIEWER');
   const [totp, setTotp] = useState('');
   const [mfaSecretOnce, setMfaSecretOnce] = useState<string | null>(null);
+
+  const canManageMembers =
+    hasRole('MERCHANT_OWNER', 'PLATFORM_OWNER') || hasPermission('platform.admin');
 
   const load = () => {
     if (!token || !organizationId) return;
@@ -49,26 +54,87 @@ export function UsersPage() {
 
   useEffect(load, [token, organizationId]);
 
+  const withStepUp = async (fn: (stepUpToken?: string) => Promise<void>) => {
+    const result = await obtainStepUp(token, totp);
+    if (result.enrolled) {
+      setMfaSecretOnce(result.mfaSecret || null);
+      setError(t('security.mfaEnrolled'));
+      setTotp('');
+      return;
+    }
+    await fn(result.stepUpToken);
+    setTotp('');
+  };
+
   const invite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!organizationId) return;
     setError('');
-    try {
-      const result = await obtainStepUp(token, totp);
-      if (result.enrolled) {
-        setMfaSecretOnce(result.mfaSecret || null);
-        setError(t('security.mfaEnrolled'));
-        setTotp('');
-        return;
+    await run(async () => {
+      try {
+        await withStepUp(async (stepUpToken) => {
+          await v4.createInvitation(token, organizationId, {email, role_code: roleCode}, stepUpToken);
+          push(t('toast.invitationCreated'));
+          setEmail('');
+          load();
+        });
+      } catch (err: any) {
+        setError(err.message);
       }
-      await v4.createInvitation(token, organizationId, {email, role_code: roleCode}, result.stepUpToken);
-      push('Invitation created');
-      setEmail('');
-      setTotp('');
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    }, 'invite');
+  };
+
+  const revokeInvite = async (invitationId: string) => {
+    if (!organizationId) return;
+    setError('');
+    await run(async () => {
+      try {
+        await withStepUp(async (stepUpToken) => {
+          await v4.revokeInvitation(token, organizationId, invitationId, stepUpToken);
+          push(t('toast.invitationRevoked'));
+          load();
+        });
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, `revoke:${invitationId}`);
+  };
+
+  const deactivateMember = async (memberId: string) => {
+    if (!organizationId) return;
+    setError('');
+    await run(async () => {
+      try {
+        await withStepUp(async (stepUpToken) => {
+          await v4.deactivateMember(token, organizationId, memberId, stepUpToken);
+          push(t('toast.memberDeactivated'));
+          load();
+        });
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, `deactivate:${memberId}`);
+  };
+
+  const removeMember = async (memberId: string) => {
+    if (!organizationId) return;
+    setError('');
+    await run(async () => {
+      try {
+        await withStepUp(async (stepUpToken) => {
+          await v4.removeMember(token, organizationId, memberId, stepUpToken);
+          push(t('toast.memberRemoved'));
+          load();
+        });
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, `remove:${memberId}`);
+  };
+
+  const isOwnerRole = (r: any) => {
+    const list = Array.isArray(r.roles) ? r.roles : r.role_code ? [r.role_code] : [];
+    return list.includes('MERCHANT_OWNER');
   };
 
   return (
@@ -79,25 +145,69 @@ export function UsersPage() {
         crumbs={[{label: t('section.security')}, {label: t('nav.users')}]}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
+      {canManageMembers ? (
+        <Alert tone="info">{t('security.users.ownerOnlyHint')}</Alert>
+      ) : (
+        <Alert tone="info">{t('security.users.ownerOnlyReadHint')}</Alert>
+      )}
       {loading ? (
         <LoadingState />
       ) : (
         <>
           <div className="v4-card" style={{marginBottom: 16}}>
             <h3>{t('security.users.members')}</h3>
+            {canManageMembers ? (
+              <Field label={t('security.users.labelTotp')} hint={t('security.users.actionsTotpHint')}>
+                <input value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" />
+              </Field>
+            ) : null}
+            {mfaSecretOnce ? (
+              <Alert tone="info">
+                {t('subscriptions.mfaSecret')} <code>{mfaSecretOnce}</code>
+              </Alert>
+            ) : null}
             <DataTable
               columns={[
                 t('security.users.colUser'),
                 t('common.email'),
                 t('security.users.colRoles'),
                 t('common.status'),
+                t('common.actions'),
               ]}
-              rows={rows.map((r) => [
-                shortId(r.id || r.user_id),
-                r.email,
-                Array.isArray(r.roles) ? formatRoles(r.roles, locale) : formatRole(r.role_code, locale),
-                <StatusBadge status={r.status} />,
-              ])}
+              rows={rows.map((r) => {
+                const memberId = r.id || r.user_id;
+                const self = memberId === user?.id;
+                return [
+                  r.name || formatActor(r),
+                  r.email,
+                  Array.isArray(r.roles) ? formatRoles(r.roles, locale) : formatRole(r.role_code, locale),
+                  <StatusBadge status={r.status || r.membership_status} />,
+                  canManageMembers && !self && !isOwnerRole(r) ? (
+                    <span style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        busy={busyKey === `deactivate:${memberId}`}
+                        disabled={busy || !totp}
+                        onClick={() => void deactivateMember(memberId)}
+                      >
+                        {t('security.users.deactivate')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        busy={busyKey === `remove:${memberId}`}
+                        disabled={busy || !totp}
+                        onClick={() => void removeMember(memberId)}
+                      >
+                        {t('security.users.remove')}
+                      </Button>
+                    </span>
+                  ) : (
+                    '—'
+                  ),
+                ];
+              })}
             />
           </div>
           <div className="v4-card">
@@ -109,6 +219,7 @@ export function UsersPage() {
                 t('security.users.colRole'),
                 t('common.status'),
                 t('security.users.colExpires'),
+                t('common.actions'),
               ]}
               rows={invites.map((i) => [
                 shortId(i.id),
@@ -116,15 +227,23 @@ export function UsersPage() {
                 formatRole(i.role_code, locale),
                 <StatusBadge status={i.status} />,
                 formatDate(i.expires_at),
+                canManageMembers && i.status === 'PENDING' ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    busy={busyKey === `revoke:${i.id}`}
+                    disabled={busy || !totp}
+                    onClick={() => void revokeInvite(i.id)}
+                  >
+                    {t('security.users.revokeInvite')}
+                  </Button>
+                ) : (
+                  '—'
+                ),
               ])}
             />
             <Can anyOf={['invites.manage', 'users.manage', 'users.invite']}>
               <form onSubmit={invite} style={{marginTop: '1rem', maxWidth: 480}}>
-                {mfaSecretOnce ? (
-                  <Alert tone="info">
-                    {t('subscriptions.mfaSecret')} <code>{mfaSecretOnce}</code>
-                  </Alert>
-                ) : null}
                 <Field label={t('common.email')}>
                   <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                 </Field>
@@ -140,7 +259,9 @@ export function UsersPage() {
                 <Field label={t('security.users.labelTotp')}>
                   <input value={totp} onChange={(e) => setTotp(e.target.value)} required inputMode="numeric" />
                 </Field>
-                <Button type="submit">{t('security.users.sendInvite')}</Button>
+                <Button type="submit" busy={busyKey === 'invite'} busyLabel={t('common.processing')}>
+                  {t('security.users.sendInvite')}
+                </Button>
               </form>
             </Can>
           </div>
@@ -154,6 +275,7 @@ export function RolesPage() {
   const {t, locale} = useI18n();
   const {token, roles, permissions, hasPermission} = useAuth();
   const {push} = useToast();
+  const {busy, run} = useBusyAction();
   const [catalog, setCatalog] = useState<any>(null);
   const [error, setError] = useState('');
   const [name, setName] = useState('');
@@ -172,22 +294,24 @@ export function RolesPage() {
   const createRole = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    try {
-      const result = await obtainStepUp(token, totp);
-      if (result.enrolled) {
-        setMfaSecretOnce(result.mfaSecret || null);
-        setError(t('security.mfaEnrolled'));
+    await run(async () => {
+      try {
+        const result = await obtainStepUp(token, totp);
+        if (result.enrolled) {
+          setMfaSecretOnce(result.mfaSecret || null);
+          setError(t('security.mfaEnrolled'));
+          setTotp('');
+          return;
+        }
+        await v4.createCustomRole(token, {name, permissions: selected}, result.stepUpToken);
+        push(t('toast.roleCreated'));
+        setName('');
         setTotp('');
-        return;
+        load();
+      } catch (err: any) {
+        setError(err.message);
       }
-      await v4.createCustomRole(token, {name, permissions: selected}, result.stepUpToken);
-      push('Custom role created');
-      setName('');
-      setTotp('');
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    });
   };
 
   return (
@@ -255,7 +379,7 @@ export function RolesPage() {
               <Field label={t('security.users.labelTotp')}>
                 <input value={totp} onChange={(e) => setTotp(e.target.value)} required inputMode="numeric" />
               </Field>
-              <Button type="submit" disabled={!hasPermission('roles.manage')}>
+              <Button type="submit" busy={busy} busyLabel={t('common.processing')} disabled={!hasPermission('roles.manage')}>
                 {t('security.roles.create')}
               </Button>
             </form>
@@ -267,7 +391,7 @@ export function RolesPage() {
 }
 
 function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -293,6 +417,7 @@ function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
 
   useEffect(() => {
     if (!token) return;
+    setLoading(true);
     const loader =
       kind === 'audit' ? v4.auditEvents : kind === 'security' ? v4.securityEvents : v4.errorReports;
     loader(token)
@@ -300,6 +425,46 @@ function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [token, kind]);
+
+  const columns =
+    kind === 'errors'
+      ? [
+          t('security.audit.colAction'),
+          t('security.audit.colActor'),
+          t('security.errors.colRoute'),
+          t('security.errors.colCode'),
+          t('common.created'),
+        ]
+      : kind === 'security'
+        ? [
+            t('security.events.colType'),
+            t('security.audit.colActor'),
+            t('common.status'),
+            t('common.created'),
+          ]
+        : [t('security.audit.colAction'), t('security.audit.colActor'), t('common.created')];
+
+  const tableRows =
+    kind === 'errors'
+      ? rows.map((r) => [
+          r.message || formatEventAction(r.error_code, locale) || '—',
+          formatActor(r),
+          `${r.method || ''} ${r.route || ''}`.trim() || '—',
+          r.error_code || r.status_code || '—',
+          formatDate(r.created_at),
+        ])
+      : kind === 'security'
+        ? rows.map((r) => [
+            formatEventAction(r.event_type || r.action, locale),
+            formatActor(r),
+            r.success === false ? t('common.failed') : t('common.success'),
+            formatDate(r.created_at),
+          ])
+        : rows.map((r) => [
+            formatEventAction(r.action || r.event_type, locale),
+            formatActor(r),
+            formatDate(r.created_at),
+          ]);
 
   return (
     <div>
@@ -312,20 +477,7 @@ function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
       {loading ? (
         <LoadingState />
       ) : (
-        <DataTable
-          columns={[
-            t('security.audit.colId'),
-            t('security.audit.colAction'),
-            t('security.audit.colActor'),
-            t('common.created'),
-          ]}
-          rows={rows.map((r) => [
-            shortId(r.id),
-            r.action || r.event_type || '—',
-            shortId(r.actor_user_id || r.user_id),
-            formatDate(r.created_at),
-          ])}
-        />
+        <DataTable columns={columns} rows={tableRows} />
       )}
     </div>
   );
@@ -420,8 +572,8 @@ export function OrganizationPage() {
           <div style={{fontSize: 13, color: 'var(--v4-text-muted)', marginBottom: 12}}>
             {t('settings.organization.slugReadonly', {slug: org.slug})}
           </div>
-          <Button type="submit" disabled={busy}>
-            {busy ? t('common.saving') : t('common.save')}
+          <Button type="submit" busy={busy} busyLabel={t('common.saving')}>
+            {t('common.save')}
           </Button>
         </form>
       ) : (
@@ -438,6 +590,28 @@ export function OrganizationPage() {
 
 export function AppearancePage() {
   const {t, locale, setLocale, theme, setTheme} = useI18n();
+  const {token} = useAuth();
+  const {push} = useToast();
+  const {busy, run} = useBusyAction();
+  const [totpReason, setTotpReason] = useState('');
+  const [totpMsg, setTotpMsg] = useState('');
+  const [totpError, setTotpError] = useState('');
+
+  const requestTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTotpError('');
+    setTotpMsg('');
+    await run(async () => {
+      try {
+        await v4.requestTotpEmail(token, {reason: totpReason || undefined});
+        setTotpMsg(t('settings.totp.requestSent'));
+        setTotpReason('');
+        push(t('settings.totp.requestSent'));
+      } catch (err: any) {
+        setTotpError(err.message);
+      }
+    });
+  };
 
   return (
     <div>
@@ -446,7 +620,7 @@ export function AppearancePage() {
         description={t('settings.appearance.description')}
         crumbs={[{label: t('section.settings')}, {label: t('nav.appearance')}]}
       />
-      <div className="v4-card" style={{maxWidth: 420}}>
+      <div className="v4-card" style={{maxWidth: 420, marginBottom: 16}}>
         <Field label={t('settings.appearance.theme')}>
           <select value={theme} onChange={(e) => setTheme(e.target.value as ThemeMode)}>
             <option value="light">{t('settings.appearance.themeLight')}</option>
@@ -459,6 +633,21 @@ export function AppearancePage() {
             <option value="ar">{t('settings.appearance.langAr')}</option>
           </select>
         </Field>
+      </div>
+
+      <div className="v4-card" style={{maxWidth: 520}}>
+        <h3 style={{marginTop: 0}}>{t('settings.totp.title')}</h3>
+        <p style={{color: 'var(--v4-text-muted)'}}>{t('settings.totp.description')}</p>
+        {totpError ? <Alert tone="danger">{totpError}</Alert> : null}
+        {totpMsg ? <Alert tone="success">{totpMsg}</Alert> : null}
+        <form onSubmit={(e) => void requestTotp(e)}>
+          <Field label={t('settings.totp.reason')} hint={t('settings.totp.reasonHint')}>
+            <input value={totpReason} onChange={(e) => setTotpReason(e.target.value)} maxLength={500} />
+          </Field>
+          <Button type="submit" busy={busy}>
+            {t('settings.totp.request')}
+          </Button>
+        </form>
       </div>
     </div>
   );

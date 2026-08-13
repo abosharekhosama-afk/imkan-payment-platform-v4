@@ -248,6 +248,37 @@ export const v4 = {
       `/organizations/${orgId}/invitations`,
       withToken(token, {method: 'POST', body, idempotent: true, stepUpToken}),
     ),
+  revokeInvitation: (token: Tok, orgId: string, invitationId: string, stepUpToken?: string) =>
+    apiV1<any>(
+      `/organizations/${orgId}/invitations/${invitationId}/revoke`,
+      withToken(token, {method: 'POST', body: {}, stepUpToken}),
+    ),
+  deactivateMember: (token: Tok, orgId: string, userId: string, stepUpToken?: string) =>
+    apiV1<any>(
+      `/organizations/${orgId}/users/${userId}/deactivate`,
+      withToken(token, {method: 'POST', body: {}, stepUpToken}),
+    ),
+  removeMember: (token: Tok, orgId: string, userId: string, stepUpToken?: string) =>
+    apiV1<any>(
+      `/organizations/${orgId}/users/${userId}/remove`,
+      withToken(token, {method: 'POST', body: {}, stepUpToken}),
+    ),
+  requestTotpEmail: (token: Tok, body?: {reason?: string}) =>
+    apiV1<any>('/auth/mfa/totp-request', withToken(token, {method: 'POST', body: body || {}})),
+  platformMfaTotpRequests: (token: Tok, query = '') =>
+    apiV1<any[]>(`/platform/mfa-totp-requests${query}`, withToken(token)),
+  approvePlatformMfaTotpRequest: (token: Tok, requestId: string, body: unknown, stepUpToken?: string) =>
+    apiV1<any>(
+      `/platform/mfa-totp-requests/${requestId}/approve`,
+      withToken(token, {method: 'POST', body, stepUpToken}),
+    ),
+  denyPlatformMfaTotpRequest: (token: Tok, requestId: string, body: unknown, stepUpToken?: string) =>
+    apiV1<any>(
+      `/platform/mfa-totp-requests/${requestId}/deny`,
+      withToken(token, {method: 'POST', body, stepUpToken}),
+    ),
+  deactivatePlatformUser: (token: Tok, userId: string, stepUpToken?: string) =>
+    apiV1<any>(`/platform/users/${userId}/deactivate`, withToken(token, {method: 'POST', body: {}, stepUpToken})),
 
   // Platform team (separate accounts, no merchant organization)
   platformUsers: (token: Tok) => apiV1<any[]>('/platform/users', withToken(token)),

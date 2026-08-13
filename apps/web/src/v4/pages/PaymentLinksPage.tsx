@@ -20,11 +20,13 @@ import {formatDate, formatMoney, shortId} from '../utils/money';
 import {useI18n} from '../i18n/I18nProvider';
 import {CurrencySelect} from '../design-system/CurrencySelect';
 import {formatStatus} from '../i18n/humanize';
+import {useBusyAction} from '../hooks/useBusyAction';
 
 export function PaymentLinksPage() {
   const {t, locale} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, run} = useBusyAction();
   const [rows, setRows] = useState<any[]>([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
@@ -52,28 +54,30 @@ export function PaymentLinksPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const created = await v4.createPaymentLink(token, {
-        title: form.title,
-        description: form.description || undefined,
-        amount_mode: 'FIXED',
-        amount_minor: form.amount_minor,
-        currency_code: form.currency_code,
-        activate: form.activate,
-        one_time: true,
-        max_uses: 1,
-        reusable: false,
-      });
-      setOpen(false);
-      push(t('toast.paymentLinkCreated'));
-      if (created?.public_token) {
-        await navigator.clipboard?.writeText(checkoutWebUrl(created.public_token));
-        push(t('toast.checkoutUrlCopied'));
+    await run(async () => {
+      try {
+        const created = await v4.createPaymentLink(token, {
+          title: form.title,
+          description: form.description || undefined,
+          amount_mode: 'FIXED',
+          amount_minor: form.amount_minor,
+          currency_code: form.currency_code,
+          activate: form.activate,
+          one_time: true,
+          max_uses: 1,
+          reusable: false,
+        });
+        setOpen(false);
+        push(t('toast.paymentLinkCreated'));
+        if (created?.public_token) {
+          await navigator.clipboard?.writeText(checkoutWebUrl(created.public_token));
+          push(t('toast.checkoutUrlCopied'));
+        }
+        load();
+      } catch (err: any) {
+        setError(err.message);
       }
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    });
   };
 
   return (
@@ -159,7 +163,7 @@ export function PaymentLinksPage() {
               />
               {t('paymentLinks.activateImmediately')}
             </label>
-            <Button type="submit">{t('common.create')}</Button>
+            <Button type="submit" busy={busy}>{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

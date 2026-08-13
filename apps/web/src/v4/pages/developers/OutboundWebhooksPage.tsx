@@ -14,6 +14,7 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, shortId} from '../../utils/money';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 const DEFAULT_EVENTS = ['payment.succeeded', 'payment.failed', 'refund.succeeded'];
 
@@ -21,6 +22,7 @@ export function OutboundWebhooksPage() {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const [endpoints, setEndpoints] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [error, setError] = useState('');
@@ -50,36 +52,40 @@ export function OutboundWebhooksPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    try {
-      const events = form.subscribed_events
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const created = await v4.createMerchantWebhookEndpoint(token, {
-        url: form.url,
-        description: form.description || undefined,
-        subscribed_events: events.length ? events : DEFAULT_EVENTS,
-      });
-      setSecretOnce(created.secret || null);
-      setOpen(false);
-      setForm({url: '', description: '', subscribed_events: DEFAULT_EVENTS.join(', ')});
-      push(t('outboundWebhooks.created'));
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        const events = form.subscribed_events
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const created = await v4.createMerchantWebhookEndpoint(token, {
+          url: form.url,
+          description: form.description || undefined,
+          subscribed_events: events.length ? events : DEFAULT_EVENTS,
+        });
+        setSecretOnce(created.secret || null);
+        setOpen(false);
+        setForm({url: '', description: '', subscribed_events: DEFAULT_EVENTS.join(', ')});
+        push(t('outboundWebhooks.created'));
+        load();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, 'create');
   };
 
   const toggle = async (row: any) => {
-    try {
-      await v4.updateMerchantWebhookEndpoint(token, row.id, {
-        status: row.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
-      });
-      push(t('outboundWebhooks.updated'));
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    }
+    await run(async () => {
+      try {
+        await v4.updateMerchantWebhookEndpoint(token, row.id, {
+          status: row.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+        });
+        push(t('outboundWebhooks.updated'));
+        load();
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, `toggle:${row.id}`);
   };
 
   const retryDelivery = async (deliveryId: string) => {
@@ -145,7 +151,12 @@ export function OutboundWebhooksPage() {
                       </td>
                       <td>
                         <Can anyOf={['webhooks.manage']}>
-                          <Button type="button" onClick={() => void toggle(r)}>
+                          <Button
+                            type="button"
+                            busy={busyKey === `toggle:${r.id}`}
+                            disabled={busy}
+                            onClick={() => void toggle(r)}
+                          >
                             {r.status === 'ACTIVE' ? t('outboundWebhooks.disable') : t('outboundWebhooks.enable')}
                           </Button>
                         </Can>
@@ -237,7 +248,7 @@ export function OutboundWebhooksPage() {
                 onChange={(e) => setForm({...form, subscribed_events: e.target.value})}
               />
             </Field>
-            <Button type="submit">{t('common.create')}</Button>
+            <Button type="submit" busy={busyKey === 'create'}>{t('common.create')}</Button>
           </form>
         </Modal>
       ) : null}

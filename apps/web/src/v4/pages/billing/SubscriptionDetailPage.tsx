@@ -7,12 +7,14 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, shortId} from '../../utils/money';
 import {useI18n} from '../../i18n/I18nProvider';
+import {useBusyAction} from '../../hooks/useBusyAction';
 
 export function SubscriptionDetailPage() {
   const {t} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
+  const {busy, busyKey, run} = useBusyAction();
   const [row, setRow] = useState<any>(null);
   const [error, setError] = useState('');
 
@@ -29,13 +31,15 @@ export function SubscriptionDetailPage() {
   useEffect(load, [token, id]);
 
   const act = async (action: 'pause' | 'resume' | 'cancel') => {
-    try {
-      await v4.subscriptionAction(token, id, action);
-      push(`Subscription ${action}`);
-      load();
-    } catch (e: any) {
-      setError(e.message);
-    }
+    await run(async () => {
+      try {
+        await v4.subscriptionAction(token, id, action);
+        push(`Subscription ${action}`);
+        load();
+      } catch (e: any) {
+        setError(e.message);
+      }
+    }, action);
   };
 
   if (!row && !error) return <LoadingState />;
@@ -53,17 +57,17 @@ export function SubscriptionDetailPage() {
         actions={
           <>
             <Can anyOf={['subscriptions.pause', 'subscriptions.manage', 'billing.manage']}>
-              <Button variant="secondary" type="button" onClick={() => void act('pause')}>
+              <Button variant="secondary" type="button" busy={busyKey === 'pause'} disabled={busy} onClick={() => void act('pause')}>
                 {t('common.pause')}
               </Button>
             </Can>
             <Can anyOf={['subscriptions.resume', 'subscriptions.manage', 'billing.manage']}>
-              <Button variant="secondary" type="button" onClick={() => void act('resume')}>
+              <Button variant="secondary" type="button" busy={busyKey === 'resume'} disabled={busy} onClick={() => void act('resume')}>
                 {t('common.resume')}
               </Button>
             </Can>
             <Can anyOf={['subscriptions.cancel', 'subscriptions.manage', 'billing.manage']}>
-              <Button variant="danger" type="button" onClick={() => void act('cancel')}>
+              <Button variant="danger" type="button" busy={busyKey === 'cancel'} disabled={busy} onClick={() => void act('cancel')}>
                 {t('common.cancel')}
               </Button>
             </Can>
