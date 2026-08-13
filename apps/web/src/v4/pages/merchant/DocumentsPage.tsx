@@ -7,6 +7,7 @@ import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {useMasterOptions} from '../../hooks/useMasterOptions';
 import {formatDate, shortId} from '../../utils/money';
+import {documentTypeLabel} from '../../utils/kyb-labels';
 import {useI18n} from '../../i18n/I18nProvider';
 
 export function DocumentsPage() {
@@ -20,6 +21,7 @@ export function DocumentsPage() {
   const [uploadError, setUploadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [form, setForm] = useState({document_type_code: 'COMPANY_REGISTRATION'});
 
@@ -37,7 +39,9 @@ export function DocumentsPage() {
 
   useEffect(load, [token]);
 
-  const upload = async (e: React.FormEvent) => {
+  const incompleteCount = rows.filter((d) => !d.has_file).length;
+
+  const uploadNew = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManage || !token || !file) return;
     setSaving(true);
@@ -55,18 +59,26 @@ export function DocumentsPage() {
       await v4.uploadDocumentContent(token, docId, file);
       push(t('toast.documentUploaded'));
       setFile(null);
-      setUploadError('');
-      try {
-        const docs = await v4.documents(token);
-        setRows(docs);
-        setLoadError('');
-      } catch (reloadErr: any) {
-        setLoadError(reloadErr.message);
-      }
+      load();
     } catch (err: any) {
       setUploadError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const completeUpload = async (documentId: string, selected: File) => {
+    if (!canManage || !token) return;
+    setCompletingId(documentId);
+    setUploadError('');
+    try {
+      await v4.uploadDocumentContent(token, documentId, selected);
+      push(t('toast.documentUploaded'));
+      load();
+    } catch (err: any) {
+      setUploadError(err.message);
+    } finally {
+      setCompletingId(null);
     }
   };
 
@@ -85,6 +97,7 @@ export function DocumentsPage() {
         }
       />
       <Alert tone="info">{t('merchant.documents.uploadAlertLong')}</Alert>
+      {incompleteCount > 0 ? <Alert tone="warning">{t('merchant.documents.incompleteWarning')}</Alert> : null}
       {loadError ? <Alert tone="danger">{loadError}</Alert> : null}
       {uploadError ? <Alert tone="danger">{uploadError}</Alert> : null}
 
@@ -98,19 +111,38 @@ export function DocumentsPage() {
             t('common.status'),
             t('merchant.documents.colFile'),
             t('common.created'),
+            t('common.actions'),
           ]}
           rows={rows.map((d) => [
             shortId(d.id),
-            d.document_type_code || d.type || '—',
+            documentTypeLabel(d.document_type_code || d.type || '', t),
             <StatusBadge status={d.status} />,
-            d.has_file ? t('common.yes') : t('common.pending'),
+            d.has_file ? t('common.yes') : t('merchant.documents.filePending'),
             formatDate(d.created_at),
+            !d.has_file && canManage ? (
+              <label style={{display: 'inline-flex', gap: 8, alignItems: 'center', cursor: 'pointer'}}>
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  style={{maxWidth: 140}}
+                  disabled={completingId === d.id}
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0];
+                    if (selected) void completeUpload(d.id, selected);
+                    e.target.value = '';
+                  }}
+                />
+                {completingId === d.id ? t('merchant.documents.uploading') : t('merchant.documents.completeUpload')}
+              </label>
+            ) : (
+              '—'
+            ),
           ])}
           empty={<p style={{color: 'var(--v4-text-muted)'}}>{t('merchant.documents.empty')}</p>}
         />
       )}
 
-      <form className="v4-card" style={{maxWidth: 560, marginTop: 16}} onSubmit={upload}>
+      <form className="v4-card" style={{maxWidth: 560, marginTop: 16}} onSubmit={uploadNew}>
         <h3>{t('merchant.documents.upload')}</h3>
         <fieldset disabled={!canManage || saving} style={{border: 0, margin: 0, padding: 0}}>
           <Field label={t('merchant.documents.docType')}>

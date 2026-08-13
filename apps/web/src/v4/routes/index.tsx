@@ -1,7 +1,7 @@
 import React from 'react';
 import {Navigate, Route, Routes} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
-import {AppShell} from '../layouts/AppShell';
+import {AppShell} from '../layouts';
 import {LoadingState} from '../design-system/components';
 import {LoginPage} from '../pages/LoginPage';
 import {SignupPage} from '../pages/SignupPage';

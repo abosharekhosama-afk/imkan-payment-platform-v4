@@ -24,6 +24,19 @@ export function getCsrfTokenFromDocument(): string | null {
   }
 }
 
+/** CSRF for cookie sessions: sessionStorage first, then readable imkan_csrf cookie. */
+export function getEffectiveCsrfToken(): string | null {
+  const stored = getCsrfTokenFromDocument();
+  if (stored) return stored;
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)imkan_csrf=([^;]+)/);
+    if (match?.[1]) return decodeURIComponent(match[1]);
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 export function storeCsrfToken(token: string | null | undefined) {
   try {
     if (token) sessionStorage.setItem('v4_csrf_token', token);
@@ -128,7 +141,7 @@ export async function apiV1<T = unknown>(path: string, options: ApiRequestOption
       headers['X-Step-Up-Token'] = options.stepUpToken;
     }
 
-    const csrf = csrfOverride !== undefined ? csrfOverride : getCsrfTokenFromDocument();
+    const csrf = csrfOverride !== undefined ? csrfOverride : getEffectiveCsrfToken();
     if (csrf && method !== 'GET' && method !== 'HEAD') {
       headers['X-CSRF-Token'] = csrf;
     }
@@ -218,3 +231,59 @@ export async function downloadApiV1(path: string, filename: string, token?: stri
 }
 
 export {API_ORIGIN, API_PREFIX};
+
+/** Refresh CSRF for cookie sessions (e.g. before binary upload). */
+export async function refreshCsrfForSession(token?: string | null): Promise<string | null> {
+  return refreshCsrfFromMe(token);
+}
+
+/** PUT document binary with CSRF + cookie session support. */
+export async function uploadDocumentBinary(
+  token: string | null | undefined,
+  documentId: string,
+  file: File,
+): Promise<unknown> {
+  const relative = `${API_PREFIX}/merchant/documents/${documentId}/content`;
+  assertV4Path(relative);
+
+  const doPut = async (csrfOverride?: string | null) => {
+    const headers: Record<string, string> = {
+      'Content-Type': file.type || 'application/octet-stream',
+      ...authHeader(token),
+    };
+    const cookieSession = !headers.Authorization;
+    let csrf = csrfOverride !== undefined ? csrfOverride : getEffectiveCsrfToken();
+    if (cookieSession && !csrf) {
+      csrf = await refreshCsrfFromMe(token);
+    }
+    if (cookieSession && csrf) {
+      headers['X-CSRF-Token'] = csrf;
+    }
+    return fetch(`${API_ORIGIN}${relative}`, {
+      method: 'PUT',
+      headers,
+      body: file,
+      credentials: 'include',
+    });
+  };
+
+  let res = await doPut();
+  let json = await res.json().catch(() => ({}));
+  if (!res.ok && (json as any)?.error?.code === 'CSRF_INVALID') {
+    const fresh = await refreshCsrfFromMe(token);
+    if (fresh) {
+      res = await doPut(fresh);
+      json = await res.json().catch(() => ({}));
+    }
+  }
+  if (!res.ok) {
+    const err = (json as any)?.error || {};
+    throw new ApiError(err.message || `Upload failed (${res.status})`, {
+      code: err.code,
+      requestId: err.request_id || (json as any)?.meta?.request_id,
+      status: res.status,
+      details: err.details,
+    });
+  }
+  return (json as any).data ?? json;
+}

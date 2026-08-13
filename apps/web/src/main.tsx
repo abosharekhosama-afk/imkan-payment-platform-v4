@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import {createRoot} from 'react-dom/client';
+import './v4/ui/load-styles';
 import {App} from './v4/app/App';
 
 const root = document.getElementById('root');

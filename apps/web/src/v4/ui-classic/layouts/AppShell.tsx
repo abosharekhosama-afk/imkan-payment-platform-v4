@@ -1,9 +1,9 @@
 import React, {useState} from 'react';
 import {NavLink, Outlet} from 'react-router-dom';
-import {useAuth} from '../auth/AuthProvider';
+import {useAuth} from '../../auth/AuthProvider';
 import {Button} from '../design-system/components';
-import {NAV_SECTIONS} from './nav';
-import {useI18n} from '../i18n/I18nProvider';
+import {NAV_SECTIONS} from '../../layouts/nav';
+import {useI18n} from '../../i18n/I18nProvider';
 
 export function AppShell() {
   const {user, roles, logout, hasPermission, isPlatform} = useAuth();
@@ -18,7 +18,7 @@ export function AppShell() {
     <div className="v4-shell" dir={dir}>
       <aside className={`v4-sidebar ${open ? 'open' : ''}`} aria-label={t('app.mainNav')}>
         <div className="v4-brand">
-          <div className="v4-brand-mark">IMK</div>
+          <div className="v4-brand-mark">V4</div>
           <div>
             <h1>{t('app.name')}</h1>
             <p>{t('app.console')}</p>

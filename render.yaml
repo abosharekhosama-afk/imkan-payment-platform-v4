@@ -126,6 +126,8 @@ services:
       # Set to https://imkan-payments-api.onrender.com (your API URL)
       - key: VITE_API_URL
         sync: false
+      - key: VITE_UI_SKIN
+        value: modern
 
     routes:
       - type: rewrite

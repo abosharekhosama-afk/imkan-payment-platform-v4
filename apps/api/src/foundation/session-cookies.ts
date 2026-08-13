@@ -29,11 +29,11 @@ export function resolveSessionTransport(): SessionTransport {
 }
 
 export function sessionCookieOptions(maxAgeSeconds: number) {
-  const sameSite = (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCase() as 'lax' | 'strict' | 'none';
+  const sameSite = resolveSessionCookieSameSite();
   return {
     path: '/',
     httpOnly: true,
-    secure: config.isProduction || process.env.SESSION_COOKIE_SECURE === 'true',
+    secure: config.isProduction || process.env.SESSION_COOKIE_SECURE === 'true' || sameSite === 'none',
     sameSite,
     maxAge: maxAgeSeconds,
     signed: false,
@@ -41,13 +41,34 @@ export function sessionCookieOptions(maxAgeSeconds: number) {
 }
 
 export function csrfCookieOptions(maxAgeSeconds: number) {
+  const sameSite = resolveSessionCookieSameSite();
   return {
     path: '/',
     httpOnly: false, // double-submit readable by JS
-    secure: config.isProduction || process.env.SESSION_COOKIE_SECURE === 'true',
-    sameSite: (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCase() as 'lax' | 'strict' | 'none',
+    secure: config.isProduction || process.env.SESSION_COOKIE_SECURE === 'true' || sameSite === 'none',
+    sameSite,
     maxAge: maxAgeSeconds,
   } as const;
+}
+
+/** Cross-origin dashboard (e.g. Render web + API subdomains) needs SameSite=None. */
+function resolveSessionCookieSameSite(): 'lax' | 'strict' | 'none' {
+  const explicit = (process.env.SESSION_COOKIE_SAMESITE || '').toLowerCase();
+  if (explicit === 'lax' || explicit === 'strict' || explicit === 'none') {
+    return explicit;
+  }
+  const cors = (process.env.CORS_ORIGIN || '').split(',')[0]?.trim();
+  const apiUrl = process.env.RENDER_EXTERNAL_URL || process.env.API_PUBLIC_URL || '';
+  if (cors && apiUrl) {
+    try {
+      const corsOrigin = new URL(cors).origin;
+      const apiOrigin = new URL(apiUrl).origin;
+      if (corsOrigin !== apiOrigin) return 'none';
+    } catch {
+      /* ignore invalid URLs */
+    }
+  }
+  return 'lax';
 }
 
 export function createCsrfToken(): string {

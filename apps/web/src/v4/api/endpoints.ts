@@ -1,4 +1,4 @@
-import {apiV1, ApiError, downloadApiV1, getCsrfTokenFromDocument, type ApiRequestOptions} from './client';
+import {apiV1, ApiError, downloadApiV1, uploadDocumentBinary, type ApiRequestOptions} from './client';
 
 type Tok = string | null | undefined;
 
@@ -71,30 +71,8 @@ export const v4 = {
     apiV1<any>('/merchant/documents', withToken(token, {method: 'POST', body})),
   documentUploadIntent: (token: Tok, body: unknown) =>
     apiV1<any>('/merchant/documents/upload-intent', withToken(token, {method: 'POST', body})),
-  uploadDocumentContent: async (token: Tok, documentId: string, file: File) => {
-    const headers: Record<string, string> = {
-      'Content-Type': file.type || 'application/octet-stream',
-    };
-    if (token && token !== 'cookie-session' && !token.startsWith('pk_')) {
-      headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-    }
-    const csrf = getCsrfTokenFromDocument();
-    if (csrf && !headers.Authorization) {
-      headers['X-CSRF-Token'] = csrf;
-    }
-    const res = await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/v1/merchant/documents/${documentId}/content`, {
-      method: 'PUT',
-      headers,
-      body: file,
-      credentials: 'include',
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = (json as any)?.error || {};
-      throw new ApiError(err.message || `Upload failed (${res.status})`, {status: res.status, code: err.code});
-    }
-    return (json as any).data ?? json;
-  },
+  uploadDocumentContent: (token: Tok, documentId: string, file: File) =>
+    uploadDocumentBinary(token, documentId, file),
 
   // Platform admin — KYB
   adminKybCases: (token: Tok, status?: string) =>

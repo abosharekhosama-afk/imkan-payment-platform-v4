@@ -353,7 +353,8 @@ export const kybService = {
           [kase.id],
         ),
         client.query(
-          `SELECT d.id, dt.code AS document_type_code, d.file_name, d.status, d.rejection_reason, d.created_at
+          `SELECT d.id, dt.code AS document_type_code, d.file_name, d.status, d.rejection_reason, d.created_at,
+                  (d.sha256 IS NOT NULL) AS has_file
            FROM documents d JOIN master_document_types dt ON dt.id=d.document_type_id
            WHERE d.organization_id=$1 AND d.status <> 'ARCHIVED'
            ORDER BY d.created_at DESC`,

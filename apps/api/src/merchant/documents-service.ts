@@ -18,7 +18,7 @@ type Actor = {userId: string; requestId?: string};
 function projectDocument(row: any) {
   if (!row) return row;
   const {storage_key: _omit, ...safe} = row;
-  return {...safe, has_file: Boolean(row.storage_key)};
+  return {...safe, has_file: Boolean(row.sha256 ?? row.has_file)};
 }
 
 async function getDocumentRow(client: any, documentId: string, organizationId?: string) {
@@ -197,7 +197,7 @@ export const documentsService = {
     const r = await pgQuery(
       `SELECT d.id, dt.code AS document_type_code, d.subject_type, d.subject_id, d.file_name, d.mime_type,
               d.size_bytes, d.sha256, d.status, d.rejection_reason, d.reviewed_at, d.created_at,
-              (d.storage_key IS NOT NULL) AS has_file
+              (d.sha256 IS NOT NULL) AS has_file
        FROM documents d
        JOIN master_document_types dt ON dt.id = d.document_type_id
        WHERE d.organization_id=$1

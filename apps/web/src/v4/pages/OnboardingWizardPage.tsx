@@ -4,6 +4,7 @@ import {useAuth} from '../auth/AuthProvider';
 import {v4} from '../api/endpoints';
 import {Alert, Button, LoadingState, PageHeader, StatusBadge} from '../design-system/components';
 import {useI18n} from '../i18n/I18nProvider';
+import {kybRequirementLabel} from '../utils/kyb-labels';
 
 /** Paths allowed while KYB is still DRAFT / incomplete (UX only — backend enforces money APIs). */
 export const ONBOARDING_ALLOWLIST_PREFIXES = [
@@ -99,7 +100,9 @@ export function OnboardingWizardPage() {
             {missing.length ? (
               <Alert tone="warning">
                 {t('onboarding.incomplete', {
-                  items: missing.map((m: any) => m.code || m.requirement_code || m).join(', '),
+                  items: missing
+                    .map((m: any) => kybRequirementLabel(m.code || m.requirement_code || String(m), t))
+                    .join(', '),
                 })}
               </Alert>
             ) : canEnterConsole ? (

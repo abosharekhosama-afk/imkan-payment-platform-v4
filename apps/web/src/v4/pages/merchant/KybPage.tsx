@@ -6,6 +6,7 @@ import {Alert, Button, DataTable, LoadingState, PageHeader, StatusBadge} from '.
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {formatDate, shortId} from '../../utils/money';
+import {documentTypeLabel, kybRequirementLabel, kybRequirementTypeLabel} from '../../utils/kyb-labels';
 import {ApiError} from '../../api/client';
 import {useI18n} from '../../i18n/I18nProvider';
 
@@ -75,7 +76,9 @@ export function KybPage() {
                         const miss = (e.details as any)?.missing;
                         if (Array.isArray(miss) && miss.length) {
                           setError(
-                            `KYB incomplete: ${miss.map((m: any) => m.code || m.requirement_type || m).join(', ')}`,
+                            `${t('merchant.kyb.completeMissingBefore')} ${miss
+                              .map((m: any) => kybRequirementLabel(m.code || m.requirement_type || String(m), t))
+                              .join(', ')}`,
                           );
                           return;
                         }
@@ -116,7 +119,7 @@ export function KybPage() {
       {missing.length ? (
         <Alert tone="warning">
           {t('merchant.kyb.completeMissingBefore')}{' '}
-          {missing.map((m: any) => m.code || m.requirement_type).join(', ')}
+          {missing.map((m: any) => kybRequirementLabel(m.code || m.requirement_type, t)).join(' · ')}
         </Alert>
       ) : canSubmit ? (
         <Alert tone="success">{t('merchant.kyb.allReady')}</Alert>
@@ -128,14 +131,14 @@ export function KybPage() {
         <h3>{t('merchant.kyb.checklist')}</h3>
         <DataTable
           columns={[
-            t('merchant.kyb.colCode'),
+            t('merchant.kyb.colRequirement'),
             t('merchant.kyb.colType'),
             t('common.status'),
             t('merchant.kyb.colDetail'),
           ]}
           rows={requirements.map((r: any) => [
-            r.code,
-            r.requirement_type,
+            kybRequirementLabel(r.code, t),
+            kybRequirementTypeLabel(r.requirement_type, t),
             r.satisfied ? t('merchant.kyb.ok') : t('merchant.kyb.missingLabel'),
             r.detail || '—',
           ])}
@@ -150,12 +153,14 @@ export function KybPage() {
             t('merchant.documents.colDocument'),
             t('merchant.documents.colType'),
             t('common.status'),
+            t('merchant.documents.colFile'),
             t('common.created'),
           ]}
           rows={(kyb?.documents || []).map((d: any) => [
             shortId(d.id),
-            d.document_type_code || '—',
+            documentTypeLabel(d.document_type_code || '', t),
             <StatusBadge status={d.status} />,
+            d.has_file ? t('common.yes') : t('merchant.documents.filePending'),
             formatDate(d.created_at),
           ])}
           empty={<p style={{color: 'var(--v4-text-muted)'}}>{t('merchant.kyb.noDocuments')}</p>}
