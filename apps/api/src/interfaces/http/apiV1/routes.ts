@@ -21,8 +21,11 @@ import {redisPing} from '../../../infrastructure/db/redis.js';
 import {rateLimitStoreReady} from '../../../foundation/rate-limit-bootstrap.js';
 import {
   clearSessionCookies,
+  CSRF_COOKIE_NAME,
   maybeOmitAccessToken,
   readSessionTokenFromRequest,
+  sessionCookieOptions,
+  SESSION_COOKIE_NAME,
   setSessionCookies,
 } from '../../../foundation/session-cookies.js';
 import {evaluateAlerts} from '../../../observability/alerts.js';
@@ -286,8 +289,7 @@ export async function apiV1Routes(app: FastifyInstance) {
       ((auth.roles || []).some((r) => String(r).startsWith('PLATFORM_')) ||
         (auth.permissions || []).some((p) => ['platform.admin', 'platform.support', 'platform.finance'].includes(p)));
 
-    // Cookie/dual browser sessions: always mint a fresh CSRF so POSTs work after refresh
-    // (sessionStorage may be empty while HttpOnly session cookie still authenticates).
+    // Cookie/dual: return existing CSRF when present (avoid header/cookie mismatch on file PUT).
     let csrf: string | null = null;
     if (auth.authKind === 'session') {
       const sessionToken =
@@ -296,10 +298,18 @@ export async function apiV1Routes(app: FastifyInstance) {
           ? request.headers.authorization.slice(7).trim()
           : null) || readSessionTokenFromRequest(request);
       if (sessionToken) {
-        csrf = setSessionCookies(reply, {
-          accessToken: sessionToken,
-          expiresAt: new Date(Date.now() + config.sessionTtlHours * 3600_000),
-        });
+        const cookies = ((request as any).cookies || {}) as Record<string, string>;
+        const existingCsrf = cookies?.[CSRF_COOKIE_NAME];
+        const maxAge = Math.max(60, config.sessionTtlHours * 3600);
+        if (existingCsrf) {
+          csrf = existingCsrf;
+          reply.setCookie(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions(maxAge));
+        } else {
+          csrf = setSessionCookies(reply, {
+            accessToken: sessionToken,
+            expiresAt: new Date(Date.now() + config.sessionTtlHours * 3600_000),
+          });
+        }
       }
     }
 

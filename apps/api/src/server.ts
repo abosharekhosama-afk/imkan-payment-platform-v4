@@ -32,6 +32,14 @@ await app.register(cors, {
   origin: config.corsOrigin.split(',').map((x) => x.trim()),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-CSRF-Token',
+    'Idempotency-Key',
+    'X-Step-Up-Token',
+    'X-Api-Key',
+  ],
 });
 
 // Global edge limiter remains in-memory Fastify plugin for coarse protection.

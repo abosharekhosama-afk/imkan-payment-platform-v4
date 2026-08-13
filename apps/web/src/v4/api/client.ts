@@ -253,11 +253,12 @@ export async function uploadDocumentBinary(
     };
     const cookieSession = !headers.Authorization;
     let csrf = csrfOverride !== undefined ? csrfOverride : getEffectiveCsrfToken();
-    if (cookieSession && !csrf) {
-      csrf = await refreshCsrfFromMe(token);
+    if (cookieSession) {
+      csrf = (await refreshCsrfFromMe(token)) || csrf;
     }
     if (cookieSession && csrf) {
       headers['X-CSRF-Token'] = csrf;
+      storeCsrfToken(csrf);
     }
     return fetch(`${API_ORIGIN}${relative}`, {
       method: 'PUT',

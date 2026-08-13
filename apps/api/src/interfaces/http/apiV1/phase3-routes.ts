@@ -1,9 +1,9 @@
-import type {FastifyInstance} from 'fastify';
+import type {FastifyInstance, FastifyRequest} from 'fastify';
 import {z} from 'zod';
 import {requireOrganizationContext, requirePermission, requireStepUp} from '../../../foundation/authz.js';
 import {completeIdempotency, failIdempotency, idempotencyPreHandler} from '../../../foundation/idempotency.js';
 import {created, ok, parsePaging} from '../../../foundation/http.js';
-import {forbidden} from '../../../foundation/errors.js';
+import {AppError, forbidden} from '../../../foundation/errors.js';
 import {listMasterTypes, masterDataService} from '../../../merchant/master-data.js';
 import {merchantService, type PersonKind} from '../../../merchant/merchant-service.js';
 import {documentsService} from '../../../merchant/documents-service.js';
@@ -13,6 +13,40 @@ import {getOnboardingGateState} from '../../../security/onboarding-gate.js';
 
 const masterTypeParam = z.object({type: z.string().min(1).max(60)});
 const codeSchema = z.string().min(1).max(80).regex(/^[A-Za-z0-9_.\-]+$/);
+
+const DOCUMENT_UPLOAD_LIMIT = 25 * 1024 * 1024;
+
+const BINARY_UPLOAD_CONTENT_TYPES = [
+  'application/octet-stream',
+  'application/pdf',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/bmp',
+];
+
+function registerDocumentBinaryParsers(app: FastifyInstance) {
+  const parser = (_req: unknown, body: Buffer, done: (err: Error | null, value?: Buffer) => void) => {
+    done(null, body);
+  };
+  for (const contentType of BINARY_UPLOAD_CONTENT_TYPES) {
+    app.addContentTypeParser(contentType, {parseAs: 'buffer', bodyLimit: DOCUMENT_UPLOAD_LIMIT}, parser);
+  }
+}
+
+async function readBinaryUploadBody(request: FastifyRequest): Promise<Buffer> {
+  const parsed = request.body;
+  if (Buffer.isBuffer(parsed)) return parsed;
+  if (parsed instanceof Uint8Array) return Buffer.from(parsed);
+  const chunks: Buffer[] = [];
+  for await (const chunk of request.raw) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
 
 const personBody = z.object({
   full_name: z.string().min(1).max(300),
@@ -28,6 +62,7 @@ const personBody = z.object({
 });
 
 export async function registerPhase3Routes(app: FastifyInstance) {
+  registerDocumentBinaryParsers(app);
   // ------------------------------------------------------------- master data
 
   app.get(
@@ -376,14 +411,16 @@ export async function registerPhase3Routes(app: FastifyInstance) {
 
   app.put(
     '/merchant/documents/:documentId/content',
-    {preHandler: [requireOrganizationContext(), requirePermission('documents.manage')]},
+    {
+      preHandler: [requireOrganizationContext(), requirePermission('documents.manage')],
+      bodyLimit: DOCUMENT_UPLOAD_LIMIT,
+    },
     async (request, reply) => {
       const params = z.object({documentId: z.string().uuid()}).parse(request.params);
-      const chunks: Buffer[] = [];
-      for await (const chunk of request.raw) {
-        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+      const body = await readBinaryUploadBody(request);
+      if (!body.length) {
+        throw new AppError('DOCUMENT_EMPTY', 'Uploaded file is empty. Choose a PDF or image and try again.', 400);
       }
-      const body = Buffer.concat(chunks);
       const row = await documentsService.uploadContent(request.auth!.organizationId!, params.documentId, body, {
         userId: request.auth!.userId,
         requestId: request.id,
