@@ -3,6 +3,7 @@ import {Link} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {v4} from '../api/endpoints';
 import {Alert, Button, DataTable, LoadingState, PageHeader, StatusBadge} from '../design-system/components';
+import {Select} from '../design-system/Select';
 import {formatDate, formatMoney, shortId} from '../utils/money';
 import {useI18n} from '../i18n/I18nProvider';
 
@@ -35,12 +36,17 @@ export function PaymentsPage() {
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <div className="v4-toolbar">
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t('common.allStatuses')}</option>
-          {['CREATED', 'REQUIRES_PAYMENT', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'].map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
+        <Select
+          value={status}
+          onChange={setStatus}
+          aria-label={t('common.status')}
+          options={[
+            {value: '', label: t('common.allStatuses')},
+            ...['CREATED', 'REQUIRES_PAYMENT', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'].map(
+              (s) => ({value: s, label: s}),
+            ),
+          ]}
+        />
         <Button variant="secondary" type="button" onClick={load}>
           {t('common.refresh')}
         </Button>

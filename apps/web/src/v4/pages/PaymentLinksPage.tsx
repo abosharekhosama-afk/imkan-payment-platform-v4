@@ -13,6 +13,7 @@ import {
   PageHeader,
   StatusBadge,
 } from '../design-system/components';
+import {Select} from '../design-system/Select';
 import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../utils/money';
@@ -91,14 +92,15 @@ export function PaymentLinksPage() {
       <Alert tone="info">{t('paymentLinks.copyHint')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <div className="v4-toolbar">
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t('common.status')}>
-          <option value="">{t('common.allStatuses')}</option>
-          {['DRAFT', 'ACTIVE', 'INACTIVE', 'EXPIRED', 'CANCELLED'].map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={status}
+          onChange={setStatus}
+          aria-label={t('common.status')}
+          options={[
+            {value: '', label: t('common.allStatuses')},
+            ...['DRAFT', 'ACTIVE', 'INACTIVE', 'EXPIRED', 'CANCELLED'].map((s) => ({value: s, label: s})),
+          ]}
+        />
         <Button variant="secondary" type="button" onClick={load}>
           {t('common.refresh')}
         </Button>

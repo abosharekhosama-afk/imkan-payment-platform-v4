@@ -1,6 +1,7 @@
 import React from 'react';
 import {Link} from 'react-router-dom';
 import {useI18n} from '../i18n/I18nProvider';
+import {ImkanLoader} from '../components/ImkanLoader';
 
 export function PageHeader({
   title,
@@ -46,15 +47,22 @@ export function Button(
   return <button className={`v4-btn ${v} ${className}`.trim()} {...rest} />;
 }
 
-export function Field({label, children, hint}: {label: string; children: React.ReactNode; hint?: string}) {
+export function Field({label, children, hint, fullWidth}: {label: string; children: React.ReactNode; hint?: string; fullWidth?: boolean}) {
   const id = React.useId();
   const child = React.isValidElement(children)
     ? React.cloneElement(children as React.ReactElement<any>, {
         id: (children as React.ReactElement<any>).props?.id || id,
+        className: [
+          (children as React.ReactElement<any>).props?.className,
+          (children as React.ReactElement<any>).type === 'select' ? 'v4-select' : '',
+          (children as React.ReactElement<any>).type === 'textarea' ? 'v4-textarea' : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
       })
     : children;
   return (
-    <div className="v4-field">
+    <div className={`v4-field${fullWidth ? ' v4-field--full' : ''}`}>
       <label htmlFor={(child as any)?.props?.id || id}>{label}</label>
       {child}
       {hint ? <small style={{color: 'var(--v4-text-muted)'}}>{hint}</small> : null}
@@ -86,9 +94,12 @@ export function EmptyState({title, description}: {title: string; description?: s
   );
 }
 
-export function LoadingState({label}: {label?: string}) {
-  const {t} = useI18n();
-  return <div className="v4-loading v4-card">{label ?? t('common.loading')}</div>;
+export function LoadingState({label, overlay}: {label?: string; overlay?: boolean}) {
+  return (
+    <div className="v4-loading-wrap">
+      <ImkanLoader label={label} overlay={overlay} />
+    </div>
+  );
 }
 
 export function ErrorState({message}: {message: string}) {

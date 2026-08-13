@@ -13,6 +13,7 @@ const COUNTRIES = [
   {code: 'KW', label: 'Kuwait'},
   {code: 'OM', label: 'Oman'},
   {code: 'QA', label: 'Qatar'},
+  {code: 'PS', label: 'Palestine'},
   {code: 'EG', label: 'Egypt'},
   {code: 'JO', label: 'Jordan'},
   {code: 'GB', label: 'United Kingdom'},

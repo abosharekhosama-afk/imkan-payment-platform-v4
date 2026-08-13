@@ -3,6 +3,7 @@ import {Link} from 'react-router-dom';
 import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
 import {Alert, Button, Field, LoadingState, PageHeader} from '../../design-system/components';
+import {FormSection} from '../../components/FormSection';
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {useMasterOptions} from '../../hooks/useMasterOptions';
@@ -49,9 +50,7 @@ export function MerchantProfilePage() {
           registration_number: lp.registration_number || '',
           legal_entity_type_code: lp.legal_entity_type_code || 'LLC',
           incorporation_country_code: lp.incorporation_country_code || 'SA',
-          incorporation_date: lp.incorporation_date
-            ? String(lp.incorporation_date).slice(0, 10)
-            : '',
+          incorporation_date: lp.incorporation_date ? String(lp.incorporation_date).slice(0, 10) : '',
         });
         setAddress({
           line1: registered.line1 || '',
@@ -68,10 +67,10 @@ export function MerchantProfilePage() {
 
   useEffect(load, [token]);
 
-  if (loading) return <LoadingState />;
+  if (loading) return <LoadingState label={t('merchant.profile.loading')} />;
 
   return (
-    <div>
+    <div className="v4-form-page">
       <PageHeader
         title={t('merchant.profile.title')}
         description={t('merchant.profile.description')}
@@ -88,8 +87,6 @@ export function MerchantProfilePage() {
       <Alert tone="info">{t('merchant.profile.requiredAlert')}</Alert>
 
       <form
-        className="v4-card"
-        style={{maxWidth: 720, marginTop: 16}}
         onSubmit={(e) => {
           e.preventDefault();
           if (!canManage || !token) return;
@@ -123,111 +120,89 @@ export function MerchantProfilePage() {
             .finally(() => setSaving(false));
         }}
       >
-        <h3>{t('merchant.profile.legalSection')}</h3>
         <fieldset disabled={!canManage || saving} style={{border: 0, margin: 0, padding: 0}}>
-          <Field label={t('merchant.profile.legalName')}>
-            <input
-              required
-              value={legal.legal_name}
-              onChange={(e) => setLegal({...legal, legal_name: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.tradingName')}>
-            <input
-              value={legal.trading_name}
-              onChange={(e) => setLegal({...legal, trading_name: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.regNumber')}>
-            <input
-              required
-              value={legal.registration_number}
-              onChange={(e) => setLegal({...legal, registration_number: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.entityType')}>
-            <select
-              required
-              value={legal.legal_entity_type_code}
-              onChange={(e) => setLegal({...legal, legal_entity_type_code: e.target.value})}
-            >
-              {entityTypes.options.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('merchant.profile.incorpCountry')}>
-            <select
-              required
-              value={legal.incorporation_country_code}
-              onChange={(e) => setLegal({...legal, incorporation_country_code: e.target.value})}
-            >
-              {countries.options.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.name} ({o.code})
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('merchant.profile.incorpDate')}>
-            <input
-              type="date"
-              value={legal.incorporation_date}
-              onChange={(e) => setLegal({...legal, incorporation_date: e.target.value})}
-            />
-          </Field>
+          <FormSection title={t('merchant.profile.legalSection')} description={t('merchant.profile.legalSectionHint')}>
+            <Field label={t('merchant.profile.legalName')}>
+              <input required value={legal.legal_name} onChange={(e) => setLegal({...legal, legal_name: e.target.value})} />
+            </Field>
+            <Field label={t('merchant.profile.tradingName')}>
+              <input value={legal.trading_name} onChange={(e) => setLegal({...legal, trading_name: e.target.value})} />
+            </Field>
+            <Field label={t('merchant.profile.regNumber')}>
+              <input
+                required
+                value={legal.registration_number}
+                onChange={(e) => setLegal({...legal, registration_number: e.target.value})}
+              />
+            </Field>
+            <Field label={t('merchant.profile.entityType')}>
+              <select
+                required
+                value={legal.legal_entity_type_code}
+                onChange={(e) => setLegal({...legal, legal_entity_type_code: e.target.value})}
+              >
+                {entityTypes.options.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('merchant.profile.incorpCountry')}>
+              <select
+                required
+                value={legal.incorporation_country_code}
+                onChange={(e) => setLegal({...legal, incorporation_country_code: e.target.value})}
+              >
+                {countries.options.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.name} ({o.code})
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('merchant.profile.incorpDate')}>
+              <input
+                type="date"
+                value={legal.incorporation_date}
+                onChange={(e) => setLegal({...legal, incorporation_date: e.target.value})}
+              />
+            </Field>
+          </FormSection>
 
-          <h3 style={{marginTop: '1.5rem'}}>{t('merchant.profile.addressSection')}</h3>
-          <Field label={t('merchant.profile.address1')}>
-            <input
-              required
-              value={address.line1}
-              onChange={(e) => setAddress({...address, line1: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.address2')}>
-            <input
-              value={address.line2}
-              onChange={(e) => setAddress({...address, line2: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.city')}>
-            <input
-              required
-              value={address.city}
-              onChange={(e) => setAddress({...address, city: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.state')}>
-            <input
-              value={address.state_region}
-              onChange={(e) => setAddress({...address, state_region: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.postal')}>
-            <input
-              value={address.postal_code}
-              onChange={(e) => setAddress({...address, postal_code: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.profile.country')}>
-            <select
-              required
-              value={address.country_code}
-              onChange={(e) => setAddress({...address, country_code: e.target.value})}
-            >
-              {countries.options.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.name} ({o.code})
-                </option>
-              ))}
-            </select>
-          </Field>
+          <FormSection title={t('merchant.profile.addressSection')} description={t('merchant.profile.addressSectionHint')}>
+            <Field label={t('merchant.profile.address1')} fullWidth>
+              <input required value={address.line1} onChange={(e) => setAddress({...address, line1: e.target.value})} />
+            </Field>
+            <Field label={t('merchant.profile.address2')} fullWidth>
+              <input value={address.line2} onChange={(e) => setAddress({...address, line2: e.target.value})} />
+            </Field>
+            <Field label={t('merchant.profile.city')}>
+              <input required value={address.city} onChange={(e) => setAddress({...address, city: e.target.value})} />
+            </Field>
+            <Field label={t('merchant.profile.state')}>
+              <input value={address.state_region} onChange={(e) => setAddress({...address, state_region: e.target.value})} />
+            </Field>
+            <Field label={t('merchant.profile.postal')}>
+              <input value={address.postal_code} onChange={(e) => setAddress({...address, postal_code: e.target.value})} />
+            </Field>
+            <Field label={t('merchant.profile.country')}>
+              <select
+                required
+                value={address.country_code}
+                onChange={(e) => setAddress({...address, country_code: e.target.value})}
+              >
+                {countries.options.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.name} ({o.code})
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </FormSection>
         </fieldset>
         <Can anyOf={['merchant.manage']}>
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving} style={{marginTop: '1rem'}}>
             {saving ? t('common.saving') : t('merchant.profile.save')}
           </Button>
         </Can>

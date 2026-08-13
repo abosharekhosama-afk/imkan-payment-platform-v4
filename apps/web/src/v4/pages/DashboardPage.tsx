@@ -2,8 +2,9 @@ import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {v4} from '../api/endpoints';
-import {Alert, LoadingState, PageHeader, StatusBadge} from '../design-system/components';
-import {formatDate, formatMoney, shortId} from '../utils/money';
+import {Alert, PageHeader, StatusBadge} from '../design-system/components';
+import {ImkanLoader} from '../components/ImkanLoader';
+import {DashboardAnalytics} from '../components/DashboardAnalytics';
 import {useI18n} from '../i18n/I18nProvider';
 import {ProductionReadinessCard} from '../components/ProductionReadinessCard';
 
@@ -38,7 +39,9 @@ export function DashboardPage() {
   }
 
   if (error) return <Alert tone="danger">{error}</Alert>;
-  if (hasPermission('payments.read') && !data) return <LoadingState />;
+  if (hasPermission('payments.read') && !data) {
+    return <ImkanLoader overlay label={t('dashboard.loading')} />;
+  }
 
   return (
     <div>
@@ -72,57 +75,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      {data ? (
-        <>
-          <div className="v4-stat-grid">
-            {[
-              [t('dashboard.totalPayments'), data.total_count],
-              [t('dashboard.succeeded'), data.succeeded_count],
-              [t('dashboard.failed'), data.failed_count],
-              [t('dashboard.pending'), data.pending_count],
-              [t('dashboard.cancelled'), data.cancelled_count],
-              [
-                t('dashboard.succeededVolume'),
-                formatMoney(data.succeeded_volume_minor, data.currency_breakdown?.[0]?.currency_code || 'SAR'),
-              ],
-            ].map(([label, value]) => (
-              <div className="v4-stat" key={String(label)}>
-                <span>{label}</span>
-                <strong>{value as any}</strong>
-              </div>
-            ))}
-          </div>
-          <div className="v4-card">
-            <h3 style={{marginTop: 0}}>{t('dashboard.recentPayments')}</h3>
-            <div className="v4-table-wrap">
-              <table className="v4-table">
-                <thead>
-                  <tr>
-                    <th>{t('dashboard.colPayment')}</th>
-                    <th>{t('common.status')}</th>
-                    <th>{t('dashboard.colAmount')}</th>
-                    <th>{t('common.created')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data.recent_payments || []).map((p: any) => (
-                    <tr key={p.id}>
-                      <td>
-                        <Link to={`/payments/${p.id}`}>{shortId(p.id)}</Link>
-                      </td>
-                      <td>
-                        <StatusBadge status={p.status} />
-                      </td>
-                      <td>{formatMoney(p.amount_minor, p.currency_code)}</td>
-                      <td>{formatDate(p.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      ) : null}
+      {data ? <DashboardAnalytics data={data} /> : null}
     </div>
   );
 }

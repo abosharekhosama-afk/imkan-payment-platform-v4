@@ -3,6 +3,8 @@ import {Link} from 'react-router-dom';
 import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
 import {Alert, Button, DataTable, Field, LoadingState, PageHeader, StatusBadge} from '../../design-system/components';
+import {Select} from '../../design-system/Select';
+import {FormSection} from '../../components/FormSection';
 import {Can} from '../../rbac/Can';
 import {useToast} from '../../hooks/useToast';
 import {useMasterOptions} from '../../hooks/useMasterOptions';
@@ -47,7 +49,7 @@ export function BankAccountsPage() {
   useEffect(load, [token]);
 
   return (
-    <div>
+    <div className="v4-form-page">
       <PageHeader
         title={t('merchant.bank.title')}
         description={t('merchant.bank.description')}
@@ -90,8 +92,8 @@ export function BankAccountsPage() {
       )}
 
       <form
-        className="v4-card"
-        style={{maxWidth: 640, marginTop: 16}}
+        className="v4-form-section"
+        style={{marginTop: 16}}
         onSubmit={(e) => {
           e.preventDefault();
           if (!canManage || !token) return;
@@ -132,97 +134,84 @@ export function BankAccountsPage() {
           })();
         }}
       >
-        <h3>{t('merchant.bank.addAccount')}</h3>
         <fieldset disabled={!canManage || saving} style={{border: 0, margin: 0, padding: 0}}>
-          <Field label={t('merchant.bank.payoutMethod')}>
-            <select
-              value={form.payout_method_code}
-              onChange={(e) => setForm({...form, payout_method_code: e.target.value})}
-            >
-              {payoutMethods.options.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('merchant.bank.currency')}>
-            <select
-              value={form.currency_code}
-              onChange={(e) => setForm({...form, currency_code: e.target.value})}
-            >
-              {currencies.options.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.code} — {o.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('merchant.bank.country')}>
-            <select
-              value={form.country_code}
-              onChange={(e) => setForm({...form, country_code: e.target.value})}
-            >
-              {countries.options.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.name} ({o.code})
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('merchant.bank.bankName')}>
-            <input
-              required
-              value={form.bank_name}
-              onChange={(e) => setForm({...form, bank_name: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.bank.holderName')}>
-            <input
-              required
-              value={form.account_holder_name}
-              onChange={(e) => setForm({...form, account_holder_name: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.bank.accountType')}>
-            <select
-              value={form.account_type}
-              onChange={(e) =>
-                setForm({...form, account_type: e.target.value as 'IBAN' | 'ACCOUNT_NUMBER'})
-              }
-            >
-              <option value="IBAN">IBAN</option>
-              <option value="ACCOUNT_NUMBER">{t('merchant.bank.accountNumber')}</option>
-            </select>
-          </Field>
-          <Field label={t('merchant.bank.iban')}>
-            <input
-              required
-              value={form.account_value}
-              onChange={(e) => setForm({...form, account_value: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.bank.swift')}>
-            <input
-              value={form.swift_bic}
-              onChange={(e) => setForm({...form, swift_bic: e.target.value})}
-            />
-          </Field>
-          <Field label={t('merchant.bank.totp')} hint={t('merchant.bank.totpHint')}>
-            <input
-              required
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={totp}
-              onChange={(e) => setTotp(e.target.value)}
-            />
-          </Field>
+          <FormSection title={t('merchant.bank.addAccount')} description={t('merchant.bank.formHint')}>
+            <Field label={t('merchant.bank.payoutMethod')}>
+              <Select
+                value={form.payout_method_code}
+                onChange={(payout_method_code) => setForm({...form, payout_method_code})}
+                options={payoutMethods.options.map((o) => ({value: o.code, label: o.name}))}
+              />
+            </Field>
+            <Field label={t('merchant.bank.currency')}>
+              <Select
+                value={form.currency_code}
+                onChange={(currency_code) => setForm({...form, currency_code})}
+                options={currencies.options.map((o) => ({value: o.code, label: `${o.code} — ${o.name}`}))}
+              />
+            </Field>
+            <Field label={t('merchant.bank.country')}>
+              <Select
+                value={form.country_code}
+                onChange={(country_code) => setForm({...form, country_code})}
+                options={countries.options.map((o) => ({value: o.code, label: `${o.name} (${o.code})`}))}
+              />
+            </Field>
+            <Field label={t('merchant.bank.bankName')}>
+              <input
+                required
+                value={form.bank_name}
+                onChange={(e) => setForm({...form, bank_name: e.target.value})}
+              />
+            </Field>
+            <Field label={t('merchant.bank.holderName')}>
+              <input
+                required
+                value={form.account_holder_name}
+                onChange={(e) => setForm({...form, account_holder_name: e.target.value})}
+              />
+            </Field>
+            <Field label={t('merchant.bank.accountType')}>
+              <Select
+                value={form.account_type}
+                onChange={(account_type) =>
+                  setForm({...form, account_type: account_type as 'IBAN' | 'ACCOUNT_NUMBER'})
+                }
+                options={[
+                  {value: 'IBAN', label: 'IBAN'},
+                  {value: 'ACCOUNT_NUMBER', label: t('merchant.bank.accountNumber')},
+                ]}
+              />
+            </Field>
+            <Field label={t('merchant.bank.iban')}>
+              <input
+                required
+                value={form.account_value}
+                onChange={(e) => setForm({...form, account_value: e.target.value})}
+              />
+            </Field>
+            <Field label={t('merchant.bank.swift')}>
+              <input
+                value={form.swift_bic}
+                onChange={(e) => setForm({...form, swift_bic: e.target.value})}
+              />
+            </Field>
+            <Field label={t('merchant.bank.totp')} hint={t('merchant.bank.totpHint')}>
+              <input
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={totp}
+                onChange={(e) => setTotp(e.target.value)}
+              />
+            </Field>
+          </FormSection>
+          <Can anyOf={['bank.manage']}>
+            <Button type="submit" disabled={saving}>
+              {saving ? t('common.saving') : t('merchant.bank.create')}
+            </Button>
+          </Can>
         </fieldset>
-        <Can anyOf={['bank.manage']}>
-          <Button type="submit" disabled={saving}>
-            {saving ? t('common.saving') : t('merchant.bank.create')}
-          </Button>
-        </Can>
       </form>
     </div>
   );

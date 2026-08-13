@@ -75,7 +75,7 @@ textarea {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow: auto;
+  overflow: hidden;
   border-inline-end: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -317,6 +317,12 @@ textarea {
   padding: 0.6rem 0.75rem;
   background: var(--v4-input-bg, var(--v4-bg-elevated));
   color: var(--v4-text);
+  width: 100%;
+}
+
+.v4-textarea {
+  resize: vertical;
+  min-height: 96px;
 }
 
 .v4-pref-select {
@@ -635,9 +641,355 @@ textarea {
   display: none;
 }
 
+/* --- IMKAN branded loader --- */
+.v4-loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--v4-space-6) var(--v4-space-4);
+}
+
+.v4-imkan-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(11, 20, 38, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.v4-imkan-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--v4-space-3);
+}
+
+.v4-imkan-loader-orbit {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(from 0deg, var(--v4-accent), var(--v4-accent-gold), var(--v4-accent));
+  animation: v4-orbit-spin 1.1s linear infinite;
+  box-shadow: 0 8px 32px rgba(26, 155, 122, 0.25);
+}
+
+.v4-imkan-loader--sm .v4-imkan-loader-orbit {
+  width: 48px;
+  height: 48px;
+}
+
+.v4-imkan-loader-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--v4-bg-sidebar);
+  color: var(--v4-accent-gold);
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+.v4-imkan-loader--sm .v4-imkan-loader-mark {
+  width: 38px;
+  height: 38px;
+  font-size: 0.62rem;
+}
+
+.v4-imkan-loader-label {
+  color: var(--v4-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+@keyframes v4-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Sidebar: hide scrollbar, collapsible sections --- */
+.v4-sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.v4-sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.v4-sidebar-backdrop {
+  display: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.v4-nav-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--v4-space-2);
+  padding: 0.35rem 0.5rem;
+  margin: 0 0 var(--v4-space-1);
+  border: 0;
+  border-radius: var(--v4-radius-sm);
+  background: transparent;
+  color: #9eb0c5;
+  cursor: pointer;
+  text-align: start;
+}
+
+.v4-nav-section-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.v4-nav-section-toggle .v4-nav-label {
+  margin: 0;
+}
+
+.v4-nav-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.v4-nav-section.is-collapsed .v4-nav-chevron {
+  transform: rotate(-45deg);
+}
+
+.v4-nav-section-items {
+  display: grid;
+  gap: 2px;
+  overflow: hidden;
+  max-height: 480px;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  opacity: 1;
+}
+
+.v4-nav-section.is-collapsed .v4-nav-section-items {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.v4-nav-section.is-active-group .v4-nav-section-toggle {
+  color: #e8eef6;
+}
+
+/* --- Styled select --- */
+.v4-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.v4-select-wrap::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0.85rem;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--v4-text-muted);
+  border-bottom: 2px solid var(--v4-text-muted);
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
+}
+
+.v4-select,
+.v4-toolbar .v4-select {
+  width: 100%;
+  min-width: 160px;
+  appearance: none;
+  border: 1px solid var(--v4-border-strong);
+  border-radius: var(--v4-radius-sm);
+  padding: 0.6rem 2rem 0.6rem 0.75rem;
+  background: var(--v4-bg-elevated);
+  color: var(--v4-text);
+  font: inherit;
+}
+
+[dir='rtl'] .v4-select {
+  padding: 0.6rem 0.75rem 0.6rem 2rem;
+}
+
+.v4-field .v4-select,
+.v4-field input,
+.v4-field select,
+.v4-field textarea {
+  width: 100%;
+}
+
+/* --- Form layout --- */
+.v4-form-page {
+  display: grid;
+  gap: var(--v4-space-4);
+}
+
+.v4-form-section {
+  background: var(--v4-bg-elevated);
+  border: 1px solid var(--v4-border);
+  border-radius: var(--v4-radius-lg);
+  padding: var(--v4-space-5);
+  box-shadow: var(--v4-shadow);
+}
+
+.v4-form-section-head h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+}
+
+.v4-form-section-head p {
+  margin: 0 0 var(--v4-space-4);
+  color: var(--v4-text-muted);
+  font-size: 0.9rem;
+}
+
+.v4-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--v4-space-3) var(--v4-space-4);
+}
+
+.v4-form-grid .v4-field--full {
+  grid-column: 1 / -1;
+}
+
+/* --- Dashboard analytics --- */
+.v4-analytics-hero {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--v4-space-4);
+  margin-bottom: var(--v4-space-4);
+  padding: var(--v4-space-5);
+  border-radius: var(--v4-radius-lg);
+  background: linear-gradient(135deg, #0b1426 0%, #132743 55%, #1a5c48 140%);
+  color: #f5f8fb;
+  box-shadow: var(--v4-shadow);
+}
+
+.v4-analytics-hero-main span,
+.v4-analytics-hero-stats span {
+  display: block;
+  color: #b8c5d6;
+  font-size: 0.85rem;
+}
+
+.v4-analytics-hero-main strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.v4-analytics-hero-main p {
+  margin: 0.5rem 0 0;
+  color: #9eb0c5;
+  font-size: 0.9rem;
+}
+
+.v4-analytics-hero-stats {
+  display: grid;
+  gap: var(--v4-space-3);
+  align-content: center;
+}
+
+.v4-analytics-hero-stats strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.v4-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 140px;
+  padding-top: var(--v4-space-3);
+}
+
+.v4-bar-chart-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 140px;
+}
+
+.v4-bar-chart-bar {
+  width: 100%;
+  max-width: 36px;
+  margin-top: auto;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, var(--v4-accent-gold), var(--v4-accent));
+}
+
+.v4-bar-chart-label {
+  font-size: 0.68rem;
+  color: var(--v4-text-muted);
+}
+
+.v4-currency-mix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v4-space-2);
+}
+
+.v4-currency-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: var(--v4-bg-muted);
+  border: 1px solid var(--v4-border);
+}
+
+.v4-topbar-title {
+  font-family: var(--v4-font-display);
+}
+
+.v4-topbar-user {
+  color: var(--v4-text-muted);
+  font-size: 0.85rem;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v4-topbar-start,
+.v4-topbar-end {
+  margin: 0;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 960px) {
   .v4-shell {
     grid-template-columns: 1fr;
+  }
+  .v4-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: rgba(11, 20, 38, 0.45);
   }
   .v4-auth-split {
     grid-template-columns: 1fr;
@@ -668,7 +1020,45 @@ textarea {
     display: inline-flex;
   }
   .v4-content {
-    padding: var(--v4-space-4);
+    padding: var(--v4-space-3);
+  }
+  .v4-topbar {
+    height: auto;
+    min-height: var(--v4-topbar-height);
+    flex-wrap: wrap;
+    padding: var(--v4-space-3);
+    gap: var(--v4-space-3);
+  }
+  .v4-topbar-end {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .v4-topbar-user {
+    display: none;
+  }
+  .v4-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .v4-page-header .v4-toolbar {
+    width: 100%;
+  }
+  .v4-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .v4-analytics-hero {
+    grid-template-columns: 1fr;
+  }
+  .v4-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .v4-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .v4-toolbar .v4-select-wrap,
+  .v4-toolbar .v4-btn {
+    width: 100%;
   }
 }
 
