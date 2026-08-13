@@ -68,9 +68,14 @@ git push origin main  →  Render يبني وينشر API + Web تلقائياً
 | `REDIS_URL` | **Redis URL** من Upstash (`rediss://...` — لا تلصق `redis-cli --tls -u`) |
 | `APP_PUBLIC_URL` | `https://imkan-payments-web.onrender.com` (URL الواجهة) |
 | `CORS_ORIGIN` | نفس URL الواجهة |
-| `SMTP_HOST` | مثال `smtp-relay.brevo.com` |
-| `SMTP_USER` / `SMTP_PASS` | من Brevo |
-| `EMAIL_FROM` | بريد مرسل موثوق |
+| `BREVO_API_KEY` | Brevo → SMTP & API → **Create API key** |
+| `EMAIL_FROM` | مرسل موثّق في Brevo |
+| `EMAIL_TRANSPORT` | `brevo` (افتراضي في render.yaml) |
+
+> **Render Free** يحجب SMTP (587) — استخدم **Brevo HTTP API** وليس `SMTP_*`.  
+> للعودة لـ SMTP لاحقاً: [BREVO_EMAIL_API_MIGRATION.md](./BREVO_EMAIL_API_MIGRATION.md)
+
+| `SMTP_*` | اختياري — legacy فقط |
 | `STRIPE_TEST_SECRET_KEY` | من Stripe Dashboard |
 | `STRIPE_TEST_PUBLISHABLE_KEY` | |
 | `STRIPE_TEST_WEBHOOK_SECRET` | بعد إنشاء webhook |

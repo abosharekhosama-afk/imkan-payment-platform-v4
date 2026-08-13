@@ -31,15 +31,22 @@ function assertProductionInfrastructure() {
   if (transport === 'bearer' && process.env.ALLOW_BEARER_ONLY_IN_PRODUCTION !== 'true') {
     throw new Error('Production SESSION_TRANSPORT must be cookie or dual (not bearer-only)');
   }
-  const emailTransport = (process.env.EMAIL_TRANSPORT || 'smtp').toLowerCase();
+  const emailTransport = (process.env.EMAIL_TRANSPORT || (process.env.NODE_ENV === 'production' ? 'brevo' : 'stub')).toLowerCase();
   const requireEmail =
     process.env.REQUIRE_EMAIL_VERIFICATION === 'true' || process.env.NODE_ENV === 'production';
   if (requireEmail) {
-    if (emailTransport !== 'smtp') {
-      throw new Error('Production requires EMAIL_TRANSPORT=smtp when email verification is enabled (P16.1)');
+    const allowed = emailTransport === 'smtp' || emailTransport === 'brevo' || emailTransport === 'brevo-api';
+    if (!allowed) {
+      throw new Error(
+        'Production requires EMAIL_TRANSPORT=brevo or smtp when email verification is enabled (P16.1). See docs/ops/BREVO_EMAIL_API_MIGRATION.md',
+      );
     }
-    if (!process.env.SMTP_HOST?.trim()) {
-      throw new Error('Production requires SMTP_HOST when email verification is enabled (P16.1)');
+    if (emailTransport === 'brevo' || emailTransport === 'brevo-api') {
+      if (!(process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY)?.trim()) {
+        throw new Error('Production requires BREVO_API_KEY when EMAIL_TRANSPORT=brevo (P16.1)');
+      }
+    } else if (!process.env.SMTP_HOST?.trim()) {
+      throw new Error('Production requires SMTP_HOST when EMAIL_TRANSPORT=smtp (P16.1)');
     }
     if (!process.env.EMAIL_FROM?.trim()) {
       throw new Error('Production requires EMAIL_FROM when email verification is enabled (P16.1)');
@@ -155,9 +162,10 @@ export const config = {
   sessionTransport: (process.env.SESSION_TRANSPORT || (process.env.NODE_ENV === 'production' ? 'cookie' : 'dual')).toLowerCase(),
   /** P16.1 — public web app base URL for email action links */
   appPublicUrl: (process.env.APP_PUBLIC_URL || process.env.CHECKOUT_BASE_URL || 'http://localhost:5173').replace(/\/$/, ''),
-  /** P16.1 — email transport: stub (dev) | smtp (production) */
-  emailTransport: (process.env.EMAIL_TRANSPORT || (process.env.NODE_ENV === 'production' ? 'smtp' : 'stub')).toLowerCase(),
+  /** P16.1 — email transport: stub (dev) | brevo (HTTPS API) | smtp (legacy) */
+  emailTransport: (process.env.EMAIL_TRANSPORT || (process.env.NODE_ENV === 'production' ? 'brevo' : 'stub')).toLowerCase(),
   emailFrom: process.env.EMAIL_FROM || '',
+  brevoApiKey: process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || '',
   smtpHost: process.env.SMTP_HOST || '',
   smtpPort: Number(process.env.SMTP_PORT || 587),
   smtpUser: process.env.SMTP_USER || '',

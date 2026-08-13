@@ -1,9 +1,7 @@
 /**
- * P16.1 — Vendor-neutral email transport (DEC-017: generic SMTP, no invented provider APIs).
+ * P16.1 — Email transport (stub | Brevo HTTP API | legacy SMTP).
+ * Default production: brevo (HTTPS :443) — works on Render Free (SMTP ports 587/465 blocked).
  */
-import net from 'node:net';
-import tls from 'node:tls';
-
 export type EmailMessage = {
   to: string;
   subject: string;
@@ -11,15 +9,94 @@ export type EmailMessage = {
   html?: string;
 };
 
+export type EmailTransportMode = 'stub' | 'brevo' | 'smtp';
+
 export interface EmailTransport {
-  readonly mode: 'stub' | 'smtp';
+  readonly mode: EmailTransportMode;
   send(message: EmailMessage): Promise<void>;
 }
 
-function transportMode(): 'stub' | 'smtp' {
-  const mode = (process.env.EMAIL_TRANSPORT || (process.env.NODE_ENV === 'production' ? 'smtp' : 'stub')).toLowerCase();
-  return mode === 'smtp' ? 'smtp' : 'stub';
+function normalizeTransportMode(raw: string): EmailTransportMode | null {
+  const mode = raw.toLowerCase().trim();
+  if (mode === 'stub') return 'stub';
+  if (mode === 'brevo' || mode === 'brevo-api' || mode === 'sendinblue') return 'brevo';
+  if (mode === 'smtp') return 'smtp';
+  return null;
 }
+
+function transportMode(): EmailTransportMode {
+  const explicit = (process.env.EMAIL_TRANSPORT || '').trim();
+  const normalized = explicit ? normalizeTransportMode(explicit) : null;
+  if (normalized) return normalized;
+  return process.env.NODE_ENV === 'production' ? 'brevo' : 'stub';
+}
+
+function senderConfig() {
+  return {
+    from: process.env.EMAIL_FROM || '',
+    fromName: process.env.EMAIL_FROM_NAME || 'IMKAN Payments',
+  };
+}
+
+class StubEmailTransport implements EmailTransport {
+  readonly mode = 'stub' as const;
+
+  async send(message: EmailMessage): Promise<void> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'EMAIL_TRANSPORT=stub is not allowed in production when email delivery is required. Use EMAIL_TRANSPORT=brevo (see docs/ops/BREVO_EMAIL_API_MIGRATION.md).',
+      );
+    }
+    console.info('[email:stub]', {to: message.to, subject: message.subject});
+  }
+}
+
+/** Brevo transactional email over HTTPS (port 443) — compatible with Render Free tier. */
+class BrevoHttpEmailTransport implements EmailTransport {
+  readonly mode = 'brevo' as const;
+
+  async send(message: EmailMessage): Promise<void> {
+    const apiKey = (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || '').trim();
+    const {from, fromName} = senderConfig();
+    if (!apiKey) {
+      throw new Error('BREVO_API_KEY is required when EMAIL_TRANSPORT=brevo');
+    }
+    if (!from) {
+      throw new Error('EMAIL_FROM is required when EMAIL_TRANSPORT=brevo');
+    }
+
+    const url = (process.env.BREVO_API_URL || 'https://api.brevo.com/v3/smtp/email').replace(/\/$/, '');
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: {name: fromName, email: from},
+        to: [{email: message.to}],
+        subject: message.subject,
+        textContent: message.text,
+        ...(message.html ? {htmlContent: message.html} : {}),
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Brevo API ${res.status}: ${body.slice(0, 500) || res.statusText}`);
+    }
+  }
+}
+
+/*
+ * LEGACY SMTP transport (P16.1) — commented out while deploying on Render Free tier.
+ * Render blocks outbound SMTP on ports 25, 465, and 587 → ETIMEDOUT to Brevo SMTP.
+ * To re-enable: uncomment this block and set EMAIL_TRANSPORT=smtp (paid Render or non-blocked host).
+ * See docs/ops/BREVO_EMAIL_API_MIGRATION.md
+ *
+import net from 'node:net';
+import tls from 'node:tls';
 
 function smtpConfig() {
   return {
@@ -35,19 +112,6 @@ function smtpConfig() {
 function formatFrom(): string {
   const {from, fromName} = smtpConfig();
   return fromName ? `${fromName} <${from}>` : from;
-}
-
-class StubEmailTransport implements EmailTransport {
-  readonly mode = 'stub' as const;
-
-  async send(message: EmailMessage): Promise<void> {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'EMAIL_TRANSPORT=stub is not allowed in production when email delivery is required. Configure SMTP (P16.1).',
-      );
-    }
-    console.info('[email:stub]', {to: message.to, subject: message.subject});
-  }
 }
 
 class SmtpEmailTransport implements EmailTransport {
@@ -161,19 +225,41 @@ async function smtpSend(opts: {
   write('QUIT');
   socket.end();
 }
+*/
+
+/** Placeholder until legacy SMTP block is uncommented (see BREVO_EMAIL_API_MIGRATION.md). */
+class SmtpEmailTransportDisabled implements EmailTransport {
+  readonly mode = 'smtp' as const;
+
+  async send(_message: EmailMessage): Promise<void> {
+    throw new Error(
+      'EMAIL_TRANSPORT=smtp is disabled (legacy SMTP code is commented out). Use EMAIL_TRANSPORT=brevo on Render Free, or uncomment SMTP in email-transport.ts — see docs/ops/BREVO_EMAIL_API_MIGRATION.md',
+    );
+  }
+}
 
 let transport: EmailTransport | null = null;
 
 export function getEmailTransport(): EmailTransport {
   if (!transport) {
-    transport = transportMode() === 'smtp' ? new SmtpEmailTransport() : new StubEmailTransport();
+    const mode = transportMode();
+    if (mode === 'brevo') transport = new BrevoHttpEmailTransport();
+    else if (mode === 'smtp') transport = new SmtpEmailTransportDisabled();
+    else transport = new StubEmailTransport();
   }
   return transport;
 }
 
 export function isEmailDeliveryProduction(): boolean {
-  const {host, from} = smtpConfig();
-  return transportMode() === 'smtp' && !!host && !!from;
+  const mode = transportMode();
+  const {from} = senderConfig();
+  if (mode === 'brevo') {
+    return Boolean((process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || '').trim() && from);
+  }
+  if (mode === 'smtp') {
+    return Boolean(process.env.SMTP_HOST?.trim() && from);
+  }
+  return false;
 }
 
 /** Reset for tests */

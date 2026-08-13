@@ -19,7 +19,16 @@ describe('P16.1 email production readiness', () => {
     expect(isDeliverableEmailEvent('payment.succeeded')).toBe(false);
   });
 
-  it('reports production delivery when SMTP configured', () => {
+  it('reports production delivery when Brevo API configured', () => {
+    process.env.EMAIL_TRANSPORT = 'brevo';
+    process.env.BREVO_API_KEY = 'xkeysib-test';
+    process.env.EMAIL_FROM = 'noreply@example.test';
+    resetEmailTransportForTests();
+    expect(isEmailDeliveryProduction()).toBe(true);
+    expect(getEmailTransport().mode).toBe('brevo');
+  });
+
+  it('reports production delivery when SMTP configured (legacy)', () => {
     process.env.EMAIL_TRANSPORT = 'smtp';
     process.env.SMTP_HOST = 'smtp.example.test';
     process.env.EMAIL_FROM = 'noreply@example.test';

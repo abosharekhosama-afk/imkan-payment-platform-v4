@@ -101,8 +101,17 @@ add(
 );
 
 // --- 5. Email ---
-add('email_transport', 'EMAIL_TRANSPORT=smtp', env('EMAIL_TRANSPORT').toLowerCase() === 'smtp');
-add('smtp_host', 'SMTP_HOST set', Boolean(env('SMTP_HOST')));
+const emailTransport = env('EMAIL_TRANSPORT').toLowerCase() || (env('NODE_ENV') === 'production' ? 'brevo' : 'stub');
+add(
+  'email_transport',
+  'EMAIL_TRANSPORT=brevo or smtp',
+  emailTransport === 'brevo' || emailTransport === 'brevo-api' || emailTransport === 'smtp',
+);
+if (emailTransport === 'brevo' || emailTransport === 'brevo-api') {
+  add('brevo_api_key', 'BREVO_API_KEY set', Boolean(env('BREVO_API_KEY') || env('SENDINBLUE_API_KEY')));
+} else if (emailTransport === 'smtp') {
+  add('smtp_host', 'SMTP_HOST set', Boolean(env('SMTP_HOST')));
+}
 add('email_from', 'EMAIL_FROM set', Boolean(env('EMAIL_FROM')));
 add(
   'email_verification',

@@ -32,6 +32,8 @@ services:
         value: "true"
       - key: SESSION_TRANSPORT
         value: cookie
+      - key: SESSION_COOKIE_SAMESITE
+        value: none
       - key: OUTBOX_WORKER_ENABLED
         value: "true"
       - key: RATE_LIMIT_STORE
@@ -41,7 +43,7 @@ services:
       - key: REQUIRE_KYB_FOR_PAYMENTS
         value: "true"
       - key: EMAIL_TRANSPORT
-        value: smtp
+        value: brevo
       - key: PAYMENT_PROVIDER
         value: stripe
       - key: STRIPE_ADAPTER_MODE
@@ -71,7 +73,16 @@ services:
         sync: false
       - key: STRIPE_CANCEL_URL
         sync: false
-      # --- SMTP (Brevo / SendGrid / etc.) ---
+      # --- Email: Brevo HTTP API (Render Free blocks SMTP ports 587/465) ---
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: IMKAN Payments
+      - key: PLATFORM_KYB_NOTIFY_EMAIL
+        sync: false
+      # Legacy SMTP (optional — see docs/ops/BREVO_EMAIL_API_MIGRATION.md to re-enable)
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -79,12 +90,6 @@ services:
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS
-        sync: false
-      - key: EMAIL_FROM
-        sync: false
-      - key: EMAIL_FROM_NAME
-        value: IMKAN Payments
-      - key: PLATFORM_KYB_NOTIFY_EMAIL
         sync: false
       # --- Stripe test keys (switch to live when ready) ---
       - key: STRIPE_TEST_SECRET_KEY
