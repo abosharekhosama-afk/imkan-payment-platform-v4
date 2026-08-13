@@ -45,9 +45,12 @@ export function PaymentLinkDetailPage() {
 
   const webUrl = checkoutWebUrl(row.public_token);
   const maxUses = row.max_uses != null ? ` / ${row.max_uses}` : '';
+  const canActivate = row.status === 'DRAFT' || row.status === 'INACTIVE';
+  const canDeactivate = row.status === 'ACTIVE';
+  const canCancel = ['DRAFT', 'ACTIVE', 'INACTIVE'].includes(row.status);
 
   return (
-    <div>
+    <div className="v4-detail-page">
       <PageHeader
         title={row.title}
         description={t('paymentLinkDetail.description')}
@@ -56,41 +59,58 @@ export function PaymentLinkDetailPage() {
           {label: t('nav.paymentLinks'), to: '/payment-links'},
           {label: t('common.detail')},
         ]}
-        actions={
-          <Can anyOf={['payment_links.manage']}>
-            <>
-              {row.status === 'DRAFT' || row.status === 'INACTIVE' ? (
+      />
+      {error ? <Alert tone="danger">{error}</Alert> : null}
+
+      <div className="v4-card v4-detail-card">
+        <div className="v4-detail-meta">
+          <StatusBadge status={row.status} />
+          <strong className="v4-detail-amount">{formatMoney(row.amount_minor, row.currency_code)}</strong>
+        </div>
+
+        <Can anyOf={['payment_links.manage']}>
+          {canActivate || canDeactivate || canCancel ? (
+            <div className="v4-detail-actions">
+              {canActivate ? (
                 <Button type="button" busy={busyKey === 'activate'} onClick={() => void act('activate')}>
                   {t('paymentLinkDetail.activate')}
                 </Button>
               ) : null}
-              {row.status === 'ACTIVE' ? (
-                <Button variant="secondary" type="button" busy={busyKey === 'deactivate'} onClick={() => void act('deactivate')}>
+              {canDeactivate ? (
+                <Button
+                  variant="secondary"
+                  type="button"
+                  busy={busyKey === 'deactivate'}
+                  onClick={() => void act('deactivate')}
+                >
                   {t('paymentLinkDetail.deactivate')}
                 </Button>
               ) : null}
-              {['DRAFT', 'ACTIVE', 'INACTIVE'].includes(row.status) ? (
-                <Button variant="danger" type="button" busy={busyKey === 'cancel'} disabled={busy} onClick={() => void act('cancel')}>
+              {canCancel ? (
+                <Button
+                  variant="danger"
+                  type="button"
+                  busy={busyKey === 'cancel'}
+                  disabled={busy}
+                  onClick={() => void act('cancel')}
+                >
                   {t('paymentLinkDetail.cancel')}
                 </Button>
               ) : null}
-            </>
-          </Can>
-        }
-      />
-      {error ? <Alert tone="danger">{error}</Alert> : null}
-      <div className="v4-card">
-        <p>
-          <StatusBadge status={row.status} /> · {formatMoney(row.amount_minor, row.currency_code)}
-        </p>
-        <p>
-          <strong>{t('paymentLinkDetail.checkoutUrl')}</strong>
-          <br />
-          <a href={webUrl} target="_blank" rel="noreferrer">
-            {webUrl}
-          </a>
-        </p>
-        <div className="v4-toolbar">
+            </div>
+          ) : null}
+        </Can>
+
+        <div className="v4-detail-field">
+          <span className="v4-detail-label">{t('paymentLinkDetail.checkoutUrl')}</span>
+          <div className="v4-url-box">
+            <a className="v4-url-text" href={webUrl} target="_blank" rel="noreferrer">
+              {webUrl}
+            </a>
+          </div>
+        </div>
+
+        <div className="v4-detail-actions">
           <Button
             type="button"
             variant="secondary"
@@ -101,11 +121,12 @@ export function PaymentLinkDetailPage() {
           >
             {t('paymentLinkDetail.copyUrl')}
           </Button>
-          <Link to={`/checkout/${row.public_token}`} target="_blank">
+          <Link className="v4-btn-link" to={`/checkout/${row.public_token}`} target="_blank" rel="noreferrer">
             <Button type="button">{t('paymentLinkDetail.openCheckout')}</Button>
           </Link>
         </div>
-        <p style={{color: 'var(--v4-text-muted)'}}>
+
+        <p className="v4-detail-footnote">
           {t('paymentLinkDetail.createdUses', {
             date: formatDate(row.created_at),
             count: String(row.use_count ?? 0),
