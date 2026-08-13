@@ -100,6 +100,38 @@ export async function registerPhase5Routes(app: FastifyInstance) {
     },
   );
 
+  app.post(
+    '/merchant/provider-accounts',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('providers.manage', 'platform.admin'),
+        requireStepUp('providers.credentials'),
+        rateLimit('providers.read'),
+      ],
+    },
+    async (request, reply) => {
+      const body = z
+        .object({
+          provider_code: z.enum(['stripe', 'paytabs', 'bop', 'sandbox']),
+          environment: z.enum(['SANDBOX', 'LIVE']),
+          display_name: z.string().min(2).max(120).optional(),
+          set_default: z.boolean().optional(),
+        })
+        .parse(request.body);
+      const row = await providerAdminService.createOrgAccount({
+        organizationId: request.auth!.organizationId!,
+        providerCode: body.provider_code,
+        environment: body.environment,
+        displayName: body.display_name,
+        setDefault: body.set_default,
+        actorUserId: request.auth!.authKind === 'session' ? request.auth!.userId : null,
+        requestId: request.id,
+      });
+      return created(reply, request, row);
+    },
+  );
+
   app.get(
     '/provider-webhooks',
     {

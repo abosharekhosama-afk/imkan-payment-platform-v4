@@ -75,15 +75,17 @@ export async function verifyStripeWebhook(input: {
   headers: Record<string, string | string[] | undefined>;
   rawBody: string;
   environment: ProviderEnvironment;
+  webhookSecret?: string;
 }): Promise<WebhookVerificationResult> {
   const plane = input.environment === 'LIVE' ? 'live' : 'test';
   const creds = await loadStripeCredentials(plane);
-  if (!creds) {
+  const secret = input.webhookSecret || creds?.webhookSecret;
+  if (!secret) {
     return {valid: false, error: `Stripe ${plane} webhook secret not configured`};
   }
 
   const sig = headerValue(input.headers, 'stripe-signature');
-  if (!verifyStripeSignature(input.rawBody, sig, creds.webhookSecret)) {
+  if (!verifyStripeSignature(input.rawBody, sig, secret)) {
     return {valid: false, error: 'Invalid Stripe webhook signature'};
   }
 

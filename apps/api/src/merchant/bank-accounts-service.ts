@@ -218,6 +218,34 @@ export const bankAccountsService = {
     });
   },
 
+  async withHistory(row: any) {
+    const accountId = row.id as string;
+    const verifications = await pgQuery(
+      `SELECT id, method, status, reason, created_at, decided_at FROM payout_account_verifications
+       WHERE payout_account_id=$1 ORDER BY created_at DESC`,
+      [accountId],
+    );
+    const transitions = await pgQuery(
+      `SELECT from_status, to_status, actor_type, reason, created_at FROM payout_account_transitions
+       WHERE payout_account_id=$1 ORDER BY created_at`,
+      [accountId],
+    );
+    const results = await pgQuery(
+      `SELECT r.check_type, r.result, r.provider, r.created_at, r.details_json
+       FROM payout_account_verification_results r
+       JOIN payout_account_verifications v ON v.id = r.verification_id
+       WHERE v.payout_account_id=$1
+       ORDER BY r.created_at DESC`,
+      [accountId],
+    );
+    return {
+      ...maskAccount(row),
+      verifications: verifications.rows,
+      history: transitions.rows,
+      results: results.rows,
+    };
+  },
+
   async list(organizationId: string) {
     const r = await pgQuery(
       `SELECT pa.*, pm.code AS payout_method_code, c.code AS country_code
@@ -241,17 +269,7 @@ export const bankAccountsService = {
       [accountId, organizationId],
     );
     if (!r.rows[0]) throw notFound('Payout account not found', 'BANK_ACCOUNT_NOT_FOUND');
-    const verifications = await pgQuery(
-      `SELECT id, method, status, reason, created_at, decided_at FROM payout_account_verifications
-       WHERE payout_account_id=$1 ORDER BY created_at DESC`,
-      [accountId],
-    );
-    const transitions = await pgQuery(
-      `SELECT from_status, to_status, actor_type, reason, created_at FROM payout_account_transitions
-       WHERE payout_account_id=$1 ORDER BY created_at`,
-      [accountId],
-    );
-    return {...maskAccount(r.rows[0]), verifications: verifications.rows, history: transitions.rows};
+    return this.withHistory(r.rows[0]);
   },
 
   async activate(organizationId: string, accountId: string, actor: Actor) {
@@ -320,7 +338,7 @@ export const bankAccountsService = {
     params.push(filter.limit, filter.offset);
     const r = await pgQuery(
       `SELECT pa.id, pa.organization_id, o.name AS organization_name, pa.bank_name, pa.account_last4,
-              pa.currency_code, pa.status, pa.created_at
+              pa.account_holder_name, pa.currency_code, pa.status, pa.is_default, pa.created_at
        FROM payout_accounts pa
        JOIN organizations o ON o.id = pa.organization_id
        ${where}
@@ -329,6 +347,54 @@ export const bankAccountsService = {
       params,
     );
     return r.rows.map((row: any) => ({...row, account_number_masked: maskTail(String(row.account_last4))}));
+  },
+
+  async getForReview(accountId: string) {
+    const r = await pgQuery(
+      `SELECT pa.*, pm.code AS payout_method_code, c.code AS country_code, o.name AS organization_name
+       FROM payout_accounts pa
+       JOIN master_payout_methods pm ON pm.id = pa.payout_method_id
+       JOIN master_countries c ON c.id = pa.country_id
+       JOIN organizations o ON o.id = pa.organization_id
+       WHERE pa.id=$1`,
+      [accountId],
+    );
+    if (!r.rows[0]) throw notFound('Payout account not found', 'BANK_ACCOUNT_NOT_FOUND');
+    return this.withHistory(r.rows[0]);
+  },
+
+  async adminActivate(accountId: string, actor: Actor) {
+    return withPgTransaction(async (client) => {
+      const account = await lockAccount(client, null, accountId);
+      const updated = await transitionAccount(
+        client,
+        account,
+        'ACTIVE',
+        {userId: actor.userId, type: 'PLATFORM'},
+        'Activated by platform',
+      );
+      await writeAuditEvent(
+        {
+          organizationId: account.organization_id,
+          actorUserId: actor.userId,
+          action: 'bank_account.activate',
+          resourceType: 'payout_accounts',
+          resourceId: accountId,
+          requestId: actor.requestId,
+        },
+        client,
+      );
+      await writeSecurityEvent(
+        {
+          organizationId: account.organization_id,
+          userId: actor.userId,
+          eventType: 'bank_account.activated',
+          metadata: {payout_account_id: accountId, actor: 'platform'},
+        },
+        client,
+      );
+      return maskAccount(updated);
+    });
   },
 
   async startVerification(accountId: string, actor: Actor) {

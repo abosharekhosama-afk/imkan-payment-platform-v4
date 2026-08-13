@@ -40,6 +40,7 @@ export const merchantReadinessService = {
     const sandboxRoute = routes.rows.find((r) => r.environment === 'SANDBOX');
     const liveRoute = routes.rows.find((r) => r.environment === 'LIVE');
     const providerCode = sandboxRoute?.provider_code || null;
+    const moneyProviders = new Set(['stripe', 'paytabs', 'bop']);
     const cfg = configRow.rows[0];
     const emailVerified = Boolean(user.rows[0]?.email_verified_at);
 
@@ -62,7 +63,7 @@ export const merchantReadinessService = {
       },
       {
         id: 'provider_route',
-        status: providerCode === 'stripe' ? 'complete' : providerCode === 'sandbox' ? 'pending' : 'blocked',
+        status: moneyProviders.has(providerCode || '') ? 'complete' : providerCode === 'sandbox' ? 'pending' : 'blocked',
         detail: providerCode ? `SANDBOX → ${providerCode}` : 'No payment provider route',
         href: '/providers/accounts',
       },
@@ -85,8 +86,8 @@ export const merchantReadinessService = {
       },
       {
         id: 'live_provider',
-        status: liveRoute?.provider_code === 'stripe' ? 'complete' : 'optional',
-        detail: liveRoute?.provider_code === 'stripe' ? 'LIVE → stripe' : 'Configure when going live',
+        status: moneyProviders.has(liveRoute?.provider_code || '') ? 'complete' : 'optional',
+        detail: liveRoute?.provider_code ? `LIVE → ${liveRoute.provider_code}` : 'Configure when going live',
         href: '/providers/accounts',
       },
     ];
@@ -100,9 +101,9 @@ export const merchantReadinessService = {
     const readyForSandbox =
       !blocked &&
       onboarding.payments_allowed &&
-      providerCode === 'stripe' &&
+      moneyProviders.has(providerCode || '') &&
       Boolean(cfg?.company_display_name);
-    const readyForLive = readyForSandbox && liveRoute?.provider_code === 'stripe';
+    const readyForLive = readyForSandbox && moneyProviders.has(liveRoute?.provider_code || '');
 
     return {
       items,
@@ -114,6 +115,7 @@ export const merchantReadinessService = {
         provider_live: liveRoute?.provider_code || null,
         payment_count: paymentCount.rows[0]?.c ?? 0,
         uses_stripe: providerCode === 'stripe' || liveRoute?.provider_code === 'stripe',
+        uses_paytabs: providerCode === 'paytabs' || liveRoute?.provider_code === 'paytabs',
       },
       onboarding,
     };

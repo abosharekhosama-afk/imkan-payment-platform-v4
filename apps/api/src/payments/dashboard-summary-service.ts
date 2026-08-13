@@ -19,7 +19,10 @@ export const dashboardSummaryService = {
            COUNT(*) FILTER (WHERE status = 'REQUIRES_PAYMENT')::int AS requires_payment_count,
            COUNT(*) FILTER (WHERE status = 'PROCESSING')::int AS processing_count,
            COUNT(*) FILTER (WHERE status = 'EXPIRED')::int AS expired_count,
-           COALESCE(SUM(amount_minor) FILTER (WHERE status = 'SUCCEEDED'), 0) AS succeeded_volume_minor
+           COALESCE(SUM(amount_minor) FILTER (WHERE status = 'SUCCEEDED'), 0) AS succeeded_volume_minor,
+           COALESCE(SUM(platform_fees_minor) FILTER (WHERE status = 'SUCCEEDED'), 0) AS platform_fees_minor,
+           COALESCE(SUM(provider_fees_minor) FILTER (WHERE status = 'SUCCEEDED'), 0) AS provider_fees_minor,
+           COALESCE(SUM(net_to_merchant_minor) FILTER (WHERE status = 'SUCCEEDED'), 0) AS net_to_merchant_minor
          FROM payment_intents
          WHERE organization_id = $1`,
         [organizationId],
@@ -79,6 +82,9 @@ export const dashboardSummaryService = {
       processing_count: Number(row.processing_count || 0),
       expired_count: Number(row.expired_count || 0),
       succeeded_volume_minor: succeededVolume,
+      platform_fees_minor: String(row.platform_fees_minor ?? '0'),
+      provider_fees_minor: String(row.provider_fees_minor ?? '0'),
+      net_to_merchant_minor: String(row.net_to_merchant_minor ?? '0'),
       success_rate: totalCount ? succeededCount / totalCount : 0,
       avg_succeeded_minor: avgSucceeded,
       primary_currency: primaryCurrency,

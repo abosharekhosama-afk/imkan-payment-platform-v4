@@ -128,4 +128,63 @@ export const providerAdminService = {
     );
     return r.rows;
   },
+
+  async createOrgAccount(input: {
+    organizationId: string;
+    providerCode: string;
+    environment: ProviderEnvironment;
+    displayName?: string;
+    setDefault?: boolean;
+    actorUserId?: string | null;
+    requestId?: string;
+  }) {
+    return withPgTransaction(async (client) => {
+      const provider = await client.query(
+        `SELECT id, code, status FROM providers WHERE code=$1`,
+        [input.providerCode],
+      );
+      if (!provider.rows[0]) throw notFound('Provider not found', 'PROVIDER_NOT_FOUND');
+      if (provider.rows[0].status !== 'ACTIVE') {
+        throw new AppError('PROVIDER_DISABLED', 'Provider is disabled', 409);
+      }
+      if (input.setDefault) {
+        await client.query(
+          `UPDATE provider_accounts SET is_default=FALSE, updated_at=NOW()
+           WHERE organization_id=$1 AND environment=$2`,
+          [input.organizationId, input.environment],
+        );
+      }
+      const r = await client.query(
+        `INSERT INTO provider_accounts (
+           organization_id, provider_id, environment, display_name, status, is_default, metadata_json
+         ) VALUES ($1,$2,$3,$4,'ACTIVE',$5,'{"owned":true}'::jsonb)
+         ON CONFLICT ON CONSTRAINT provider_accounts_org_provider_env_uq DO UPDATE SET
+           display_name = EXCLUDED.display_name,
+           status = 'ACTIVE',
+           is_default = EXCLUDED.is_default,
+           updated_at = NOW()
+         RETURNING *`,
+        [
+          input.organizationId,
+          provider.rows[0].id,
+          input.environment,
+          input.displayName || `${provider.rows[0].code} ${input.environment}`,
+          input.setDefault !== false,
+        ],
+      );
+      await writeAuditEvent(
+        {
+          organizationId: input.organizationId,
+          actorUserId: input.actorUserId || null,
+          action: 'provider_account.created',
+          resourceType: 'provider_account',
+          resourceId: r.rows[0].id,
+          requestId: input.requestId,
+          metadata: {provider_code: input.providerCode, environment: input.environment},
+        },
+        client,
+      );
+      return {...r.rows[0], provider_code: input.providerCode};
+    });
+  },
 };

@@ -14,14 +14,18 @@ export function resolvePayTabsEnv(): PayTabsEnv {
   return 'sandbox';
 }
 
-/** Throws if PAYTABS_ENV=live — P15.4 blocks live activation. */
+/** Throws if LIVE without PAYTABS_ALLOW_LIVE=true. */
 export function assertPayTabsSandboxOnly(context?: string): void {
   const env = resolvePayTabsEnv();
-  if (env === 'live') {
+  if (env === 'live' && process.env.PAYTABS_ALLOW_LIVE !== 'true') {
     throw new Error(
-      `PayTabs LIVE is blocked (P15.5 sandbox-only)${context ? ` (${context})` : ''}. Set PAYTABS_ENV=sandbox.`,
+      `PayTabs LIVE is blocked until PAYTABS_ALLOW_LIVE=true${context ? ` (${context})` : ''}.`,
     );
   }
+}
+
+export function payTabsLiveEnabled(): boolean {
+  return resolvePayTabsEnv() === 'live' && process.env.PAYTABS_ALLOW_LIVE === 'true';
 }
 
 export type PayTabsCredentialStatus = {

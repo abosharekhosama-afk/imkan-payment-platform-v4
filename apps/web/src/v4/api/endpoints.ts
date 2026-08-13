@@ -28,9 +28,9 @@ export const v4 = {
     apiV1<any>('/auth/resend-verification', {method: 'POST', body}),
   forgotPassword: (body: {email: string}) => apiV1<any>('/auth/password/forgot', {method: 'POST', body}),
   resetPassword: (body: {token: string; password: string}) =>
-    apiV1<any>('/auth/password/reset', {method: 'POST', body}),
+    apiV1<any>('/auth/password/reset', {method: 'POST', body, idempotent: true}),
   acceptInvitation: (body: {token: string; name?: string; password?: string}) =>
-    apiV1<any>('/invitations/accept', {method: 'POST', body}),
+    apiV1<any>('/invitations/accept', {method: 'POST', body, idempotent: true}),
 
   orgCurrent: (token: Tok) => apiV1<any>('/organizations/current', withToken(token)),
   updateOrgCurrent: (token: Tok, body: unknown) =>
@@ -93,6 +93,30 @@ export const v4 = {
     }),
   adminDocumentReview: (token: Tok, documentId: string, body: {decision: 'ACCEPTED' | 'REJECTED'; reason?: string}) =>
     apiV1<any>(`/admin/documents/${documentId}/review`, withToken(token, {method: 'POST', body})),
+  adminBankAccounts: (token: Tok, status?: string) =>
+    apiV1<any[]>(
+      `/admin/bank-accounts${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+      withToken(token),
+    ),
+  adminBankAccount: (token: Tok, accountId: string) =>
+    apiV1<any>(`/admin/bank-accounts/${accountId}`, withToken(token)),
+  adminBankStartVerification: (token: Tok, accountId: string) =>
+    apiV1<any>(`/admin/bank-accounts/${accountId}/verification/start`, withToken(token, {method: 'POST', body: {}})),
+  adminBankDecision: (
+    token: Tok,
+    accountId: string,
+    body: {result: 'PASSED' | 'FAILED'; reason: string},
+    stepUpToken?: string,
+  ) =>
+    apiV1<any>(`/admin/bank-accounts/${accountId}/verification/decision`, {
+      ...withToken(token, {method: 'POST', body, idempotent: true}),
+      stepUpToken,
+    }),
+  adminBankActivate: (token: Tok, accountId: string, stepUpToken?: string) =>
+    apiV1<any>(
+      `/admin/bank-accounts/${accountId}/activate`,
+      withToken(token, {method: 'POST', body: {}, idempotent: true, stepUpToken}),
+    ),
   openAdminDocument: async (token: Tok, documentId: string) => {
     const headers: Record<string, string> = {};
     if (token && token !== 'cookie-session') {
@@ -111,6 +135,21 @@ export const v4 = {
   bankAccounts: (token: Tok) => apiV1<any[]>('/merchant/bank-accounts', withToken(token)),
   createBankAccount: (token: Tok, body: unknown, stepUpToken?: string) =>
     apiV1<any>('/merchant/bank-accounts', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
+  activateBankAccount: (token: Tok, accountId: string, stepUpToken?: string) =>
+    apiV1<any>(
+      `/merchant/bank-accounts/${accountId}/activate`,
+      withToken(token, {method: 'POST', body: {}, idempotent: true, stepUpToken}),
+    ),
+  deactivateBankAccount: (token: Tok, accountId: string, reason: string | undefined, stepUpToken?: string) =>
+    apiV1<any>(
+      `/merchant/bank-accounts/${accountId}/deactivate`,
+      withToken(token, {method: 'POST', body: {reason}, idempotent: true, stepUpToken}),
+    ),
+  setDefaultBankAccount: (token: Tok, accountId: string, stepUpToken?: string) =>
+    apiV1<any>(
+      `/merchant/bank-accounts/${accountId}/set-default`,
+      withToken(token, {method: 'POST', body: {}, stepUpToken}),
+    ),
   masterData: (token: Tok, type: string) => apiV1<any[]>(`/master-data/${type}`, withToken(token)),
 
   // Payments
@@ -261,6 +300,17 @@ export const v4 = {
   createRefund: (token: Tok, body: unknown, stepUpToken?: string) =>
     apiV1<any>('/refunds', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
   balances: (token: Tok) => apiV1<any>('/balances', withToken(token)),
+  financeStatement: (token: Tok, query = '') =>
+    apiV1<any>(`/merchant/finance/statement${query}`, withToken(token)),
+  downloadFinanceStatementCsv: (token: Tok, query = '') =>
+    downloadApiV1(
+      `/merchant/finance/statement${query}${query.includes('?') ? '&' : '?'}format=csv`,
+      'statement.csv',
+      token,
+    ),
+  paymentFees: (token: Tok, id: string) => apiV1<any>(`/payments/${id}/fees`, withToken(token)),
+  createMerchantProviderAccount: (token: Tok, body: unknown, stepUpToken?: string) =>
+    apiV1<any>('/merchant/provider-accounts', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
   ledgerAccounts: (token: Tok) => apiV1<any[]>('/ledger/accounts', withToken(token)),
   ledgerEntries: (token: Tok) => apiV1<any[]>('/ledger/entries', withToken(token)),
   settlements: (token: Tok) => apiV1<any[]>('/settlements', withToken(token)),
@@ -269,6 +319,8 @@ export const v4 = {
   payouts: (token: Tok) => apiV1<any[]>('/payouts', withToken(token)),
   createPayout: (token: Tok, body: unknown, stepUpToken?: string) =>
     apiV1<any>('/payouts', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
+  approvePayout: (token: Tok, id: string, body: {external_evidence_ref: string}, stepUpToken?: string) =>
+    apiV1<any>(`/payouts/${id}/approve`, withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
   reconciliationRuns: (token: Tok) => apiV1<any[]>('/reconciliation/runs', withToken(token)),
   runReconciliation: (token: Tok) =>
     apiV1<any>('/reconciliation/runs', withToken(token, {method: 'POST', body: {}})),

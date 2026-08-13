@@ -240,21 +240,59 @@ export function SettlementsPage() {
 
 export function PayoutsPage() {
   const {t} = useI18n();
-  const {token} = useAuth();
+  const {token, hasPermission} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const [evidence, setEvidence] = useState('');
+  const [totp, setTotp] = useState('');
+  const [busyId, setBusyId] = useState('');
+  const load = () => {
     if (!token) return;
     v4.payouts(token)
       .then(setRows)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [token]);
+  };
+  useEffect(load, [token]);
+
+  const approve = async (id: string) => {
+    setBusyId(id);
+    setError('');
+    try {
+      const step = totp ? await v4.stepUp(token, totp) : null;
+      await v4.approvePayout(
+        token,
+        id,
+        {external_evidence_ref: evidence},
+        step?.step_up_token || step?.token,
+      );
+      setEvidence('');
+      setTotp('');
+      load();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const canApprove = hasPermission('platform.admin', 'platform.finance', 'payouts.manage');
+
   return (
     <div>
       <PageHeader title={t('finance.payouts.title')} description={t('finance.payouts.description')} />
       {error ? <Alert tone="danger">{error}</Alert> : null}
+      {canApprove ? (
+        <div className="v4-card" style={{marginBottom: 16}}>
+          <Field label={t('finance.payouts.evidenceRef')}>
+            <input value={evidence} onChange={(e) => setEvidence(e.target.value)} />
+          </Field>
+          <Field label={t('finance.refunds.labelTotp')}>
+            <input value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" />
+          </Field>
+        </div>
+      ) : null}
       {loading ? (
         <LoadingState />
       ) : (
@@ -265,8 +303,11 @@ export function PayoutsPage() {
                 <th>{t('finance.payouts.colPayout')}</th>
                 <th>{t('common.amount')}</th>
                 <th>{t('common.status')}</th>
-                <th>{t('finance.payouts.colSettlement')}</th>
+                <th>{t('finance.payouts.colRail')}</th>
+                <th>{t('finance.payouts.colEvidence')}</th>
+                <th>{t('finance.payouts.colApproved')}</th>
                 <th>{t('common.created')}</th>
+                {canApprove ? <th /> : null}
               </tr>
             </thead>
             <tbody>
@@ -276,13 +317,26 @@ export function PayoutsPage() {
                     <td>{shortId(r.id)}</td>
                     <td>{formatMoney(r.amount_minor, r.currency_code)}</td>
                     <td>{r.status}</td>
-                    <td>{r.settlement_id ? shortId(r.settlement_id) : '—'}</td>
+                    <td>{r.rail_code || '—'}</td>
+                    <td>{r.external_evidence_ref || '—'}</td>
+                    <td>{r.platform_approved_at ? formatDate(r.platform_approved_at) : '—'}</td>
                     <td>{formatDate(r.created_at)}</td>
+                    {canApprove ? (
+                      <td>
+                        {r.status === 'SUBMITTED' && !r.platform_approved_at ? (
+                          <Button type="button" disabled={busyId === r.id || evidence.length < 3} onClick={() => void approve(r.id)}>
+                            {t('finance.payouts.approve')}
+                          </Button>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5}>{t('common.noRecords')}</td>
+                  <td colSpan={canApprove ? 8 : 7}>{t('common.noRecords')}</td>
                 </tr>
               )}
             </tbody>

@@ -3,6 +3,7 @@ import {pgQuery, type PgClient} from '../infrastructure/db/postgres.js';
 import type {ProviderAdapter, ProviderEnvironment, ProviderOperationResult} from './adapter.js';
 import {ProviderError, shouldQueryBeforeRetry} from './errors.js';
 import {getProviderAdapter} from './registry.js';
+import {preferredProviderCodes} from './regional-routing.js';
 import {incrMetric} from '../observability/metrics.js';
 import './registry.js';
 
@@ -140,6 +141,31 @@ export const providerRouter = {
     );
     if (def.rows[0]) {
       return finalizeResolve(def.rows[0], input.organizationId, environment, input.requiredCapability);
+    }
+
+    // Regional shared accounts (GCC PayTabs, intl Stripe, PS BOP when registered)
+    const preferred = preferredProviderCodes(input.currencyCode);
+    for (const code of preferred) {
+      const shared = await pgQuery(
+        `SELECT pa.id, pa.organization_id, pa.environment, pa.status AS account_status,
+                p.id AS provider_id, p.code AS provider_code, p.status AS provider_status,
+                p.supports_sandbox, p.supports_live
+         FROM provider_accounts pa
+         JOIN providers p ON p.id = pa.provider_id
+         WHERE (pa.organization_id=$1 OR pa.organization_id IS NULL)
+           AND pa.environment=$2 AND p.code=$3
+           AND pa.status='ACTIVE' AND p.status='ACTIVE'
+         ORDER BY pa.organization_id NULLS LAST
+         LIMIT 1`,
+        [input.organizationId, environment, code],
+      );
+      if (shared.rows[0]) {
+        try {
+          return await finalizeResolve(shared.rows[0], input.organizationId, environment, input.requiredCapability);
+        } catch {
+          /* try next preferred provider */
+        }
+      }
     }
 
     // Platform shared sandbox only — never fall back to LIVE shared

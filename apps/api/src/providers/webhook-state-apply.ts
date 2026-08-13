@@ -10,7 +10,7 @@ import {
   type PaymentIntentStatus,
   transitionPaymentIntent,
 } from '../payments/payment-state-machine.js';
-import {ledgerService} from '../ledger/ledger-service.js';
+import {feeAccrualService} from '../finance/fee-accrual-service.js';
 import {finalizeCheckoutArtifacts} from '../payments/finalize-checkout-artifacts.js';
 import {refundsService} from '../refunds/refunds-service.js';
 
@@ -38,6 +38,7 @@ export async function applyProviderWebhookToPaymentIntent(
     providerReference?: string | null;
     amountMinor?: string | null;
     currencyCode?: string | null;
+    environment?: 'SANDBOX' | 'LIVE';
   },
 ): Promise<{applied: boolean; reason: string; status?: string}> {
   if (!input.paymentIntentId || !input.organizationId) {
@@ -145,12 +146,12 @@ export async function applyProviderWebhookToPaymentIntent(
       extraParams,
     );
     if (target === 'SUCCEEDED') {
-      await ledgerService.postPaymentSucceededWithClient(client, {
+      await feeAccrualService.accrueOnPaymentSuccess(client, {
         organizationId: input.organizationId,
         paymentIntentId: input.paymentIntentId,
         amountMinor: String(intent.amount_minor),
         currencyCode: String(intent.currency_code),
-        environment: 'SANDBOX',
+        environment: input.environment || 'SANDBOX',
       });
       await finalizeCheckoutArtifacts(client, {
         organizationId: input.organizationId,

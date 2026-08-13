@@ -17,9 +17,10 @@ import {useI18n} from '../../i18n/I18nProvider';
 import type {Locale} from '../../i18n/index';
 import type {ThemeMode} from '../../theme';
 import {formatDate, shortId} from '../../utils/money';
+import {formatPermission, formatRole, formatRoles} from '../../i18n/humanize';
 
 export function UsersPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token, organizationId} = useAuth();
   const {push} = useToast();
   const [rows, setRows] = useState<any[]>([]);
@@ -94,7 +95,7 @@ export function UsersPage() {
               rows={rows.map((r) => [
                 shortId(r.id || r.user_id),
                 r.email,
-                Array.isArray(r.roles) ? r.roles.join(', ') : r.role_code || '—',
+                Array.isArray(r.roles) ? formatRoles(r.roles, locale) : formatRole(r.role_code, locale),
                 <StatusBadge status={r.status} />,
               ])}
             />
@@ -112,7 +113,7 @@ export function UsersPage() {
               rows={invites.map((i) => [
                 shortId(i.id),
                 i.email,
-                i.role_code,
+                formatRole(i.role_code, locale),
                 <StatusBadge status={i.status} />,
                 formatDate(i.expires_at),
               ])}
@@ -129,11 +130,11 @@ export function UsersPage() {
                 </Field>
                 <Field label={t('security.users.labelRole')}>
                   <select value={roleCode} onChange={(e) => setRoleCode(e.target.value)}>
-                    <option value="MERCHANT_ADMIN">MERCHANT_ADMIN</option>
-                    <option value="MERCHANT_FINANCE">MERCHANT_FINANCE</option>
-                    <option value="MERCHANT_DEVELOPER">MERCHANT_DEVELOPER</option>
-                    <option value="MERCHANT_SUPPORT">MERCHANT_SUPPORT</option>
-                    <option value="MERCHANT_VIEWER">MERCHANT_VIEWER</option>
+                    <option value="MERCHANT_ADMIN">{formatRole('MERCHANT_ADMIN', locale)}</option>
+                    <option value="MERCHANT_FINANCE">{formatRole('MERCHANT_FINANCE', locale)}</option>
+                    <option value="MERCHANT_DEVELOPER">{formatRole('MERCHANT_DEVELOPER', locale)}</option>
+                    <option value="MERCHANT_SUPPORT">{formatRole('MERCHANT_SUPPORT', locale)}</option>
+                    <option value="MERCHANT_VIEWER">{formatRole('MERCHANT_VIEWER', locale)}</option>
                   </select>
                 </Field>
                 <Field label={t('security.users.labelTotp')}>
@@ -150,7 +151,7 @@ export function UsersPage() {
 }
 
 export function RolesPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token, roles, permissions, hasPermission} = useAuth();
   const {push} = useToast();
   const [catalog, setCatalog] = useState<any>(null);
@@ -200,7 +201,7 @@ export function RolesPage() {
       <Alert tone="info">{t('security.roles.backendAlert')}</Alert>
       <div className="v4-card">
         <p>
-          <strong>{t('security.roles.yourRoles')}</strong> {roles.join(', ') || '—'}
+          <strong>{t('security.roles.yourRoles')}</strong> {formatRoles(roles, locale)}
         </p>
         <p>
           <strong>{t('security.roles.yourPermissions', {count: permissions.length})}</strong>
@@ -208,7 +209,7 @@ export function RolesPage() {
         <ul>
           {permissions.slice(0, 40).map((p) => (
             <li key={p}>
-              <code>{p}</code>
+              {formatPermission(p, locale)}
             </li>
           ))}
           {permissions.length > 40 ? (
@@ -224,7 +225,8 @@ export function RolesPage() {
             rows={(catalog.custom_roles || []).map((r: any) => [
               r.code,
               r.name,
-              (r.permissions || []).slice(0, 8).join(', ') + ((r.permissions || []).length > 8 ? '…' : ''),
+              (r.permissions || []).slice(0, 8).map((p: string) => formatPermission(p, locale)).join(locale === 'ar' ? '، ' : ', ') +
+                ((r.permissions || []).length > 8 ? '…' : ''),
             ])}
           />
           <Can anyOf={['roles.manage']}>
@@ -445,20 +447,18 @@ export function AppearancePage() {
         crumbs={[{label: t('section.settings')}, {label: t('nav.appearance')}]}
       />
       <div className="v4-card" style={{maxWidth: 420}}>
-        <label className="v4-field">
-          {t('settings.appearance.theme')}
+        <Field label={t('settings.appearance.theme')}>
           <select value={theme} onChange={(e) => setTheme(e.target.value as ThemeMode)}>
             <option value="light">{t('settings.appearance.themeLight')}</option>
             <option value="dark">{t('settings.appearance.themeDark')}</option>
           </select>
-        </label>
-        <label className="v4-field">
-          {t('settings.appearance.language')}
+        </Field>
+        <Field label={t('settings.appearance.language')}>
           <select value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
             <option value="en">{t('settings.appearance.langEn')}</option>
             <option value="ar">{t('settings.appearance.langAr')}</option>
           </select>
-        </label>
+        </Field>
       </div>
     </div>
   );

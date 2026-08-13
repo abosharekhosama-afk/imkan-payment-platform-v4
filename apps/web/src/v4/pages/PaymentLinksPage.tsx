@@ -19,9 +19,10 @@ import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../utils/money';
 import {useI18n} from '../i18n/I18nProvider';
 import {CurrencySelect} from '../design-system/CurrencySelect';
+import {formatStatus} from '../i18n/humanize';
 
 export function PaymentLinksPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
   const [rows, setRows] = useState<any[]>([]);
@@ -98,7 +99,7 @@ export function PaymentLinksPage() {
           aria-label={t('common.status')}
           options={[
             {value: '', label: t('common.allStatuses')},
-            ...['DRAFT', 'ACTIVE', 'INACTIVE', 'EXPIRED', 'CANCELLED'].map((s) => ({value: s, label: s})),
+            ...['DRAFT', 'ACTIVE', 'INACTIVE', 'EXPIRED', 'CANCELLED'].map((s) => ({value: s, label: formatStatus(s, locale)})),
           ]}
         />
         <Button variant="secondary" type="button" onClick={load}>

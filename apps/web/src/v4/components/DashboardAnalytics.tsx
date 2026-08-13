@@ -11,6 +11,9 @@ type Summary = {
   pending_count: number;
   cancelled_count: number;
   succeeded_volume_minor: string;
+  platform_fees_minor?: string;
+  provider_fees_minor?: string;
+  net_to_merchant_minor?: string;
   currency_breakdown?: {currency_code: string; count: number}[];
   recent_payments?: any[];
   daily_series?: {day: string; count: number; succeeded_count: number; volume_minor: string}[];
@@ -39,6 +42,11 @@ export function DashboardAnalytics({data}: {data: Summary}) {
             {t('dashboard.successRate')}: {(successRate * 100).toFixed(1)}% · {data.succeeded_count}{' '}
             {t('dashboard.of')} {data.total_count}
           </p>
+          {data.net_to_merchant_minor != null ? (
+            <p>
+              {t('dashboard.netVolume')}: {formatMoney(data.net_to_merchant_minor, primaryCurrency)}
+            </p>
+          ) : null}
         </div>
         <div className="v4-analytics-hero-stats">
           <div>

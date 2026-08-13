@@ -13,6 +13,7 @@ describe('P15.4 PayTabs sandbox config', () => {
   beforeEach(() => {
     delete process.env.PAYTABS_ENV;
     delete process.env.PAYTABS_REAL_SANDBOX_CERT;
+    delete process.env.PAYTABS_ALLOW_LIVE;
   });
 
   it('defaults PAYTABS_ENV to sandbox', () => {

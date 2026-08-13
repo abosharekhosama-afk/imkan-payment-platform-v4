@@ -188,7 +188,13 @@ export async function registerPhase4Routes(app: FastifyInstance) {
   for (const action of ['activate', 'deactivate', 'cancel', 'expire', 'reuse'] as const) {
     app.post(
       `/merchant/payment-links/:linkId/${action}`,
-      {preHandler: [requireOrganizationContext(), requirePermission('payment_links.manage')]},
+      {
+        preHandler: [
+          requireOrganizationContext(),
+          requirePermission('payment_links.manage'),
+          idempotencyPreHandler(`payment_links.${action}`),
+        ],
+      },
       async (request) => {
         const params = z.object({linkId: z.string().uuid()}).parse(request.params);
         const actor = {userId: request.auth!.userId, requestId: request.id};

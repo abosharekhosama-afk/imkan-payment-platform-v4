@@ -17,9 +17,10 @@ import {Can} from '../rbac/Can';
 import {useToast} from '../hooks/useToast';
 import {formatDate, formatMoney, shortId} from '../utils/money';
 import {useI18n} from '../i18n/I18nProvider';
+import {formatReason, formatStatus} from '../i18n/humanize';
 
 export function PaymentDetailPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {id = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
@@ -108,7 +109,6 @@ export function PaymentDetailPage() {
         }
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
-      <Alert tone="info">{t('paymentDetail.sandboxRefundAlert')}</Alert>
       <div className="v4-stat-grid">
         <div className="v4-stat">
           <span>{t('common.status')}</span>
@@ -124,6 +124,31 @@ export function PaymentDetailPage() {
           <span>{t('common.created')}</span>
           <strong style={{fontSize: '1rem'}}>{formatDate(intent.created_at)}</strong>
         </div>
+      </div>
+      <div className="v4-card v4-fee-breakdown" style={{marginBottom: 16}}>
+        <h3 style={{gridColumn: '1 / -1', marginTop: 0}}>{t('paymentDetail.fees')}</h3>
+        {intent.status === 'SUCCEEDED' ? (
+          <>
+            <div>
+              <span>{t('paymentDetail.gross')}</span>
+              <strong>{formatMoney(intent.amount_minor, intent.currency_code)}</strong>
+            </div>
+            <div>
+              <span>{t('paymentDetail.platformFee')}</span>
+              <strong>{formatMoney(intent.platform_fees_minor || '0', intent.currency_code)}</strong>
+            </div>
+            <div>
+              <span>{t('paymentDetail.providerFee')}</span>
+              <strong>{formatMoney(intent.provider_fees_minor || '0', intent.currency_code)}</strong>
+            </div>
+            <div>
+              <span>{t('paymentDetail.net')}</span>
+              <strong>{formatMoney(intent.net_to_merchant_minor || '0', intent.currency_code)}</strong>
+            </div>
+          </>
+        ) : (
+          <p style={{gridColumn: '1 / -1', margin: 0, color: 'var(--v4-text-muted)'}}>{t('paymentDetail.feesPending')}</p>
+        )}
       </div>
       <div className="v4-card" style={{marginBottom: 16}}>
         <h3>{t('paymentDetail.attempts')}</h3>
@@ -178,10 +203,10 @@ export function PaymentDetailPage() {
             t('paymentDetail.colAt'),
           ]}
           rows={(data.history || []).map((h: any) => [
-            h.from_status || '—',
-            h.to_status,
-            h.actor_type,
-            h.reason || '—',
+            formatStatus(h.from_status, locale),
+            formatStatus(h.to_status, locale),
+            formatStatus(h.actor_type, locale),
+            formatReason(h.reason, locale),
             formatDate(h.created_at),
           ])}
         />

@@ -7,7 +7,7 @@ import {paymentConfigService} from './payment-config-service.js';
 import {paymentLinksService} from './payment-links-service.js';
 import {providerRouter, resolvePaymentEnvironment} from '../providers/router.js';
 import {assertProductionPaymentMethodAllowed} from '../platform/sandbox-token-guard.js';
-import {ledgerService} from '../ledger/ledger-service.js';
+import {feeAccrualService} from '../finance/fee-accrual-service.js';
 import {assertSafePublicUrl} from '../security/url-safety.js';
 import {assertMerchantPaymentsAllowed} from '../security/onboarding-gate.js';
 import {
@@ -22,9 +22,13 @@ const SESSION_TTL_MINUTES = 60;
 
 function money(row: any) {
   if (!row) return row;
+  const stringify = (v: unknown) => (v != null ? String(v) : null);
   return {
     ...row,
-    amount_minor: row.amount_minor != null ? String(row.amount_minor) : null,
+    amount_minor: stringify(row.amount_minor),
+    platform_fees_minor: stringify(row.platform_fees_minor),
+    provider_fees_minor: stringify(row.provider_fees_minor),
+    net_to_merchant_minor: stringify(row.net_to_merchant_minor),
   };
 }
 
@@ -701,7 +705,7 @@ export const paymentCoreService = {
           [session.payment_order_id],
         );
         await paymentLinksService.recordSuccessfulUse(client, link.rows[0].id, session.organization_id);
-        await ledgerService.postPaymentSucceededWithClient(client, {
+        await feeAccrualService.accrueOnPaymentSuccess(client, {
           organizationId: session.organization_id,
           paymentIntentId: intent.id,
           amountMinor: String(intent.amount_minor),
@@ -1064,7 +1068,7 @@ export const paymentCoreService = {
             JSON.stringify({source: 'billing', sandbox: result.providerCode === 'sandbox'}),
           ],
         );
-        await ledgerService.postPaymentSucceededWithClient(client, {
+        await feeAccrualService.accrueOnPaymentSuccess(client, {
           organizationId,
           paymentIntentId: intent.id,
           amountMinor: String(amountMinor),

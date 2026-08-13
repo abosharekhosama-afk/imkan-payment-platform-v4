@@ -71,6 +71,8 @@ export function DashboardPage() {
         <h3 style={{marginTop: 0}}>{t('dashboard.balances')}</h3>
         <p style={{color: 'var(--v4-text-muted)', margin: 0}}>{t('dashboard.balancesHint')}</p>
         <p style={{marginTop: '0.75rem'}}>
+          <Link to="/wallet">{t('dashboard.openWallet')}</Link>
+          {' · '}
           <Link to="/balances">{t('dashboard.openBalances')}</Link>
         </p>
       </div>

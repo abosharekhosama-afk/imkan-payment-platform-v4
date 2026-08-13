@@ -9,6 +9,7 @@ import {
 } from './financial-model.js';
 import {feeScheduleService} from './fee-schedules-service.js';
 import {ledgerService} from '../ledger/ledger-service.js';
+import {payoutMarkPaidAllowed, resolvePayoutRail} from './payout-rail/index.js';
 
 async function recomputeSettlementTotals(
   client: PgClient,
@@ -120,8 +121,14 @@ export const settlementService = {
         amount_minor: string;
         currency_code: string;
         refunded_minor: string;
+        platform_fees_minor: string;
+        provider_fees_minor: string;
+        net_to_merchant_minor: string;
       }>(
         `SELECT pi.id, pi.amount_minor::text AS amount_minor, pi.currency_code,
+                COALESCE(pi.platform_fees_minor, 0)::text AS platform_fees_minor,
+                COALESCE(pi.provider_fees_minor, 0)::text AS provider_fees_minor,
+                COALESCE(pi.net_to_merchant_minor, pi.amount_minor)::text AS net_to_merchant_minor,
                 COALESCE((
                   SELECT SUM(r.amount_minor)
                   FROM refunds r
@@ -133,6 +140,7 @@ export const settlementService = {
          WHERE pi.organization_id=$1
            AND pi.status='SUCCEEDED'
            AND pi.currency_code=$2
+           AND COALESCE(pi.environment, 'SANDBOX')=$5
            AND ($3::timestamptz IS NULL OR pi.created_at >= $3)
            AND ($4::timestamptz IS NULL OR pi.created_at <= $4)
            AND NOT EXISTS (
@@ -142,7 +150,7 @@ export const settlementService = {
            )
          ORDER BY pi.created_at ASC
          LIMIT 500`,
-        [input.organizationId, currency, input.periodStart || null, input.periodEnd || null],
+        [input.organizationId, currency, input.periodStart || null, input.periodEnd || null, environment],
       );
 
       const lines: Array<{
@@ -150,16 +158,34 @@ export const settlementService = {
         gross: bigint;
         refunded: bigint;
         eligible: bigint;
+        platformFees: bigint;
+        providerFees: bigint;
+        netAfterFees: bigint;
       }> = [];
       let gross = 0n;
+      let accruedPlatform = 0n;
+      let accruedProvider = 0n;
       for (const p of payments.rows) {
         assertSameCurrency(currency, p.currency_code);
         const captured = BigInt(String(p.amount_minor));
         const refunded = BigInt(String(p.refunded_minor || '0'));
         const eligible = computeEligibleMinor(captured, refunded);
         if (eligible <= 0n) continue;
-        lines.push({paymentIntentId: p.id, gross: captured, refunded, eligible});
+        const platformFees = BigInt(String(p.platform_fees_minor || '0'));
+        const providerFeesLine = BigInt(String(p.provider_fees_minor || '0'));
+        const netAfterFees = BigInt(String(p.net_to_merchant_minor || eligible.toString()));
+        lines.push({
+          paymentIntentId: p.id,
+          gross: captured,
+          refunded,
+          eligible,
+          platformFees,
+          providerFees: providerFeesLine,
+          netAfterFees,
+        });
         gross += eligible;
+        accruedPlatform += platformFees;
+        accruedProvider += providerFeesLine;
       }
 
       const schedule = await feeScheduleService.resolveActivePlatformFee(
@@ -172,12 +198,14 @@ export const settlementService = {
       const platformFees =
         gross === 0n
           ? 0n
-          : computePlatformFeeMinor({
-              grossMinor: gross,
-              basisPoints: schedule.basisPoints,
-              fixedMinor: schedule.fixedMinor,
-            });
-      const effectiveProviderFees = gross === 0n ? 0n : providerFees;
+          : accruedPlatform > 0n
+            ? accruedPlatform
+            : computePlatformFeeMinor({
+                grossMinor: gross,
+                basisPoints: schedule.basisPoints,
+                fixedMinor: schedule.fixedMinor,
+              });
+      const effectiveProviderFees = gross === 0n ? 0n : accruedProvider > 0n ? accruedProvider : providerFees;
       // Reserves logic deferred (DEC-008.3) — amount field = 0
       const reserves = 0n;
       const totals = computeSettlementTotals({
@@ -220,17 +248,21 @@ export const settlementService = {
           await client.query(
             `INSERT INTO settlement_lines(
                settlement_id, organization_id, payment_intent_id, amount_minor, currency_code,
-               gross_minor, refunded_minor, net_minor, inclusion_active
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE)`,
+               gross_minor, refunded_minor, net_minor, inclusion_active,
+               platform_fees_minor, provider_fees_minor, net_after_fees_minor
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9,$10,$11)`,
             [
               settlement.id,
               input.organizationId,
               line.paymentIntentId,
-              line.eligible.toString(), // amount_minor = eligible (net for settlement)
+              line.eligible.toString(),
               currency,
               line.gross.toString(),
               line.refunded.toString(),
               line.eligible.toString(),
+              line.platformFees.toString(),
+              line.providerFees.toString(),
+              line.netAfterFees.toString(),
             ],
           );
         } catch (err: any) {
@@ -624,10 +656,20 @@ export const payoutService = {
       if (row.status !== 'PENDING') {
         throw conflict(`Payout status ${row.status} cannot be submitted`);
       }
+      const rail = resolvePayoutRail();
+      const railResult = await rail.submit({
+        organizationId: input.organizationId,
+        payoutId: input.payoutId,
+        amountMinor: String(row.amount_minor),
+        currencyCode: String(row.currency_code),
+        payoutAccountId: row.payout_account_id || null,
+        actorUserId: input.actorUserId || null,
+      });
       const updated = await client.query(
-        `UPDATE payouts SET status='SUBMITTED', submitted_at=NOW(), updated_at=NOW()
+        `UPDATE payouts SET status='SUBMITTED', submitted_at=NOW(), updated_at=NOW(),
+                rail_code=$3, rail_reference=$4
          WHERE id=$1 AND organization_id=$2 AND status='PENDING' RETURNING *`,
-        [input.payoutId, input.organizationId],
+        [input.payoutId, input.organizationId, railResult.railCode, railResult.railReference || null],
       );
       if (!updated.rows[0]) throw conflict('Payout submit race; retry');
       return updated.rows[0];
@@ -652,6 +694,14 @@ export const payoutService = {
           {status: row.status},
         );
       }
+      if (!payoutMarkPaidAllowed(row)) {
+        throw new AppError(
+          'PAYOUT_DUAL_CONTROL_REQUIRED',
+          'Mark-paid requires platform approval and external bank/provider evidence',
+          409,
+          {payout_id: input.payoutId},
+        );
+      }
       const updated = await client.query(
         `UPDATE payouts SET status='PAID', paid_at=NOW(), updated_at=NOW()
          WHERE id=$1 AND organization_id=$2 AND status='SUBMITTED' RETURNING *`,
@@ -673,6 +723,36 @@ export const payoutService = {
       }
       return payout;
     }), input, 'payout.paid', 'payouts.mark_paid');
+  },
+
+  async approve(input: {
+    organizationId: string;
+    payoutId: string;
+    evidenceRef: string;
+    actorUserId?: string | null;
+    requestId?: string;
+    idempotencyKey?: string;
+  }) {
+    if (!String(input.evidenceRef || '').trim()) {
+      throw new AppError('PAYOUT_EVIDENCE_REQUIRED', 'external_evidence_ref is required', 400);
+    }
+    return transitionPayout(clientWrap(input, async (client) => {
+      const row = await lockPayout(client, input.organizationId, input.payoutId);
+      if (row.status !== 'SUBMITTED' && row.status !== 'PENDING') {
+        throw conflict(`Payout status ${row.status} cannot be approved`);
+      }
+      const updated = await client.query(
+        `UPDATE payouts SET
+           platform_approved_at=NOW(),
+           platform_approved_by=$3,
+           external_evidence_ref=$4,
+           updated_at=NOW()
+         WHERE id=$1 AND organization_id=$2 RETURNING *`,
+        [input.payoutId, input.organizationId, input.actorUserId || null, input.evidenceRef.trim()],
+      );
+      if (!updated.rows[0]) throw conflict('Payout approve race; retry');
+      return updated.rows[0];
+    }), input, 'payout.approved', 'payouts.manage');
   },
 
   async fail(input: {

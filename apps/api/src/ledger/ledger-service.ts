@@ -245,11 +245,56 @@ export const ledgerService = {
       amountMinor: string;
       currencyCode: string;
       environment?: string;
+      platformFeesMinor?: string;
+      providerFeesMinor?: string;
+      netToMerchantMinor?: string;
     },
   ) {
     const currency = input.currencyCode.toUpperCase();
     const environment = input.environment || 'SANDBOX';
     await ensureAccountsOnClient(client, input.organizationId, currency, environment);
+
+    const gross = BigInt(input.amountMinor);
+    const platformFees = BigInt(input.platformFeesMinor || '0');
+    const providerFees = BigInt(input.providerFeesMinor || '0');
+    const net =
+      input.netToMerchantMinor !== undefined
+        ? BigInt(input.netToMerchantMinor)
+        : gross - platformFees - providerFees;
+
+    if (net < 0n || platformFees + providerFees > gross) {
+      throw new AppError('INVALID_FEE_SPLIT', 'Fee split does not match gross amount', 422);
+    }
+
+    const lines: JournalLine[] = [
+      {
+        code: LEDGER_ACCOUNT_CODES.pending_settlement,
+        direction: 'DEBIT',
+        amountMinor: gross.toString(),
+      },
+    ];
+    if (net > 0n) {
+      lines.push({
+        code: LEDGER_ACCOUNT_CODES.merchant_payable,
+        direction: 'CREDIT',
+        amountMinor: net.toString(),
+      });
+    }
+    if (platformFees > 0n) {
+      lines.push({
+        code: LEDGER_ACCOUNT_CODES.platform_revenue,
+        direction: 'CREDIT',
+        amountMinor: platformFees.toString(),
+      });
+    }
+    if (providerFees > 0n) {
+      lines.push({
+        code: LEDGER_ACCOUNT_CODES.cash_provider,
+        direction: 'CREDIT',
+        amountMinor: providerFees.toString(),
+      });
+    }
+
     return postBalancedJournalIdempotent(client, {
       organizationId: input.organizationId,
       environment,
@@ -257,18 +302,7 @@ export const ledgerService = {
       sourceType: LEDGER_SOURCE_TYPES.payment_intent,
       sourceId: input.paymentIntentId,
       currency,
-      lines: [
-        {
-          code: LEDGER_ACCOUNT_CODES.pending_settlement,
-          direction: 'DEBIT',
-          amountMinor: input.amountMinor,
-        },
-        {
-          code: LEDGER_ACCOUNT_CODES.merchant_payable,
-          direction: 'CREDIT',
-          amountMinor: input.amountMinor,
-        },
-      ],
+      lines,
     });
   },
 

@@ -2,6 +2,7 @@ import type {ProviderAdapter} from './adapter.js';
 import {sandboxAdapter} from './sandbox-adapter.js';
 import {paytabsAdapter} from './paytabs/index.js';
 import {stripeAdapter} from './stripe/index.js';
+import {bopAdapter} from './bop/index.js';
 import {ProviderError} from './errors.js';
 
 const adapters = new Map<string, ProviderAdapter>();
@@ -32,3 +33,4 @@ export function listRegisteredAdapterCodes(): string[] {
 registerProviderAdapter(sandboxAdapter);
 registerProviderAdapter(paytabsAdapter);
 registerProviderAdapter(stripeAdapter);
+registerProviderAdapter(bopAdapter);

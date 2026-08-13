@@ -210,6 +210,7 @@ export class SandboxAdapter implements ProviderAdapter {
     headers: Record<string, string | string[] | undefined>;
     rawBody: string;
     environment: ProviderEnvironment;
+    webhookSecret?: string;
   }): Promise<WebhookVerificationResult> {
     if (input.environment !== 'SANDBOX') {
       return {valid: false, error: 'Sandbox adapter rejects LIVE environment webhooks'};
@@ -233,13 +234,15 @@ export class SandboxAdapter implements ProviderAdapter {
       return {valid: false, error: 'Webhook timestamp outside replay window', providerEventId: eventId};
     }
 
-    let secret = config.sandboxWebhookSecret;
-    try {
-      const {resolveSecretRef} = await import('../security/secrets/index.js');
-      const resolved = await resolveSecretRef('SANDBOX_WEBHOOK_SECRET', 'webhook_secret');
-      if (resolved.value) secret = resolved.value;
-    } catch {
-      // Fall back to config env value — sandbox must keep working without KMS.
+    let secret = input.webhookSecret || config.sandboxWebhookSecret;
+    if (!input.webhookSecret) {
+      try {
+        const {resolveSecretRef} = await import('../security/secrets/index.js');
+        const resolved = await resolveSecretRef('SANDBOX_WEBHOOK_SECRET', 'webhook_secret');
+        if (resolved.value) secret = resolved.value;
+      } catch {
+        // Fall back to config env value — sandbox must keep working without KMS.
+      }
     }
     if (!secret) {
       return {valid: false, error: 'SANDBOX_WEBHOOK_SECRET not configured', providerEventId: eventId};

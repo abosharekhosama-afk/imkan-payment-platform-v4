@@ -1,3 +1,4 @@
+import '../apps/api/src/load-env.js';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import Fastify from 'fastify';
 import {apiV1Routes} from '../apps/api/src/interfaces/http/apiV1/routes.js';
@@ -654,7 +655,11 @@ describe('phase 3 merchant/KYB /api/v1', () => {
     const early = await app.inject({
       method: 'POST',
       url: `/api/v1/merchant/bank-accounts/${bankAccountId}/activate`,
-      headers: {authorization: `Bearer ${ownerToken}`, 'x-step-up-token': await stepUp(ownerToken, ownerSecret)},
+      headers: {
+        authorization: `Bearer ${ownerToken}`,
+        'x-step-up-token': await stepUp(ownerToken, ownerSecret),
+        'idempotency-key': `bank-early-act-${Date.now()}`,
+      },
     });
     expect(early.statusCode).toBe(409);
     expect(early.json().error.code).toBe('BANK_INVALID_TRANSITION');
@@ -690,6 +695,17 @@ describe('phase 3 merchant/KYB /api/v1', () => {
     expect(pass.statusCode).toBe(200);
     expect(pass.json().data.status).toBe('VERIFIED');
 
+    const adminDetail = await app.inject({
+      method: 'GET',
+      url: `/api/v1/admin/bank-accounts/${bankAccountId}`,
+      headers: {authorization: `Bearer ${adminToken}`},
+    });
+    expect(adminDetail.statusCode).toBe(200);
+    expect(adminDetail.json().data.status).toBe('VERIFIED');
+    expect(adminDetail.json().data.account_number_encrypted).toBeUndefined();
+    expect(adminDetail.json().data.organization_name).toBeTruthy();
+    expect(adminDetail.json().data.verifications.length).toBeGreaterThan(0);
+
     // Second decision on the same account is rejected (no open verification)
     const second = await app.inject({
       method: 'POST',
@@ -706,7 +722,11 @@ describe('phase 3 merchant/KYB /api/v1', () => {
     const activate = await app.inject({
       method: 'POST',
       url: `/api/v1/merchant/bank-accounts/${bankAccountId}/activate`,
-      headers: {authorization: `Bearer ${ownerToken}`, 'x-step-up-token': await stepUp(ownerToken, ownerSecret)},
+      headers: {
+        authorization: `Bearer ${ownerToken}`,
+        'x-step-up-token': await stepUp(ownerToken, ownerSecret),
+        'idempotency-key': `bank-act-${Date.now()}`,
+      },
     });
     expect(activate.statusCode).toBe(200);
     expect(activate.json().data.status).toBe('ACTIVE');
@@ -733,6 +753,64 @@ describe('phase 3 merchant/KYB /api/v1', () => {
     await expect(
       pgQuery(`DELETE FROM payout_account_transitions WHERE payout_account_id=$1`, [bankAccountId]),
     ).rejects.toThrow(/APPEND_ONLY/);
+  });
+
+  it('allows platform admin to activate a verified payout account', async () => {
+    if (!ready) return;
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/merchant/bank-accounts',
+      headers: {
+        authorization: `Bearer ${ownerToken}`,
+        'x-step-up-token': await stepUp(ownerToken, ownerSecret),
+        'idempotency-key': `bank-admin-create-${Date.now()}`,
+      },
+      payload: {
+        payout_method_code: 'BANK_TRANSFER',
+        currency_code: 'SAR',
+        country_code: 'SA',
+        bank_name: 'Riyad Bank',
+        account_holder_name: 'Phase3 Trading LLC',
+        account_type: 'IBAN',
+        account_value: 'SA0380000000608010168888',
+      },
+    });
+    expect(createRes.statusCode).toBe(201);
+    const accountId = createRes.json().data.id as string;
+
+    const start = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/bank-accounts/${accountId}/verification/start`,
+      headers: {authorization: `Bearer ${adminToken}`},
+    });
+    expect(start.statusCode).toBe(200);
+
+    const pass = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/bank-accounts/${accountId}/verification/decision`,
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'x-step-up-token': await stepUp(adminToken, adminSecret),
+        'idempotency-key': `bank-admin-verify-${Date.now()}`,
+      },
+      payload: {result: 'PASSED', reason: 'IBAN matches company documents'},
+    });
+    expect(pass.statusCode).toBe(200);
+    expect(pass.json().data.status).toBe('VERIFIED');
+
+    const activate = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/bank-accounts/${accountId}/activate`,
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'x-step-up-token': await stepUp(adminToken, adminSecret),
+        'idempotency-key': `bank-admin-act-${Date.now()}`,
+      },
+      payload: {},
+    });
+    expect(activate.statusCode).toBe(200);
+    expect(activate.json().data.status).toBe('ACTIVE');
+    expect(activate.json().data.account_number_encrypted).toBeUndefined();
   });
 
   it('blocks cross-tenant access to merchant and banking data', async () => {

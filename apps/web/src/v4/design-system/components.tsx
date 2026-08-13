@@ -1,7 +1,7 @@
 import React from 'react';
 import {Link} from 'react-router-dom';
 import {useI18n} from '../i18n/I18nProvider';
-import {ImkanLoader} from '../components/ImkanLoader';
+import {formatStatus} from '../i18n/humanize';
 
 export function PageHeader({
   title,
@@ -33,7 +33,7 @@ export function PageHeader({
           <h2>{title}</h2>
           {description ? <p>{description}</p> : null}
         </div>
-        {actions ? <div className="v4-toolbar">{actions}</div> : null}
+        {actions ? <div className="v4-page-actions">{actions}</div> : null}
       </div>
     </div>
   );
@@ -71,8 +71,9 @@ export function Field({label, children, hint, fullWidth}: {label: string; childr
 }
 
 export function StatusBadge({status}: {status?: string | null}) {
+  const {locale} = useI18n();
   const s = String(status || 'unknown').toLowerCase();
-  return <span className={`v4-badge ${s}`}>{status || '—'}</span>;
+  return <span className={`v4-badge ${s}`}>{formatStatus(status, locale)}</span>;
 }
 
 export function Alert({
@@ -95,11 +96,29 @@ export function EmptyState({title, description}: {title: string; description?: s
 }
 
 export function LoadingState({label, overlay}: {label?: string; overlay?: boolean}) {
-  return (
-    <div className="v4-loading-wrap">
-      <ImkanLoader label={label} overlay={overlay} />
+  const {t} = useI18n();
+  const text = label || t('common.loading');
+  const skeleton = (
+    <div className="v4-shimmer" role="status" aria-live="polite" aria-label={text}>
+      <div className="v4-shimmer-line v4-shimmer-line--lg" />
+      <div className="v4-shimmer-line" />
+      <div className="v4-shimmer-cards">
+        <div className="v4-shimmer-card" />
+        <div className="v4-shimmer-card" />
+        <div className="v4-shimmer-card" />
+      </div>
+      <div className="v4-shimmer-table">
+        <div className="v4-shimmer-line" />
+        <div className="v4-shimmer-line" />
+        <div className="v4-shimmer-line" />
+        <div className="v4-shimmer-line v4-shimmer-line--short" />
+      </div>
     </div>
   );
+  if (overlay) {
+    return <div className="v4-shimmer-overlay">{skeleton}</div>;
+  }
+  return skeleton;
 }
 
 export function ErrorState({message}: {message: string}) {

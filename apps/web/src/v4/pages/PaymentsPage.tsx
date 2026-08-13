@@ -5,10 +5,12 @@ import {v4} from '../api/endpoints';
 import {Alert, Button, DataTable, LoadingState, PageHeader, StatusBadge} from '../design-system/components';
 import {Select} from '../design-system/Select';
 import {formatDate, formatMoney, shortId} from '../utils/money';
+import {regionForPayment, regionLabelKey} from '../utils/region';
+import {formatStatus} from '../i18n/humanize';
 import {useI18n} from '../i18n/I18nProvider';
 
 export function PaymentsPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [status, setStatus] = useState('');
@@ -43,7 +45,7 @@ export function PaymentsPage() {
           options={[
             {value: '', label: t('common.allStatuses')},
             ...['CREATED', 'REQUIRES_PAYMENT', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'].map(
-              (s) => ({value: s, label: s}),
+              (s) => ({value: s, label: formatStatus(s, locale)}),
             ),
           ]}
         />
@@ -60,17 +62,22 @@ export function PaymentsPage() {
             t('common.status'),
             t('common.amount'),
             t('payments.colCurrency'),
+            t('region.label'),
             t('common.created'),
             '',
           ]}
-          rows={rows.map((r) => [
-            shortId(r.id),
-            <StatusBadge status={r.status} />,
-            formatMoney(r.amount_minor, r.currency_code),
-            r.currency_code,
-            formatDate(r.created_at),
-            <Link to={`/payments/${r.id}`}>{t('common.details')}</Link>,
-          ])}
+          rows={rows.map((r) => {
+            const region = regionForPayment(r.currency_code, r.provider_code);
+            return [
+              shortId(r.id),
+              <StatusBadge status={r.status} />,
+              formatMoney(r.amount_minor, r.currency_code),
+              r.currency_code,
+              <span className="v4-region-badge" data-region={region}>{t(regionLabelKey(region))}</span>,
+              formatDate(r.created_at),
+              <Link to={`/payments/${r.id}`}>{t('common.details')}</Link>,
+            ];
+          })}
         />
       )}
     </div>

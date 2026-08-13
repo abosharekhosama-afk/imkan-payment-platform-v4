@@ -53,6 +53,7 @@ import {
   PlatformKybDetailPage,
   PlatformKybListPage,
 } from '../pages/platform/PlatformKybPages';
+import {PlatformBankDetailPage, PlatformBankListPage} from '../pages/platform/PlatformBankPages';
 import {PlatformTeamPage} from '../pages/platform/PlatformTeamPage';
 import {PlatformSystemHealthPage} from '../pages/platform/PlatformSystemHealthPage';
 import {PlatformWebhooksPage} from '../pages/platform/PlatformWebhooksPage';
@@ -67,6 +68,9 @@ import {
   RiskPage,
   SettlementsPage,
 } from '../pages/finance/FinancePages';
+import {WalletPage} from '../pages/finance/WalletPage';
+import {ReportsPage} from '../pages/finance/ReportsPage';
+import {LedgerPage} from '../pages/finance/LedgerPage';
 
 function RequireAuth({children}: {children: React.ReactNode}) {
   const {token, loading} = useAuth();
@@ -154,8 +158,11 @@ export function AppRoutes() {
         <Route path="security/events" element={<RP anyOf={['security.read']}><SecurityEventsPage /></RP>} />
         <Route path="security/errors" element={<RP anyOf={['errors.read']}><ErrorsPage /></RP>} />
         <Route path="settings/organization" element={<RP anyOf={['org.read', 'settings.read']}><OrganizationPage /></RP>} />
-        <Route path="settings/appearance" element={<RP anyOf={['settings.read', 'org.read']}><AppearancePage /></RP>} />
+        <Route path="settings/appearance" element={<AppearancePage />} />
         <Route path="refunds" element={<RP anyOf={['payments.refund', 'payments.manage']}><RefundsPage /></RP>} />
+        <Route path="wallet" element={<RP anyOf={['balances.read', 'reports.read', 'settlements.read']}><WalletPage /></RP>} />
+        <Route path="reports" element={<RP anyOf={['reports.read', 'balances.read', 'settlements.read']}><ReportsPage /></RP>} />
+        <Route path="ledger" element={<RP anyOf={['balances.read']}><LedgerPage /></RP>} />
         <Route path="balances" element={<RP anyOf={['balances.read']}><BalancesPage /></RP>} />
         <Route path="settlements" element={<RP anyOf={['settlements.read', 'settlements.manage']}><SettlementsPage /></RP>} />
         <Route path="payouts" element={<RP anyOf={['payouts.read', 'payouts.manage']}><PayoutsPage /></RP>} />
@@ -168,8 +175,12 @@ export function AppRoutes() {
         <Route path="platform/webhooks" element={<RP anyOf={['webhooks.manage', 'platform.admin', 'platform.support']}><PlatformWebhooksPage /></RP>} />
         <Route path="platform/health" element={<RP anyOf={['platform.system.manage', 'platform.admin', 'platform.support']}><PlatformSystemHealthPage /></RP>} />
         <Route path="platform/team" element={<RP anyOf={['platform.users.read', 'platform.admin']}><PlatformTeamPage /></RP>} />
-        <Route path="platform/kyb" element={<RP anyOf={['kyb.review']}><PlatformKybListPage /></RP>} />
-        <Route path="platform/kyb/:caseId" element={<RP anyOf={['kyb.review']}><PlatformKybDetailPage /></RP>} />
+        <Route path="platform/kyb" element={<RP anyOf={['kyb.review', 'platform.admin']}><PlatformKybListPage /></RP>} />
+        <Route path="platform/kyb/:caseId" element={<RP anyOf={['kyb.review', 'platform.admin']}><PlatformKybDetailPage /></RP>} />
+        <Route path="platform/bank-accounts" element={<RP anyOf={['bank.review', 'platform.admin']}><PlatformBankListPage /></RP>} />
+        <Route path="platform/bank-accounts/:accountId" element={<RP anyOf={['bank.review', 'platform.admin']}><PlatformBankDetailPage /></RP>} />
+        <Route path="coming-soon/reports" element={<Navigate to="/reports" replace />} />
+        <Route path="coming-soon/ledger" element={<Navigate to="/ledger" replace />} />
         <Route path="coming-soon/:feature" element={<ComingSoonPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

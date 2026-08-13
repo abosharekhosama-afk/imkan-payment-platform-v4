@@ -1,4 +1,4 @@
-import type {FastifyInstance} from 'fastify';
+import type {FastifyInstance, FastifyReply} from 'fastify';
 import {z} from 'zod';
 import {requireOrganizationContext, requirePermission, requireStepUp} from '../../../foundation/authz.js';
 import {completeIdempotency, failIdempotency, idempotencyPreHandler} from '../../../foundation/idempotency.js';
@@ -6,17 +6,26 @@ import {created, ok, parsePaging} from '../../../foundation/http.js';
 import {rateLimit} from '../../../foundation/rate-limit.js';
 import {refundsService} from '../../../refunds/refunds-service.js';
 import {ledgerService} from '../../../ledger/ledger-service.js';
+import {notFound} from '../../../foundation/errors.js';
 import {
   payoutService,
   reconciliationService,
   settlementService,
 } from '../../../finance/settlement-payout-recon.js';
 import {feeScheduleService} from '../../../finance/fee-schedules-service.js';
+import {financeStatementService} from '../../../finance/finance-statement-service.js';
 import {disputesService, riskService} from '../../../risk/risk-disputes-service.js';
 import {booksService} from '../../../books/books-connector.js';
 import {getCapabilityProfile} from '../../../providers/capability-matrix.js';
 
 const minor = z.string().regex(/^\d{1,30}$/);
+
+function sendCsv(reply: FastifyReply, filename: string, csv: string) {
+  return reply
+    .header('Content-Type', 'text/csv; charset=utf-8')
+    .header('Content-Disposition', `attachment; filename="${filename}"`)
+    .send(csv);
+}
 
 export async function registerPhase7FinancialRoutes(app: FastifyInstance) {
   app.get(
@@ -112,6 +121,54 @@ export async function registerPhase7FinancialRoutes(app: FastifyInstance) {
         {currencyCode: q.currency_code?.toUpperCase() || null},
       );
       return ok(request, balances);
+    },
+  );
+
+  app.get(
+    '/merchant/finance/statement',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('reports.read', 'balances.read', 'settlements.read', 'platform.finance'),
+      ],
+    },
+    async (request, reply) => {
+      const q = z
+        .object({
+          environment: z.enum(['SANDBOX', 'LIVE']).optional(),
+          currency_code: z.string().length(3).optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          format: z.enum(['csv']).optional(),
+        })
+        .parse(request.query || {});
+      const filters = {
+        environment: q.environment,
+        currencyCode: q.currency_code,
+        from: q.from,
+        to: q.to,
+      };
+      if (q.format === 'csv') {
+        const csv = await financeStatementService.exportStatementCsv(request.auth!.organizationId!, filters);
+        return sendCsv(reply, 'statement.csv', csv);
+      }
+      return ok(request, await financeStatementService.getStatement(request.auth!.organizationId!, filters));
+    },
+  );
+
+  app.get(
+    '/payments/:id/fees',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('payments.read', 'reports.read', 'platform.finance'),
+      ],
+    },
+    async (request) => {
+      const {id} = z.object({id: z.string().uuid()}).parse(request.params);
+      const row = await financeStatementService.getPaymentFees(request.auth!.organizationId!, id);
+      if (!row) throw notFound('Payment not found', 'PAYMENT_NOT_FOUND');
+      return ok(request, row);
     },
   );
 
@@ -454,6 +511,37 @@ export async function registerPhase7FinancialRoutes(app: FastifyInstance) {
         const row = await payoutService.submit({
           organizationId: request.auth!.organizationId!,
           payoutId: id,
+          actorUserId: request.auth!.authKind === 'session' ? request.auth!.userId : null,
+          requestId: request.id,
+          idempotencyKey: request.headers['idempotency-key'] as string | undefined,
+        });
+        await completeIdempotency(request, 200, {data: row, meta: {request_id: request.id}});
+        return ok(request, row);
+      } catch (error) {
+        await failIdempotency(request);
+        throw error;
+      }
+    },
+  );
+
+  app.post(
+    '/payouts/:id/approve',
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('platform.admin', 'platform.finance', 'payouts.manage'),
+        requireStepUp('payouts.mark_paid'),
+        idempotencyPreHandler('payouts.approve'),
+      ],
+    },
+    async (request, reply) => {
+      try {
+        const {id} = z.object({id: z.string().uuid()}).parse(request.params);
+        const body = z.object({external_evidence_ref: z.string().min(3).max(200)}).parse(request.body || {});
+        const row = await payoutService.approve({
+          organizationId: request.auth!.organizationId!,
+          payoutId: id,
+          evidenceRef: body.external_evidence_ref,
           actorUserId: request.auth!.authKind === 'session' ? request.auth!.userId : null,
           requestId: request.id,
           idempotencyKey: request.headers['idempotency-key'] as string | undefined,

@@ -97,5 +97,6 @@ export interface ProviderAdapter {
     headers: Record<string, string | string[] | undefined>;
     rawBody: string;
     environment: ProviderEnvironment;
+    webhookSecret?: string;
   }): Promise<WebhookVerificationResult>;
 }

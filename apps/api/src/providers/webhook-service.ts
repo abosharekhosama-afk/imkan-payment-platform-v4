@@ -5,6 +5,7 @@ import {AppError} from '../foundation/errors.js';
 import type {ProviderEnvironment} from './adapter.js';
 import {getProviderAdapter} from './registry.js';
 import {resolvePaymentEnvironment} from './router.js';
+import {resolveMerchantWebhookSecret} from './webhook-secrets.js';
 import {applyProviderWebhookToPaymentIntent} from './webhook-state-apply.js';
 import './registry.js';
 
@@ -57,11 +58,20 @@ export const providerWebhookService = {
 
     const providerId = provider.rows[0].id as string;
     const adapter = getProviderAdapter(input.providerCode);
-    const verification = await adapter.verifyWebhook({
+    const accountSecret = await resolveMerchantWebhookSecret(input.providerCode, environment);
+    let verification = await adapter.verifyWebhook({
       headers: input.headers,
       rawBody: input.rawBody,
       environment,
+      webhookSecret: accountSecret || undefined,
     });
+    if (!verification.valid && accountSecret) {
+      verification = await adapter.verifyWebhook({
+        headers: input.headers,
+        rawBody: input.rawBody,
+        environment,
+      });
+    }
 
     const hash = payloadHash(input.rawBody);
     const headersJson = pickHeaders(input.headers);
@@ -241,6 +251,7 @@ export const providerWebhookService = {
         providerReference: event.providerReference || null,
         amountMinor: event.payload?.amount_minor != null ? String(event.payload.amount_minor) : null,
         currencyCode: event.payload?.currency_code != null ? String(event.payload.currency_code) : null,
+        environment,
       });
 
       await emitOutboxEvent(

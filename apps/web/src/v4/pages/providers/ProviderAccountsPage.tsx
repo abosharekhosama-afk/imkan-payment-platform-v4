@@ -14,6 +14,7 @@ import {Can} from '../../rbac/Can';
 import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
 import {useI18n} from '../../i18n/I18nProvider';
+import {FormSection} from '../../components/FormSection';
 import {shortId} from '../../utils/money';
 
 type Environment = 'SANDBOX' | 'LIVE';
@@ -31,6 +32,8 @@ export function ProviderAccountsPage() {
   const [accountId, setAccountId] = useState('');
   const [totp, setTotp] = useState('');
   const [mfaSecretOnce, setMfaSecretOnce] = useState<string | null>(null);
+  const [connectProvider, setConnectProvider] = useState('paytabs');
+  const [connectName, setConnectName] = useState('');
 
   const load = useCallback(() => {
     if (!token) return;
@@ -49,13 +52,17 @@ export function ProviderAccountsPage() {
   const routableAccounts = useMemo(
     () =>
       accounts.filter(
-        (a) => a.status === 'ACTIVE' && a.environment === environment && ['stripe', 'sandbox'].includes(a.provider_code),
+        (a) =>
+          a.status === 'ACTIVE' &&
+          a.environment === environment &&
+          ['stripe', 'paytabs', 'bop', 'sandbox'].includes(a.provider_code),
       ),
     [accounts, environment],
   );
 
   useEffect(() => {
     const preferred =
+      routableAccounts.find((a) => a.provider_code === 'paytabs') ||
       routableAccounts.find((a) => a.provider_code === 'stripe') ||
       routableAccounts.find((a) => a.provider_code === 'sandbox') ||
       routableAccounts[0];
@@ -65,6 +72,38 @@ export function ProviderAccountsPage() {
   const activeRoute = routes.find(
     (r) => r.environment === environment && !r.currency_code && !r.payment_method_type_code && r.is_active !== false,
   );
+
+  const connectAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setBusy(true);
+    setError('');
+    try {
+      const step = await obtainStepUp(token, totp);
+      if (step.enrolled && step.mfaSecret) {
+        setMfaSecretOnce(step.mfaSecret);
+        push(t('providers.accounts.mfaEnrolled'));
+        return;
+      }
+      await v4.createMerchantProviderAccount(
+        token,
+        {
+          provider_code: connectProvider,
+          environment,
+          display_name: connectName || undefined,
+          set_default: true,
+        },
+        step.stepUpToken,
+      );
+      push(t('providers.accounts.connected'));
+      setTotp('');
+      load();
+    } catch (err: any) {
+      setError(err.message || t('providers.accounts.routeFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const applyRoute = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +156,38 @@ export function ProviderAccountsPage() {
       ) : (
         <>
           <Can anyOf={['providers.manage', 'platform.admin']}>
+            <div className="v4-gateway-card">
+              <FormSection title={t('providers.accounts.connect')} description={t('providers.accounts.connectHint')}>
+                <form onSubmit={(e) => void connectAccount(e)} style={{display: 'contents'}}>
+                  <Field label={t('providers.accounts.colProvider')}>
+                    <select value={connectProvider} onChange={(e) => setConnectProvider(e.target.value)}>
+                      <option value="paytabs">PayTabs (GCC)</option>
+                      <option value="stripe">Stripe (international)</option>
+                      <option value="bop">Bank of Palestine</option>
+                      <option value="sandbox">Sandbox</option>
+                    </select>
+                  </Field>
+                  <Field label={t('providers.accounts.colEnvironment')}>
+                    <select value={environment} onChange={(e) => setEnvironment(e.target.value as Environment)}>
+                      <option value="SANDBOX">{t('env.sandbox')}</option>
+                      <option value="LIVE">{t('env.live')}</option>
+                    </select>
+                  </Field>
+                  <Field label={t('providers.accounts.displayName')}>
+                    <input value={connectName} onChange={(e) => setConnectName(e.target.value)} />
+                  </Field>
+                  <Field label={t('security.users.labelTotp')}>
+                    <input value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" autoComplete="one-time-code" />
+                  </Field>
+                  <div>
+                    <Button type="submit" disabled={busy}>
+                      {busy ? t('common.saving') : t('providers.accounts.connectSubmit')}
+                    </Button>
+                  </div>
+                </form>
+              </FormSection>
+              {connectProvider === 'bop' ? <Alert tone="info">{t('providers.accounts.bopPending')}</Alert> : null}
+            </div>
             <div className="v4-card" style={{marginBottom: 16}}>
               <h3>{t('providers.accounts.configure')}</h3>
               <p style={{color: 'var(--v4-text-muted)', marginTop: 0}}>{t('providers.accounts.configureHint')}</p>

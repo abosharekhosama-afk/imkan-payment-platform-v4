@@ -543,29 +543,58 @@ export async function registerPhase3Routes(app: FastifyInstance) {
 
   app.post(
     '/merchant/bank-accounts/:accountId/activate',
-    {preHandler: [requireOrganizationContext(), requirePermission('bank.manage'), requireStepUp()]},
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('bank.manage'),
+        requireStepUp('bank.account.activate'),
+        idempotencyPreHandler('bank.account.activate'),
+      ],
+    },
     async (request) => {
       const params = z.object({accountId: z.string().uuid()}).parse(request.params);
-      return ok(
-        request,
-        await bankAccountsService.activate(request.auth!.organizationId!, params.accountId, {userId: request.auth!.userId, requestId: request.id}),
-      );
+      try {
+        const row = await bankAccountsService.activate(request.auth!.organizationId!, params.accountId, {
+          userId: request.auth!.userId,
+          requestId: request.id,
+        });
+        const payload = ok(request, row);
+        await completeIdempotency(request, 200, payload);
+        return payload;
+      } catch (error) {
+        await failIdempotency(request);
+        throw error;
+      }
     },
   );
 
   app.post(
     '/merchant/bank-accounts/:accountId/deactivate',
-    {preHandler: [requireOrganizationContext(), requirePermission('bank.manage'), requireStepUp()]},
+    {
+      preHandler: [
+        requireOrganizationContext(),
+        requirePermission('bank.manage'),
+        requireStepUp('bank.account.activate'),
+        idempotencyPreHandler('bank.account.deactivate'),
+      ],
+    },
     async (request) => {
       const params = z.object({accountId: z.string().uuid()}).parse(request.params);
       const body = z.object({reason: z.string().max(1000).optional()}).parse(request.body || {});
-      return ok(
-        request,
-        await bankAccountsService.deactivate(request.auth!.organizationId!, params.accountId, body.reason || null, {
-          userId: request.auth!.userId,
-          requestId: request.id,
-        }),
-      );
+      try {
+        const row = await bankAccountsService.deactivate(
+          request.auth!.organizationId!,
+          params.accountId,
+          body.reason || null,
+          {userId: request.auth!.userId, requestId: request.id},
+        );
+        const payload = ok(request, row);
+        await completeIdempotency(request, 200, payload);
+        return payload;
+      } catch (error) {
+        await failIdempotency(request);
+        throw error;
+      }
     },
   );
 
@@ -670,15 +699,24 @@ export async function registerPhase3Routes(app: FastifyInstance) {
     return reply.send(content.buffer);
   });
 
-  app.get('/admin/bank-accounts', {preHandler: [requirePermission('bank.review')]}, async (request) => {
+  app.get('/admin/bank-accounts', {preHandler: [requirePermission('bank.review', 'platform.admin')]}, async (request) => {
     const query = z.object({status: z.string().max(30).optional()}).parse(request.query);
     const {limit, offset} = parsePaging(request.query);
     return ok(request, await bankAccountsService.listForReview({status: query.status, limit, offset}), {limit, offset});
   });
 
+  app.get(
+    '/admin/bank-accounts/:accountId',
+    {preHandler: [requirePermission('bank.review', 'platform.admin')]},
+    async (request) => {
+      const params = z.object({accountId: z.string().uuid()}).parse(request.params);
+      return ok(request, await bankAccountsService.getForReview(params.accountId));
+    },
+  );
+
   app.post(
     '/admin/bank-accounts/:accountId/verification/start',
-    {preHandler: [requirePermission('bank.review')]},
+    {preHandler: [requirePermission('bank.review', 'platform.admin')]},
     async (request) => {
       const params = z.object({accountId: z.string().uuid()}).parse(request.params);
       return ok(request, await bankAccountsService.startVerification(params.accountId, {userId: request.auth!.userId, requestId: request.id}));
@@ -687,7 +725,7 @@ export async function registerPhase3Routes(app: FastifyInstance) {
 
   app.post(
     '/admin/bank-accounts/:accountId/verification/decision',
-    {preHandler: [requirePermission('bank.review'), requireStepUp(), idempotencyPreHandler('bank.verification.decision')]},
+    {preHandler: [requirePermission('bank.review', 'platform.admin'), requireStepUp(), idempotencyPreHandler('bank.verification.decision')]},
     async (request) => {
       try {
         const params = z.object({accountId: z.string().uuid()}).parse(request.params);
@@ -695,6 +733,32 @@ export async function registerPhase3Routes(app: FastifyInstance) {
           .object({result: z.enum(['PASSED', 'FAILED']), reason: z.string().min(3).max(2000)})
           .parse(request.body);
         const row = await bankAccountsService.decideVerification(params.accountId, body.result, body.reason, {
+          userId: request.auth!.userId,
+          requestId: request.id,
+        });
+        const payload = ok(request, row);
+        await completeIdempotency(request, 200, payload);
+        return payload;
+      } catch (error) {
+        await failIdempotency(request);
+        throw error;
+      }
+    },
+  );
+
+  app.post(
+    '/admin/bank-accounts/:accountId/activate',
+    {
+      preHandler: [
+        requirePermission('bank.review', 'platform.admin'),
+        requireStepUp('bank.account.activate'),
+        idempotencyPreHandler('bank.account.admin_activate'),
+      ],
+    },
+    async (request) => {
+      const params = z.object({accountId: z.string().uuid()}).parse(request.params);
+      try {
+        const row = await bankAccountsService.adminActivate(params.accountId, {
           userId: request.auth!.userId,
           requestId: request.id,
         });

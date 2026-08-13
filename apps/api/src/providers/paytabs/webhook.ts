@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type {ProviderEnvironment, WebhookVerificationResult} from '../adapter.js';
 import {loadPayTabsSandboxCredentials} from './credentials.js';
+import {payTabsLiveEnabled} from './config.js';
 import {normalizePayTabsWebhookEvent} from './mappers.js';
 import type {PayTabsCallbackPayload} from './types.js';
 
@@ -49,9 +50,10 @@ export async function verifyPayTabsWebhook(input: {
   headers: Record<string, string | string[] | undefined>;
   rawBody: string;
   environment: ProviderEnvironment;
+  webhookSecret?: string;
 }): Promise<WebhookVerificationResult> {
-  if (input.environment !== 'SANDBOX') {
-    return {valid: false, error: 'PayTabs V4 adapter is SANDBOX-only in P15.3 (LIVE blocked by DEC-009)'};
+  if (input.environment === 'LIVE' && !payTabsLiveEnabled()) {
+    return {valid: false, error: 'PayTabs LIVE webhooks require PAYTABS_ALLOW_LIVE=true'};
   }
 
   let payload: PayTabsCallbackPayload;
@@ -62,11 +64,12 @@ export async function verifyPayTabsWebhook(input: {
   }
 
   const creds = await loadPayTabsSandboxCredentials();
-  if (!creds) {
-    return {valid: false, error: 'PayTabs sandbox credentials not configured'};
+  const secret = input.webhookSecret || creds?.webhookSecret;
+  if (!secret) {
+    return {valid: false, error: 'PayTabs webhook secret not configured'};
   }
 
-  if (!verifyPayTabsCallbackSignature(payload, creds.webhookSecret)) {
+  if (!verifyPayTabsCallbackSignature(payload, secret)) {
     return {
       valid: false,
       error: 'Invalid PayTabs callback signature',
@@ -91,7 +94,7 @@ export async function verifyPayTabsWebhook(input: {
       providerReference: normalized.providerReference,
       paymentIntentId: undefined,
       organizationId: undefined,
-      environment: 'SANDBOX',
+      environment: input.environment,
       payload: {
         ...payload,
         amount_minor: normalized.amountMinor,

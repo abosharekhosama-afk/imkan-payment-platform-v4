@@ -208,6 +208,7 @@ export class PayTabsAdapter implements ProviderAdapter {
     headers: Record<string, string | string[] | undefined>;
     rawBody: string;
     environment: ProviderEnvironment;
+    webhookSecret?: string;
   }) {
     return verifyPayTabsWebhook(input);
   }

@@ -125,10 +125,10 @@ describe('PayTabs provider contract (P15.3 — simulate)', () => {
     expect(verified.valid).toBe(false);
   });
 
-  it('LIVE webhooks rejected in P15.3', async () => {
+  it('LIVE webhooks rejected until PAYTABS_ALLOW_LIVE', async () => {
     const verified = await adapter.verifyWebhook({headers: {}, rawBody: '{}', environment: 'LIVE'});
     expect(verified.valid).toBe(false);
-    if (!verified.valid) expect(verified.error).toMatch(/SANDBOX-only/i);
+    if (!verified.valid) expect(verified.error).toMatch(/PAYTABS_ALLOW_LIVE|LIVE/i);
   });
 
   it('timeout maps to ProviderError TIMEOUT class', async () => {

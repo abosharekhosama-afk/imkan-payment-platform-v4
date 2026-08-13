@@ -139,10 +139,17 @@ export const refundsService = {
       let providerRefundRef = randomRef();
       try {
         const providerInfo = await resolvePaymentProviderForRefund(client, input.organizationId, input.paymentIntentId);
-        if (environment === 'SANDBOX' && providerInfo.code !== 'sandbox' && providerInfo.code !== 'paytabs') {
+        if (environment === 'SANDBOX' && !['sandbox', 'paytabs', 'stripe'].includes(providerInfo.code)) {
           throw new AppError(
             'PROVIDER_REFUND_BLOCKED',
             `Refund via provider '${providerInfo.code}' is not enabled in SANDBOX scope`,
+            422,
+          );
+        }
+        if (environment === 'LIVE' && !['paytabs', 'stripe'].includes(providerInfo.code)) {
+          throw new AppError(
+            'PROVIDER_REFUND_BLOCKED',
+            `Live refunds are enabled for PayTabs and Stripe only (DEC-009)`,
             422,
           );
         }

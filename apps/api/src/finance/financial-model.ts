@@ -38,6 +38,54 @@ export function computePlatformFeeMinor(input: {
   return bpsPart + input.fixedMinor;
 }
 
+export type PaymentFeeAccrual = {
+  gross_minor: string;
+  provider_fees_minor: string;
+  platform_fees_minor: string;
+  net_to_merchant_minor: string;
+  fee_schedule_id: string | null;
+};
+
+/** Per-payment fee accrual at capture (DEC-008). Provider fee optional (0 if unknown). */
+export function computePaymentFeeAccrual(input: {
+  grossMinor: bigint;
+  basisPoints: number;
+  fixedMinor: bigint;
+  providerFeesMinor?: bigint;
+  feeScheduleId?: string | null;
+}): PaymentFeeAccrual {
+  const providerFees = input.providerFeesMinor ?? 0n;
+  if (providerFees < 0n) {
+    throw new AppError('INVALID_FEE', 'provider_fees_minor must be >= 0', 400);
+  }
+  const platformFees = computePlatformFeeMinor({
+    grossMinor: input.grossMinor,
+    basisPoints: input.basisPoints,
+    fixedMinor: input.fixedMinor,
+  });
+  const totalFees = platformFees + providerFees;
+  if (totalFees > input.grossMinor) {
+    throw new AppError(
+      'FEES_EXCEED_GROSS',
+      'Total fees cannot exceed payment gross amount',
+      422,
+      {
+        gross_minor: input.grossMinor.toString(),
+        platform_fees_minor: platformFees.toString(),
+        provider_fees_minor: providerFees.toString(),
+      },
+    );
+  }
+  const net = input.grossMinor - totalFees;
+  return {
+    gross_minor: input.grossMinor.toString(),
+    provider_fees_minor: providerFees.toString(),
+    platform_fees_minor: platformFees.toString(),
+    net_to_merchant_minor: net.toString(),
+    fee_schedule_id: input.feeScheduleId ?? null,
+  };
+}
+
 /** Eligible settlement amount for one payment: captured − refunded (PENDING+SUCCEEDED). */
 export function computeEligibleMinor(capturedMinor: bigint, refundedMinor: bigint): bigint {
   if (capturedMinor < 0n || refundedMinor < 0n) {

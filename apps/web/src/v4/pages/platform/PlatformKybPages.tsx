@@ -16,9 +16,10 @@ import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, shortId} from '../../utils/money';
+import {formatReason, formatStatus} from '../../i18n/humanize';
 
 export function PlatformKybListPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [status, setStatus] = useState('SUBMITTED');
@@ -48,11 +49,11 @@ export function PlatformKybListPage() {
       <div className="v4-toolbar" style={{marginBottom: 12}}>
         <Field label={t('platform.kyb.statusFilter')}>
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="SUBMITTED">SUBMITTED</option>
-            <option value="UNDER_REVIEW">UNDER_REVIEW</option>
-            <option value="NEEDS_INFORMATION">NEEDS_INFORMATION</option>
-            <option value="APPROVED">APPROVED</option>
-            <option value="REJECTED">REJECTED</option>
+            <option value="SUBMITTED">{formatStatus('SUBMITTED', locale)}</option>
+            <option value="UNDER_REVIEW">{formatStatus('UNDER_REVIEW', locale)}</option>
+            <option value="NEEDS_INFORMATION">{formatStatus('NEEDS_INFORMATION', locale)}</option>
+            <option value="APPROVED">{formatStatus('APPROVED', locale)}</option>
+            <option value="REJECTED">{formatStatus('REJECTED', locale)}</option>
           </select>
         </Field>
         <Button type="button" variant="secondary" onClick={load}>
@@ -85,7 +86,7 @@ export function PlatformKybListPage() {
 }
 
 export function PlatformKybDetailPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {caseId = ''} = useParams();
   const {token} = useAuth();
   const {push} = useToast();
@@ -189,9 +190,9 @@ export function PlatformKybDetailPage() {
           <DataTable
             columns={[t('platform.kyb.colFrom'), t('platform.kyb.colTo'), t('platform.kyb.colNote'), t('common.date')]}
             rows={history.map((h: any) => [
-              h.from_status || '—',
-              h.to_status || '—',
-              h.reason || '—',
+              formatStatus(h.from_status, locale),
+              formatStatus(h.to_status, locale),
+              formatReason(h.reason, locale),
               formatDate(h.created_at),
             ])}
           />

@@ -7,11 +7,12 @@ import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, shortId} from '../../utils/money';
+import {formatRole, formatRoles} from '../../i18n/humanize';
 
 const PLATFORM_ROLES = ['PLATFORM_ADMIN', 'PLATFORM_SUPPORT', 'PLATFORM_FINANCE'] as const;
 
 export function PlatformTeamPage() {
-  const {t} = useI18n();
+  const {t, locale} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
   const [users, setUsers] = useState<any[]>([]);
@@ -118,7 +119,7 @@ export function PlatformTeamPage() {
                 <select value={roleCode} onChange={(e) => setRoleCode(e.target.value as typeof roleCode)}>
                   {PLATFORM_ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {formatRole(r, locale)}
                     </option>
                   ))}
                 </select>
@@ -145,7 +146,7 @@ export function PlatformTeamPage() {
               rows={users.map((u) => [
                 u.email,
                 u.name || '—',
-                (u.roles || []).join(', '),
+                formatRoles(u.roles, locale),
                 <StatusBadge status={u.status} />,
               ])}
               empty={<p>{t('platform.team.membersEmpty')}</p>}
@@ -158,7 +159,7 @@ export function PlatformTeamPage() {
               columns={[t('common.email'), t('platform.team.role'), t('common.status'), t('platform.team.expires'), '']}
               rows={invitations.map((inv) => [
                 inv.email,
-                inv.role_code,
+                formatRole(inv.role_code, locale),
                 <StatusBadge status={inv.status} />,
                 formatDate(inv.expires_at),
                 inv.status === 'PENDING' ? (

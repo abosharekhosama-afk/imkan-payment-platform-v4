@@ -36,12 +36,25 @@ export class KmsSecretResolver implements SecretResolver {
     const provider = this.opts.provider || process.env.KMS_PROVIDER || process.env.SECRET_KMS_PROVIDER;
     if (!provider) {
       throw new SecretBackendNotConfiguredError(
-        'SECRET_BACKEND=kms requires KMS_PROVIDER (aws|gcp|azure) and a wired SDK. Architecture ready; vendor not connected in P15.2.',
+        'SECRET_BACKEND=kms requires KMS_PROVIDER (env|render|aws|gcp|azure).',
       );
     }
 
+    if (provider === 'env' || provider === 'render') {
+      const value = process.env[input.secretRef];
+      if (!value) {
+        throw new SecretBackendNotConfiguredError(`KMS env mapping missing process.env.${input.secretRef}`);
+      }
+      return {
+        value,
+        backend: 'kms',
+        secretRef: input.secretRef,
+        version: input.version || 'env',
+      };
+    }
+
     throw new SecretBackendNotConfiguredError(
-      `KMS provider "${provider}" is declared but the vendor SDK is not wired in P15.2. Set SECRET_BACKEND=env|file until P15.3/P15.4 connects KMS.`,
+      `KMS provider "${provider}" requires a vendor SDK. Use KMS_PROVIDER=env|render until AWS/GCP/Azure is wired.`,
     );
   }
 

@@ -25,6 +25,7 @@ export function BankAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [totp, setTotp] = useState('');
+  const [actionTotp, setActionTotp] = useState('');
   const [mfaSecretOnce, setMfaSecretOnce] = useState<string | null>(null);
   const [form, setForm] = useState({
     payout_method_code: 'BANK_TRANSFER',
@@ -48,6 +49,26 @@ export function BankAccountsPage() {
 
   useEffect(load, [token]);
 
+  const runAccountAction = async (fn: (stepUpToken?: string) => Promise<unknown>, okMsg: string) => {
+    if (!token) return;
+    setError('');
+    try {
+      const step = await obtainStepUp(token, actionTotp);
+      if (step.enrolled && step.mfaSecret) {
+        setMfaSecretOnce(step.mfaSecret);
+        setError(t('merchant.bank.mfaEnrolled'));
+        return;
+      }
+      if (!step.stepUpToken) throw new Error('Step-up token required');
+      await fn(step.stepUpToken);
+      push(okMsg);
+      setActionTotp('');
+      load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="v4-form-page">
       <PageHeader
@@ -64,6 +85,7 @@ export function BankAccountsPage() {
       />
       <Alert tone="info">{t('merchant.bank.stripeMoneyPath')}</Alert>
       <Alert tone="warning">{t('merchant.bank.optionalAlert')}</Alert>
+      <Alert tone="info">{t('merchant.bank.reviewHint')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {mfaSecretOnce ? (
         <Alert tone="warning">
@@ -74,21 +96,82 @@ export function BankAccountsPage() {
       {loading ? (
         <LoadingState />
       ) : (
-        <DataTable
-          columns={[
-            t('merchant.bank.colAccount'),
-            t('common.status'),
-            t('merchant.bank.colDefault'),
-            t('common.created'),
-          ]}
-          rows={rows.map((r) => [
-            shortId(r.id),
-            <StatusBadge status={r.status} />,
-            r.is_default ? t('common.yes') : t('common.no'),
-            formatDate(r.created_at),
-          ])}
-          empty={<p style={{color: 'var(--v4-text-muted)'}}>{t('merchant.bank.empty')}</p>}
-        />
+        <>
+          {canManage ? (
+            <Field label={t('merchant.bank.actionsTotp')}>
+              <input
+                value={actionTotp}
+                onChange={(e) => setActionTotp(e.target.value)}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+              />
+            </Field>
+          ) : null}
+          <DataTable
+            columns={[
+              t('merchant.bank.colAccount'),
+              t('common.status'),
+              t('merchant.bank.colDefault'),
+              t('common.created'),
+              '',
+            ]}
+            rows={rows.map((r) => [
+              shortId(r.id),
+              <StatusBadge status={r.status} />,
+              r.is_default ? t('common.yes') : t('common.no'),
+              formatDate(r.created_at),
+              canManage ? (
+                <span style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                  {r.status === 'VERIFIED' || r.status === 'DEACTIVATED' ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        void runAccountAction(
+                          (step) => v4.activateBankAccount(token, r.id, step),
+                          t('merchant.bank.activated'),
+                        )
+                      }
+                    >
+                      {t('merchant.bank.activate')}
+                    </Button>
+                  ) : null}
+                  {r.status === 'ACTIVE' ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        void runAccountAction(
+                          (step) => v4.deactivateBankAccount(token, r.id, undefined, step),
+                          t('merchant.bank.deactivated'),
+                        )
+                      }
+                    >
+                      {t('merchant.bank.deactivate')}
+                    </Button>
+                  ) : null}
+                  {r.status === 'ACTIVE' && !r.is_default ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        void runAccountAction(
+                          (step) => v4.setDefaultBankAccount(token, r.id, step),
+                          t('merchant.bank.defaultSet'),
+                        )
+                      }
+                    >
+                      {t('merchant.bank.setDefault')}
+                    </Button>
+                  ) : null}
+                </span>
+              ) : (
+                '—'
+              ),
+            ])}
+            empty={<p style={{color: 'var(--v4-text-muted)'}}>{t('merchant.bank.empty')}</p>}
+          />
+        </>
       )}
 
       <form
