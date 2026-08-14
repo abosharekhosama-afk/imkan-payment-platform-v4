@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {v4} from '../api/endpoints';
-import {Alert, PageHeader, StatusBadge} from '../design-system/components';
+import {Alert, PageHeader, StatusBadge, LoadingState} from '../design-system/components';
 import {ImkanLoader} from '../components/ImkanLoader';
 import {DashboardAnalytics} from '../components/DashboardAnalytics';
 import {useI18n} from '../i18n/I18nProvider';
@@ -40,11 +40,16 @@ export function DashboardPage() {
 
   if (error) return <Alert tone="danger">{error}</Alert>;
   if (hasPermission('payments.read') && !data) {
-    return <ImkanLoader overlay label={t('dashboard.loading')} />;
+    return (
+      <div className="v4-dashboard-boot">
+        <ImkanLoader label={t('dashboard.loading')} />
+        <LoadingState variant="dashboard" />
+      </div>
+    );
   }
 
   return (
-    <div>
+    <div className="v4-page-enter">
       <PageHeader
         title={t('dashboard.title')}
         description={t('dashboard.description')}

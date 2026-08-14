@@ -15,8 +15,8 @@ export function unauthorized(message = 'Authentication required', code = 'AUTHEN
   return new AppError(code, message, 401);
 }
 
-export function forbidden(message = 'Forbidden', code = 'FORBIDDEN') {
-  return new AppError(code, message, 403);
+export function forbidden(message = 'Forbidden', code = 'FORBIDDEN', details?: unknown) {
+  return new AppError(code, message, 403, details);
 }
 
 export function notFound(message = 'Not found', code = 'NOT_FOUND') {

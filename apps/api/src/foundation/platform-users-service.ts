@@ -278,6 +278,31 @@ export const platformUsersService = {
         {userId: actorUserId, eventType: 'platform.user.deactivated', metadata: {target_user_id: targetUserId}},
         client,
       );
+      const target = await client.query<{email: string; name: string | null}>(
+        `SELECT email, name FROM users WHERE id=$1`,
+        [targetUserId],
+      );
+      const tu = target.rows[0];
+      if (tu?.email) {
+        await emitOutboxEvent(
+          {
+            organizationId: null,
+            eventType: 'membership.restricted',
+            aggregateType: 'user',
+            aggregateId: targetUserId,
+            payload: {
+              email: tu.email,
+              name: tu.name,
+              kind: 'restricted',
+              organization_name: 'IMKAN Platform',
+              support_email: process.env.PLATFORM_SUPPORT_EMAIL || '',
+              support_phone: '',
+              login_url: `${String(config.appPublicUrl || '').replace(/\/$/, '')}/login`,
+            },
+          },
+          client,
+        );
+      }
       return {user_id: targetUserId, status: 'DISABLED'};
     });
   },

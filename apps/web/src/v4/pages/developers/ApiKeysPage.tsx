@@ -189,8 +189,10 @@ export function ApiKeysPage() {
             formatDate(r.last_used_at),
             <Can anyOf={['api_keys.manage']}>
               {r.status !== 'REVOKED' ? (
+                <span className="v4-row-actions">
                 <Button
                   variant="danger"
+                  size="sm"
                   type="button"
                   onClick={() => {
                     setRevokeId(r.id);
@@ -199,6 +201,7 @@ export function ApiKeysPage() {
                 >
                   {t('developers.apiKeys.revoke')}
                 </Button>
+                </span>
               ) : (
                 '—'
               )}

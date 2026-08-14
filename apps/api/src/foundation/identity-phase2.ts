@@ -3,6 +3,7 @@ import {pgQuery, withPgTransaction} from '../infrastructure/db/postgres.js';
 import {emitOutboxEvent, writeAuditEvent, writeSecurityEvent} from './audit.js';
 import {hashPassword, hashToken, randomToken, verifyPassword, verifyTotp} from './crypto.js';
 import {AppError, conflict, forbidden, notFound, unauthorized} from './errors.js';
+import {notifyMembershipChange} from './identity-access.js';
 import {provisionMfaAndEmail} from './mfa-provision.js';
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -437,6 +438,12 @@ export class IdentityPhase2Service {
         {organizationId, userId: actorUserId, eventType: 'user.deactivated', metadata: {target_user_id: targetUserId}},
         client,
       );
+      await notifyMembershipChange({
+        organizationId,
+        targetUserId,
+        kind: 'restricted',
+        client,
+      });
       return {user_id: targetUserId, status: 'DISABLED'};
     });
   }
@@ -487,6 +494,12 @@ export class IdentityPhase2Service {
         {organizationId, userId: actorUserId, eventType: 'user.removed', metadata: {target_user_id: targetUserId}},
         client,
       );
+      await notifyMembershipChange({
+        organizationId,
+        targetUserId,
+        kind: 'closed',
+        client,
+      });
       return {user_id: targetUserId, status: 'REMOVED'};
     });
   }

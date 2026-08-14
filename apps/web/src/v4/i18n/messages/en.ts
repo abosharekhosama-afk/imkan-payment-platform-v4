@@ -115,6 +115,17 @@ export const en = {
   'auth.login': 'Sign in',
   'auth.loginSubtitle': 'Sign in to the V4 merchant console',
   'auth.loginInfo': 'Active console uses PostgreSQL `/api/v1` only. Sandbox is the payment rail.',
+  'access.restrictedTitle': 'Account access is restricted',
+  'access.restrictedBody':
+    'Your access to this company workspace is currently restricted. You cannot use the console until an administrator restores it.',
+  'access.closedTitle': 'This membership is closed',
+  'access.closedBody':
+    'Your membership in this company was closed. You no longer have access to that workspace.',
+  'access.company': 'Company',
+  'access.contactTitle': 'Company contact (if you think this is a mistake)',
+  'access.contactFallback': 'Contact your company administrator. We also emailed you about this change.',
+  'access.phone': 'Phone',
+  'access.backToLogin': 'Back to sign in',
   'auth.password': 'Password',
   'auth.mfaCode': 'MFA code',
   'auth.verifyMfa': 'Verify MFA',

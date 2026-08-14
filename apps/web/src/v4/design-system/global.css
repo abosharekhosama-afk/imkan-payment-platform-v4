@@ -337,6 +337,62 @@ textarea {
   width: 38%;
 }
 
+.v4-shimmer-line--btn {
+  width: 28%;
+  height: 36px;
+  margin-top: 8px;
+}
+
+.v4-shimmer-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--v4-bg-elevated);
+  border: 1px solid var(--v4-border);
+  border-radius: 16px;
+}
+
+.v4-shimmer-hero {
+  height: 140px;
+  border-radius: 18px;
+  background: linear-gradient(90deg, var(--v4-bg-muted) 0%, rgba(255, 255, 255, 0.65) 45%, var(--v4-bg-muted) 100%);
+  background-size: 220% 100%;
+  animation: v4-shimmer 1.35s ease-in-out infinite;
+}
+
+.v4-dashboard-boot {
+  display: grid;
+  gap: 20px;
+  padding: 12px 0 32px;
+}
+
+.v4-page-enter {
+  animation: v4-page-enter 0.4s ease;
+}
+
+.v4-access-contact {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: var(--v4-bg-muted);
+  border: 1px solid var(--v4-border);
+}
+
+.v4-access-contact p {
+  margin: 0.35rem 0 0;
+}
+
+@keyframes v4-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .v4-shimmer-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -400,6 +456,7 @@ textarea {
   padding: var(--v4-space-5);
   min-width: 0;
   overflow-x: clip;
+  animation: v4-page-enter 0.35s ease;
 }
 
 .v4-detail-page {
@@ -574,6 +631,21 @@ textarea {
 .v4-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.v4-btn--sm {
+  padding: 0.38rem 0.65rem;
+  font-size: 0.78rem;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.v4-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  max-width: 220px;
 }
 
 .v4-btn.secondary {
@@ -994,6 +1066,7 @@ textarea {
   font-weight: 800;
   font-size: 0.72rem;
   letter-spacing: 0.06em;
+  animation: v4-mark-pulse 1.6s ease-in-out infinite;
 }
 
 .v4-imkan-loader--sm .v4-imkan-loader-mark {
@@ -1011,6 +1084,16 @@ textarea {
 @keyframes v4-orbit-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes v4-mark-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.94);
   }
 }
 
@@ -1327,6 +1410,39 @@ textarea {
   }
   .v4-sidebar.open {
     transform: translateX(0);
+  }
+  .v4-sidebar {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100dvh;
+    max-height: 100dvh;
+    overscroll-behavior: contain;
+    padding-bottom: max(var(--v4-space-5), env(safe-area-inset-bottom));
+  }
+  .v4-sidebar-nav {
+    overflow: visible;
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+  .v4-sidebar-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-top: var(--v4-space-4);
+    padding-top: var(--v4-space-3);
+    background: #0a1524;
+  }
+  .v4-row-actions {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: none;
+    min-width: 7.25rem;
+  }
+  .v4-row-actions .v4-btn {
+    width: 100%;
+  }
+  .v4-table td:last-child {
+    min-width: 8rem;
   }
   .v4-mobile-toggle {
     display: inline-grid;

@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {Navigate, useLocation} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {v4} from '../api/endpoints';
-import {LoadingState} from '../design-system/components';
+import {ImkanLoader} from './ImkanLoader';
 import {isOnboardingAllowlistedPath, shouldForceOnboarding} from '../pages/OnboardingWizardPage';
 
 /**
@@ -48,7 +48,7 @@ export function OnboardingGate({children}: {children: React.ReactNode}) {
     };
   }, [token, location.pathname, isPlatform]);
 
-  if (loading || checking) return <LoadingState label="Checking onboarding…" />;
+  if (loading || checking) return <ImkanLoader overlay label="Checking onboarding…" />;
   if (force) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 }

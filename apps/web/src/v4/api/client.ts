@@ -4,6 +4,8 @@
  * P15.2: credentials:include for HttpOnly cookies; CSRF double-submit when needed.
  */
 
+import {accessBlockFromError, storeAccessBlock} from '../auth/accessBlock';
+
 const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 const API_PREFIX = '/api/' + 'v1';
 
@@ -176,12 +178,23 @@ export async function apiV1<T = unknown>(path: string, options: ApiRequestOption
 
   if (!res.ok) {
     const err = (json as any)?.error || {};
-    throw new ApiError(err.message || `Request failed (${res.status})`, {
+    const apiErr = new ApiError(err.message || `Request failed (${res.status})`, {
       code: err.code,
       requestId: err.request_id || (json as any)?.meta?.request_id,
       status: res.status,
       details: err.details,
     });
+    const block = accessBlockFromError(apiErr);
+    if (block) {
+      storeAccessBlock(block);
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname;
+        if (!path.startsWith('/account-access') && path !== '/login') {
+          window.location.assign(`/account-access?kind=${block.kind}`);
+        }
+      }
+    }
+    throw apiErr;
   }
 
   if (json && typeof json === 'object' && 'data' in (json as object)) {

@@ -67,7 +67,7 @@ export function MerchantProfilePage() {
 
   useEffect(load, [token]);
 
-  if (loading) return <LoadingState label={t('merchant.profile.loading')} />;
+  if (loading) return <LoadingState label={t('merchant.profile.loading')} variant="form" />;
 
   return (
     <div className="v4-form-page">

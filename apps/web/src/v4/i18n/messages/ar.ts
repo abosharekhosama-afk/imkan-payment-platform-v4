@@ -115,6 +115,17 @@ export const ar: Record<string, string> = {
   'auth.login': 'تسجيل الدخول',
   'auth.loginSubtitle': 'سجّل الدخول إلى لوحة تحكم التاجر V4',
   'auth.loginInfo': 'اللوحة النشطة تستخدم PostgreSQL `/api/v1` فقط. البيئة التجريبية هي مسار الدفع.',
+  'access.restrictedTitle': 'تم تقييد الحساب حالياً',
+  'access.restrictedBody':
+    'تم تقييد صلاحية دخولك إلى مساحة عمل الشركة. لا يمكنك استخدام اللوحة حتى يعيد المسؤول الصلاحية.',
+  'access.closedTitle': 'تم إغلاق عضوية الحساب',
+  'access.closedBody':
+    'تم إغلاق عضويتك في هذه الشركة. لم يعد بإمكانك الوصول إلى مساحة العمل هذه.',
+  'access.company': 'الشركة',
+  'access.contactTitle': 'بيانات تواصل الشركة (إذا كنت تعتقد أن هذا خطأ)',
+  'access.contactFallback': 'تواصل مع مسؤول الشركة. تم أيضاً إرسال رسالة بريد بهذا التغيير.',
+  'access.phone': 'الهاتف',
+  'access.backToLogin': 'العودة لتسجيل الدخول',
   'auth.password': 'كلمة المرور',
   'auth.mfaCode': 'رمز MFA',
   'auth.verifyMfa': 'تحقق من MFA',

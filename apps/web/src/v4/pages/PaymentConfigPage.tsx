@@ -52,7 +52,7 @@ export function PaymentConfigPage() {
     });
   };
 
-  if (loading) return <LoadingState />;
+  if (loading) return <LoadingState variant="form" />;
 
   return (
     <div>

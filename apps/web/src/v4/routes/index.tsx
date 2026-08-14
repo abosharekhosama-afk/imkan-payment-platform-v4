@@ -2,7 +2,8 @@ import React from 'react';
 import {Navigate, Route, Routes} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {AppShell} from '../layouts';
-import {LoadingState} from '../design-system/components';
+import {AccountAccessPage} from '../pages/AccountAccessPage';
+import {ImkanLoader} from '../components/ImkanLoader';
 import {LoginPage} from '../pages/LoginPage';
 import {SignupPage} from '../pages/SignupPage';
 import {OnboardingWizardPage} from '../pages/OnboardingWizardPage';
@@ -75,7 +76,7 @@ import {LedgerPage} from '../pages/finance/LedgerPage';
 
 function RequireAuth({children}: {children: React.ReactNode}) {
   const {token, loading} = useAuth();
-  if (loading) return <LoadingState label="Restoring session…" />;
+  if (loading) return <ImkanLoader overlay label="Restoring session…" />;
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -99,6 +100,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/account-access" element={<AccountAccessPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route
         path="/onboarding"

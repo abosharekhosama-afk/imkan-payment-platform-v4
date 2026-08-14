@@ -1,6 +1,6 @@
 # OPEN / RESOLVED DECISIONS — IMKAN Payments V4
 
-**Last updated:** 2026-08-10  
+**Last updated:** 2026-08-14  
 **Rule:** Do not invent Financial / Security / Provider behavior beyond recorded decisions.
 
 Legacy tracker: `docs/decisions/OPEN_ISSUES.md` (superseded for status; kept for history).
@@ -175,3 +175,46 @@ If a new material decision appears during implementation, add it here and pause 
 | **Evidence** | P15.5 tests 224/224 PASS + 8 skipped; preflight CLI exit 2; see `P15_5_FINAL_AUDIT.md` |
 | **Impact** | PayTabs remains **SANDBOX_TESTED**, not **CERTIFIED**. Production Gate unchanged. P15.6 / LIVE not started. |
 | **Blockers** | `PAYTABS_SANDBOX_SERVER_KEY`, `PAYTABS_SANDBOX_PROFILE_ID`, `PAYTABS_REAL_SANDBOX_CERT=true`, public HTTPS callback + webhook endpoint |
+
+---
+
+## DEC-018 — Direct Merchant Settlement (target architecture)
+
+| Field | Value |
+|---|---|
+| **Status** | **OPEN** (recorded 2026-08-14 — analysis only; not implemented) |
+| **Decision (proposed, not approved)** | Target: each organization charges a **merchant-owned** provider account when the provider supports it. IMKAN is orchestration + platform fee, not the default pooled acquiring account in Production. Internal Sandbox (and optional SANDBOX-only shared platform accounts) remain allowed. LIVE must not silently use `organization_id IS NULL` Stripe/PayTabs credentials for all tenants. |
+| **Stripe (proposed)** | Connect **Direct Charges** on Connected Accounts + hosted Checkout; IMKAN fee via `application_fee_amount`. Reject Destination Charges / SCT as default if the product goal is “funds never hit IMKAN’s Stripe balance.” |
+| **PayTabs (proposed)** | Prefer per-org `profile_id` whose settlement IBAN is the merchant’s **if** Account Manager confirms. Else PSP **Split Payout** (EXTERNAL_REQUIREMENT: PSP contract + AM enablement). |
+| **Palestine (proposed)** | Per-merchant Bank of Palestine MID + current account as primary ILS rail once private API exists. Jawwal Pay / PalPay only after partner documentation. Do not invent adapters. |
+| **Ledger (proposed)** | Distinguish PAYMENT_SUCCEEDED / SETTLED / PAYOUT_* ; ledger credit is not bank receipt; `merchant_payable` as IMKAN cash debt applies to **pooled** rails only. |
+| **Rejected for this phase** | Migrations; Payment Core / Ledger / adapter code; LIVE; P15.6; money movement. |
+| **Evidence** | `docs/architecture/DIRECT_MERCHANT_SETTLEMENT_ARCHITECTURE.md`, `DIRECT_MERCHANT_SETTLEMENT_GAP_ANALYSIS.md`, `docs/providers/DIRECT_SETTLEMENT_PROVIDER_MATRIX.md`, `docs/implementation/DIRECT_MERCHANT_SETTLEMENT_ROADMAP.md` |
+| **Still OPEN** | Legal MoR/facilitator; PayTabs AM commercial model; BOP/Jawwal/PalPay partner packs; Connect Express vs Standard mix; whether any LIVE pooled rail remains as exception. |
+
+---
+
+## DEC-019 — Stripe Connect charge type
+
+| Field | Value |
+|---|---|
+| **Status** | **OPEN** |
+| **Question** | Confirm Direct Charges (recommended) vs Destination vs SCT. Analysis recommends Direct Charges. Do not implement until approved. |
+
+---
+
+## DEC-020 — PayTabs profile-per-merchant vs PSP split
+
+| Field | Value |
+|---|---|
+| **Status** | **OPEN** |
+| **Question** | Written AM confirmation: dedicated settling profile per IMKAN org vs IMKAN-as-PSP Split Payout. Palestine host/contract separately. |
+
+---
+
+## DEC-021 — Palestinian MID-per-merchant
+
+| Field | Value |
+|---|---|
+| **Status** | **OPEN** |
+| **Question** | Confirm each Palestinian company signs its own BOP (and/or Jawwal/PalPay) merchant agreement. Facilitator/single-MID program only if the bank documents it in writing. |

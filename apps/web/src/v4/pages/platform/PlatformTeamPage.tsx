@@ -175,15 +175,18 @@ export function PlatformTeamPage() {
                 canOwnerActions &&
                 u.id !== user?.id &&
                 !(Array.isArray(u.roles) && u.roles.includes('PLATFORM_OWNER')) ? (
-                  <Button
-                    type="button"
-                    variant="danger"
-                    busy={busyKey === `deactivate:${u.id}`}
-                    disabled={busy || !totp}
-                    onClick={() => void deactivateUser(u.id)}
-                  >
-                    {t('platform.team.deactivate')}
-                  </Button>
+                  <span className="v4-row-actions">
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      busy={busyKey === `deactivate:${u.id}`}
+                      disabled={busy || !totp}
+                      onClick={() => void deactivateUser(u.id)}
+                    >
+                      {t('platform.team.deactivate')}
+                    </Button>
+                  </span>
                 ) : (
                   '—'
                 ),
@@ -203,15 +206,18 @@ export function PlatformTeamPage() {
                 formatDate(inv.expires_at),
                 inv.status === 'PENDING' ? (
                   <Can anyOf={['platform.users.manage', 'platform.admin']}>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      busy={busyKey === `revoke:${inv.id}`}
-                      disabled={busy}
-                      onClick={() => void revoke(inv.id)}
-                    >
-                      {t('platform.team.revoke')}
-                    </Button>
+                    <span className="v4-row-actions">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        busy={busyKey === `revoke:${inv.id}`}
+                        disabled={busy}
+                        onClick={() => void revoke(inv.id)}
+                      >
+                        {t('platform.team.revoke')}
+                      </Button>
+                    </span>
                   </Can>
                 ) : (
                   shortId(inv.id)

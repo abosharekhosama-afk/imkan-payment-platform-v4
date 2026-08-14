@@ -42,17 +42,18 @@ export function PageHeader({
 export function Button(
   props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+    size?: 'md' | 'sm';
     /** Disables the button and swaps label while an async action runs */
     busy?: boolean;
     busyLabel?: string;
   },
 ) {
   const {t} = useI18n();
-  const {variant = 'primary', className = '', busy, busyLabel, children, disabled, ...rest} = props;
+  const {variant = 'primary', size = 'md', className = '', busy, busyLabel, children, disabled, ...rest} = props;
   const v = variant === 'primary' ? '' : variant;
   return (
     <button
-      className={`v4-btn ${v} ${className}`.trim()}
+      className={`v4-btn ${v} ${size === 'sm' ? 'v4-btn--sm' : ''} ${className}`.trim()}
       disabled={Boolean(disabled || busy)}
       aria-busy={busy || undefined}
       {...rest}
@@ -110,26 +111,60 @@ export function EmptyState({title, description}: {title: string; description?: s
   );
 }
 
-export function LoadingState({label, overlay}: {label?: string; overlay?: boolean}) {
+export function LoadingState({
+  label,
+  overlay,
+  variant = 'table',
+}: {
+  label?: string;
+  overlay?: boolean;
+  variant?: 'table' | 'form' | 'cards' | 'dashboard' | 'page';
+}) {
   const {t} = useI18n();
   const text = label || t('common.loading');
-  const skeleton = (
-    <div className="v4-shimmer" role="status" aria-live="polite" aria-label={text}>
-      <div className="v4-shimmer-line v4-shimmer-line--lg" />
-      <div className="v4-shimmer-line" />
-      <div className="v4-shimmer-cards">
-        <div className="v4-shimmer-card" />
-        <div className="v4-shimmer-card" />
-        <div className="v4-shimmer-card" />
+  const skeleton =
+    variant === 'form' ? (
+      <div className="v4-shimmer v4-shimmer--form" role="status" aria-live="polite" aria-label={text}>
+        <div className="v4-shimmer-line v4-shimmer-line--lg" />
+        <div className="v4-shimmer-line" />
+        <div className="v4-shimmer-form">
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line v4-shimmer-line--short" />
+          <div className="v4-shimmer-line v4-shimmer-line--btn" />
+        </div>
       </div>
-      <div className="v4-shimmer-table">
-        <div className="v4-shimmer-line" />
-        <div className="v4-shimmer-line" />
-        <div className="v4-shimmer-line" />
+    ) : variant === 'cards' || variant === 'dashboard' ? (
+      <div className="v4-shimmer v4-shimmer--cards" role="status" aria-live="polite" aria-label={text}>
+        {variant === 'dashboard' ? (
+          <div className="v4-shimmer-hero" />
+        ) : (
+          <div className="v4-shimmer-line v4-shimmer-line--lg" />
+        )}
+        <div className="v4-shimmer-cards">
+          <div className="v4-shimmer-card" />
+          <div className="v4-shimmer-card" />
+          <div className="v4-shimmer-card" />
+        </div>
+        <div className="v4-shimmer-table">
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line v4-shimmer-line--short" />
+        </div>
+      </div>
+    ) : (
+      <div className="v4-shimmer v4-shimmer--table" role="status" aria-live="polite" aria-label={text}>
+        <div className="v4-shimmer-line v4-shimmer-line--lg" />
         <div className="v4-shimmer-line v4-shimmer-line--short" />
+        <div className="v4-shimmer-table">
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line" />
+          <div className="v4-shimmer-line v4-shimmer-line--short" />
+        </div>
       </div>
-    </div>
-  );
+    );
   if (overlay) {
     return <div className="v4-shimmer-overlay">{skeleton}</div>;
   }

@@ -13,6 +13,7 @@ import {
 } from './crypto.js';
 import {AppError, conflict, forbidden, unauthorized} from './errors.js';
 import {identityPhase2} from './identity-phase2.js';
+import {loadOrgContact, membershipAccessError, membershipBlockForUser} from './identity-access.js';
 import {provisionMfaAndEmail} from './mfa-provision.js';
 
 function normalizeEmail(email: string): string {
@@ -203,7 +204,7 @@ export class IdentityService {
         ip: input.ip,
         userAgent: input.userAgent,
       });
-      throw forbidden('Account is disabled', 'ACCOUNT_DISABLED');
+      throw membershipAccessError('restricted', null);
     }
     if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
       await writeLoginEvent({
@@ -348,6 +349,10 @@ export class IdentityService {
           [input.userId],
         );
         organizationId = first.rows[0]?.organization_id || null;
+        if (!organizationId) {
+          const blocked = await membershipBlockForUser(input.userId, client);
+          if (blocked) throw blocked;
+        }
       }
 
       const token = randomToken(32);
@@ -415,11 +420,15 @@ export class IdentityService {
     const row = r.rows[0];
     if (!row || row.status !== 'ACTIVE') throw unauthorized('Invalid session', 'INVALID_SESSION');
     if (row.organization_id) {
-      const membership = await pgQuery(
-        `SELECT 1 FROM organization_users WHERE organization_id=$1 AND user_id=$2 AND status='ACTIVE'`,
+      const membership = await pgQuery<{status: string}>(
+        `SELECT status FROM organization_users WHERE organization_id=$1 AND user_id=$2`,
         [row.organization_id, row.user_id],
       );
-      if (!membership.rows[0]) throw unauthorized('Organization membership revoked', 'ORG_MEMBERSHIP_REQUIRED');
+      const mem = membership.rows[0];
+      if (!mem || mem.status !== 'ACTIVE') {
+        const contact = await loadOrgContact(row.organization_id);
+        throw membershipAccessError(!mem ? 'closed' : 'restricted', contact);
+      }
     }
     const authz = await loadPermissions(row.user_id, row.organization_id);
     return {

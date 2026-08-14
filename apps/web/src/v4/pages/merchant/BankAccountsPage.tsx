@@ -125,11 +125,12 @@ export function BankAccountsPage() {
               r.is_default ? t('common.yes') : t('common.no'),
               formatDate(r.created_at),
               canManage ? (
-                <span style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                <span className="v4-row-actions">
                   {r.status === 'VERIFIED' || r.status === 'DEACTIVATED' ? (
                     <Button
                       type="button"
                       variant="secondary"
+                      size="sm"
                       busy={busyKey === `activate:${r.id}`}
                       disabled={busy}
                       onClick={() =>
@@ -147,6 +148,7 @@ export function BankAccountsPage() {
                     <Button
                       type="button"
                       variant="secondary"
+                      size="sm"
                       busy={busyKey === `deactivate:${r.id}`}
                       disabled={busy}
                       onClick={() =>
@@ -164,6 +166,7 @@ export function BankAccountsPage() {
                     <Button
                       type="button"
                       variant="secondary"
+                      size="sm"
                       busy={busyKey === `default:${r.id}`}
                       disabled={busy}
                       onClick={() =>

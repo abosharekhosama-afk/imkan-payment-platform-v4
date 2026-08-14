@@ -3,6 +3,7 @@ import {Link, Navigate} from 'react-router-dom';
 import {useAuth} from '../../auth/AuthProvider';
 import {Alert, Button, Field} from '../design-system/components';
 import {ApiError} from '../../api/client';
+import {accessBlockFromError} from '../../auth/accessBlock';
 import {useI18n} from '../../i18n/I18nProvider';
 
 export function LoginPage() {
@@ -13,9 +14,11 @@ export function LoginPage() {
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [totp, setTotp] = useState('');
   const [error, setError] = useState('');
+  const [accessKind, setAccessKind] = useState<'restricted' | 'closed' | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!loading && token) return <Navigate to="/" replace />;
+  if (accessKind) return <Navigate to={`/account-access?kind=${accessKind}`} replace />;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +32,13 @@ export function LoginPage() {
         if (result.mfaRequired && result.mfaToken) setMfaToken(result.mfaToken);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : String(err));
+      const apiErr = err instanceof ApiError ? err : null;
+      const block = apiErr ? accessBlockFromError(apiErr) : null;
+      if (block) {
+        setAccessKind(block.kind);
+        return;
+      }
+      setError(apiErr ? apiErr.message : String(err));
     } finally {
       setBusy(false);
     }

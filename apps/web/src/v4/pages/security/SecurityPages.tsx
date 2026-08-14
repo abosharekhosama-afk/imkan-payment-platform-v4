@@ -183,10 +183,11 @@ export function UsersPage() {
                   Array.isArray(r.roles) ? formatRoles(r.roles, locale) : formatRole(r.role_code, locale),
                   <StatusBadge status={r.status || r.membership_status} />,
                   canManageMembers && !self && !isOwnerRole(r) ? (
-                    <span style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                    <span className="v4-row-actions">
                       <Button
                         type="button"
                         variant="secondary"
+                        size="sm"
                         busy={busyKey === `deactivate:${memberId}`}
                         disabled={busy || !totp}
                         onClick={() => void deactivateMember(memberId)}
@@ -196,6 +197,7 @@ export function UsersPage() {
                       <Button
                         type="button"
                         variant="danger"
+                        size="sm"
                         busy={busyKey === `remove:${memberId}`}
                         disabled={busy || !totp}
                         onClick={() => void removeMember(memberId)}
@@ -228,15 +230,18 @@ export function UsersPage() {
                 <StatusBadge status={i.status} />,
                 formatDate(i.expires_at),
                 canManageMembers && i.status === 'PENDING' ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    busy={busyKey === `revoke:${i.id}`}
-                    disabled={busy || !totp}
-                    onClick={() => void revokeInvite(i.id)}
-                  >
-                    {t('security.users.revokeInvite')}
-                  </Button>
+                  <span className="v4-row-actions">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      busy={busyKey === `revoke:${i.id}`}
+                      disabled={busy || !totp}
+                      onClick={() => void revokeInvite(i.id)}
+                    >
+                      {t('security.users.revokeInvite')}
+                    </Button>
+                  </span>
                 ) : (
                   '—'
                 ),
@@ -547,7 +552,7 @@ export function OrganizationPage() {
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {saved ? <Alert tone="success">{t('settings.organization.saved')}</Alert> : null}
       {!org ? (
-        <LoadingState />
+        <LoadingState variant="form" />
       ) : canManage ? (
         <form className="v4-card" onSubmit={(e) => void save(e)} style={{maxWidth: 520}}>
           <Field label={t('settings.organization.name')}>

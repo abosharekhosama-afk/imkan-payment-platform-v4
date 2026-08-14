@@ -109,6 +109,75 @@ function buildMfaTotpEmail(payload: Payload) {
   };
 }
 
+function buildMembershipAccessEmail(payload: Payload, kind: 'restricted' | 'closed') {
+  const email = str(payload.email);
+  const name = str(payload.name);
+  const org = str(payload.organization_name);
+  const supportEmail = str(payload.support_email);
+  const supportPhone = str(payload.support_phone);
+  const loginUrl = str(payload.login_url) || 'https://app.imkan.local/login';
+  const greeting = name ? `Hello ${name}` : 'Hello';
+  const title =
+    kind === 'restricted' ? 'Your IMKAN access was restricted' : 'Your IMKAN membership was closed';
+  const titleAr = kind === 'restricted' ? 'تم تقييد صلاحية حسابك' : 'تم إغلاق عضويتك';
+  const bodyEn =
+    kind === 'restricted'
+      ? `Your access to ${org || 'your company'} on IMKAN Payments is currently restricted. You cannot sign in until an administrator restores access.`
+      : `Your membership in ${org || 'your company'} on IMKAN Payments has been closed. You can no longer access that workspace.`;
+  const bodyAr =
+    kind === 'restricted'
+      ? `تم تقييد وصولك إلى ${org || 'شركتك'} في IMKAN Payments. لا يمكنك تسجيل الدخول حتى يعيد المسؤول الصلاحية.`
+      : `تم إغلاق عضويتك في ${org || 'شركتك'} على IMKAN Payments. لم يعد بإمكانك الوصول إلى تلك المساحة.`;
+  const contactLines = [
+    supportEmail ? `Email / البريد: ${supportEmail}` : '',
+    supportPhone ? `Phone / الهاتف: ${supportPhone}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const contactHint = contactLines
+    ? `If you believe this is a mistake, contact your company:\n${contactLines}`
+    : 'If you believe this is a mistake, contact your company administrator.';
+
+  const text = [
+    greeting,
+    '',
+    bodyEn,
+    '',
+    bodyAr,
+    '',
+    contactHint,
+    '',
+    `Sign in page: ${loginUrl}`,
+    '',
+    '— IMKAN Payments',
+  ].join('\n');
+
+  const html = `
+    <div style="font-family:Segoe UI,Tahoma,Arial,sans-serif;line-height:1.6;color:#0f172a;max-width:560px">
+      <h2 style="margin:0 0 12px">${title}</h2>
+      <p dir="rtl" style="margin:0 0 16px">${titleAr}</p>
+      <p>${greeting},</p>
+      <p>${bodyEn}</p>
+      <p dir="rtl">${bodyAr}</p>
+      ${
+        contactLines
+          ? `<p><strong>Company contact / بيانات تواصل الشركة</strong></p>
+             ${supportEmail ? `<p>Email: <a href="mailto:${supportEmail}">${supportEmail}</a></p>` : ''}
+             ${supportPhone ? `<p>Phone: ${supportPhone}</p>` : ''}`
+          : `<p>Contact your company administrator if this is unexpected.</p>`
+      }
+      <p><a href="${loginUrl}">Return to sign in</a></p>
+    </div>
+  `;
+
+  return {
+    to: email,
+    subject: title,
+    text,
+    html,
+  };
+}
+
 export async function handleEmailOutboxEvent(eventType: string, payload: unknown): Promise<void> {
   const p = (payload || {}) as Payload;
   const transport = getEmailTransport();
@@ -141,6 +210,13 @@ export async function handleEmailOutboxEvent(eventType: string, payload: unknown
       if (!msg.to || !str(p.action_url)) {
         throw new Error(`${eventType} missing email or action_url`);
       }
+      await transport.send(msg);
+      return;
+    }
+    case 'membership.restricted':
+    case 'membership.closed': {
+      const msg = buildMembershipAccessEmail(p, eventType === 'membership.closed' ? 'closed' : 'restricted');
+      if (!msg.to) throw new Error(`${eventType} missing email`);
       await transport.send(msg);
       return;
     }
@@ -194,6 +270,8 @@ export function isDeliverableEmailEvent(eventType: string): boolean {
     eventType === 'platform.invitation.created' ||
     eventType === 'kyb.case.submitted' ||
     eventType === 'kyb.case.needs_information' ||
-    eventType === 'kyb.case.decided'
+    eventType === 'kyb.case.decided' ||
+    eventType === 'membership.restricted' ||
+    eventType === 'membership.closed'
   );
 }

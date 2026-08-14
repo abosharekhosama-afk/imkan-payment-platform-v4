@@ -104,6 +104,7 @@ export async function apiV1Routes(app: FastifyInstance) {
         code: finalCode,
         message: config.isProduction && finalStatus >= 500 ? 'Internal server error' : message,
         request_id: request.id,
+        ...(error instanceof AppError && error.details ? {details: error.details} : {}),
       },
     });
   });

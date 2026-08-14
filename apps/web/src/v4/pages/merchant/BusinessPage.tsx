@@ -47,7 +47,7 @@ export function BusinessPage() {
 
   useEffect(load, [token]);
 
-  if (loading) return <LoadingState label={t('merchant.business.loading')} />;
+  if (loading) return <LoadingState label={t('merchant.business.loading')} variant="form" />;
 
   return (
     <div className="v4-form-page">

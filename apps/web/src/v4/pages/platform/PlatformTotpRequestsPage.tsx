@@ -110,9 +110,10 @@ export function PlatformTotpRequestsPage() {
             <StatusBadge status={r.status} />,
             formatDate(r.requested_at),
             canReview && r.status === 'PENDING' ? (
-              <span style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+              <span className="v4-row-actions">
                 <Button
                   type="button"
+                  size="sm"
                   busy={busyKey === `approve:${r.id}`}
                   disabled={busy || !totp}
                   onClick={() => void decide(r.id, 'approve')}
@@ -122,6 +123,7 @@ export function PlatformTotpRequestsPage() {
                 <Button
                   type="button"
                   variant="danger"
+                  size="sm"
                   busy={busyKey === `deny:${r.id}`}
                   disabled={busy || !totp}
                   onClick={() => void decide(r.id, 'deny')}
