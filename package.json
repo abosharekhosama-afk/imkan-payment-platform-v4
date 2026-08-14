@@ -25,6 +25,7 @@
     "e2e:v4": "npm run test:e2e -w apps/web",
     "paytabs:preflight": "node scripts/paytabs-sandbox-preflight.mjs",
     "stripe:preflight": "node scripts/stripe-preflight.mjs",
+    "stripe:register-webhooks": "node scripts/register-stripe-webhooks.mjs",
     "seed:stripe-routes": "node scripts/seed-stripe-routes.mjs",
     "seed:platform-owner": "node scripts/seed-platform-owner.mjs",
     "prepare:stripe-production": "node scripts/prepare-stripe-production.mjs",

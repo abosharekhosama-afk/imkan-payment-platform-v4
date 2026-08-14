@@ -6,7 +6,7 @@ import {
   resolveStripeRequestedPlane,
 } from '../apps/api/src/providers/stripe/config.js';
 import {createStripeClient} from '../apps/api/src/providers/stripe/http-client.js';
-import {mapCheckoutSession, mapStripePaymentIntentStatus} from '../apps/api/src/providers/stripe/mappers.js';
+import {mapCheckoutSession, mapStripePaymentIntentStatus, normalizeStripeEvent, isStripeAuxiliaryEvent} from '../apps/api/src/providers/stripe/mappers.js';
 import {signStripePayload, verifyStripeSignature} from '../apps/api/src/providers/stripe/webhook.js';
 import {StripeAdapter} from '../apps/api/src/providers/stripe/adapter.js';
 import {listRegisteredAdapterCodes} from '../apps/api/src/providers/registry.js';
@@ -111,6 +111,30 @@ describe('Stripe V4 adapter', () => {
     const header = signStripePayload(body, secret);
     expect(verifyStripeSignature(body, header, secret)).toBe(true);
     expect(verifyStripeSignature(body, header, 'whsec_wrong')).toBe(false);
+  });
+
+  it('normalizes dispute and radar events to the Stripe payment intent id', () => {
+    const dispute = normalizeStripeEvent({
+      id: 'evt_dp',
+      type: 'charge.dispute.created',
+      data: {object: {id: 'dp_1', payment_intent: 'pi_abc', amount: 2500, currency: 'usd', reason: 'fraudulent'}},
+    });
+    expect(dispute.providerReference).toBe('pi_abc');
+    expect(dispute.amountMinor).toBe('2500');
+    expect(isStripeAuxiliaryEvent(dispute.eventType)).toBe(true);
+
+    const radar = normalizeStripeEvent({
+      id: 'evt_radar',
+      type: 'radar.early_fraud_warning.created',
+      data: {object: {id: 'issfr_1', charge: 'ch_1', payment_intent: 'pi_abc'}},
+    });
+    expect(radar.providerReference).toBe('pi_abc');
+    expect(isStripeAuxiliaryEvent(radar.eventType)).toBe(true);
+  });
+
+  it('does not treat payout.paid as a payment success event type for auxiliary classification', () => {
+    expect(isStripeAuxiliaryEvent('payout.paid')).toBe(true);
+    expect(isStripeAuxiliaryEvent('payment_intent.succeeded')).toBe(false);
   });
 
   it('maps payment intent statuses', () => {

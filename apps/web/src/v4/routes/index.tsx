@@ -65,6 +65,7 @@ import {RequirePermission} from '../rbac/RequirePermission';
 import {
   BalancesPage,
   DisputesPage,
+  FeeSchedulesPage,
   PayoutsPage,
   RefundsPage,
   RiskPage,
@@ -168,6 +169,7 @@ export function AppRoutes() {
         <Route path="ledger" element={<RP anyOf={['balances.read']}><LedgerPage /></RP>} />
         <Route path="balances" element={<RP anyOf={['balances.read']}><BalancesPage /></RP>} />
         <Route path="settlements" element={<RP anyOf={['settlements.read', 'settlements.manage']}><SettlementsPage /></RP>} />
+        <Route path="fees" element={<RP anyOf={['settlements.read', 'settlements.manage', 'platform.finance']}><FeeSchedulesPage /></RP>} />
         <Route path="payouts" element={<RP anyOf={['payouts.read', 'payouts.manage']}><PayoutsPage /></RP>} />
         <Route path="disputes" element={<RP anyOf={['disputes.read', 'disputes.manage']}><DisputesPage /></RP>} />
         <Route path="risk" element={<RP anyOf={['disputes.read', 'platform.risk.manage']}><RiskPage /></RP>} />

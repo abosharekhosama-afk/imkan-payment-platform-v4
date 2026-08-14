@@ -65,3 +65,10 @@ export function resolveStripeCheckoutUi(): 'hosted' | 'elements' {
   const ui = (process.env.STRIPE_CHECKOUT_UI || 'elements').toLowerCase().trim();
   return ui === 'hosted' ? 'hosted' : 'elements';
 }
+
+/** automatic | any | challenge — Radar/3DS policy on card PaymentIntents and Checkout. */
+export function resolveStripeThreeDs(): 'automatic' | 'any' | 'challenge' {
+  const v = (process.env.STRIPE_REQUEST_3DS || 'automatic').toLowerCase().trim();
+  if (v === 'any' || v === 'challenge') return v;
+  return 'automatic';
+}

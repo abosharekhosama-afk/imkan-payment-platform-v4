@@ -1,5 +1,6 @@
 import {ProviderError} from '../errors.js';
 import type {StripeCheckoutSession, StripeCredentials, StripePaymentIntent, StripeRefund} from './types.js';
+import {resolveStripeThreeDs} from './config.js';
 import crypto from 'node:crypto';
 
 export type StripeHttpClient = {
@@ -180,6 +181,7 @@ export function createStripeClient(
           amount: Number(input.amountMinor),
           currency: input.currencyCode.toLowerCase(),
           'payment_method_types[]': 'card',
+          'payment_method_options[card][request_three_d_secure]': resolveStripeThreeDs(),
           'metadata[payment_intent_id]': input.paymentIntentId,
           'metadata[payment_attempt_id]': input.paymentAttemptId,
         },
@@ -204,6 +206,7 @@ export function createStripeClient(
           'metadata[payment_intent_id]': input.paymentIntentId,
           'metadata[payment_attempt_id]': input.paymentAttemptId,
           'payment_intent_data[metadata][payment_intent_id]': input.paymentIntentId,
+          'payment_intent_data[payment_method_options][card][request_three_d_secure]': resolveStripeThreeDs(),
         },
         input.idempotencyKey || input.paymentAttemptId,
         fetchImpl,

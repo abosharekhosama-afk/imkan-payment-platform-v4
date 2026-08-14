@@ -81,6 +81,7 @@ export const NAV_SECTIONS: NavSection[] = [
       {to: '/refunds', labelKey: 'nav.refunds', icon: 'undo', anyOf: ['payments.refund', 'payments.manage']},
       {to: '/balances', labelKey: 'nav.balances', icon: 'scale', anyOf: ['balances.read']},
       {to: '/settlements', labelKey: 'nav.settlements', icon: 'clipboard', anyOf: ['settlements.read', 'settlements.manage']},
+      {to: '/fees', labelKey: 'nav.fees', icon: 'percent', anyOf: ['settlements.read', 'settlements.manage']},
       {to: '/payouts', labelKey: 'nav.payouts', icon: 'send', anyOf: ['payouts.read', 'payouts.manage']},
       {to: '/disputes', labelKey: 'nav.disputes', icon: 'flag', anyOf: ['disputes.read', 'disputes.manage']},
       {to: '/risk', labelKey: 'nav.risk', icon: 'alert', anyOf: ['disputes.read', 'platform.risk.manage']},

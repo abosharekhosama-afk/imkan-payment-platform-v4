@@ -13,6 +13,8 @@ import {
 import {feeAccrualService} from '../finance/fee-accrual-service.js';
 import {finalizeCheckoutArtifacts} from '../payments/finalize-checkout-artifacts.js';
 import {refundsService} from '../refunds/refunds-service.js';
+import {applyStripeAuxiliaryWebhook} from './stripe/aux-apply.js';
+import {isStripeAuxiliaryEvent} from './stripe/mappers.js';
 
 function isRefundEvent(eventType: string): boolean {
   return /refund/i.test(eventType);
@@ -20,8 +22,7 @@ function isRefundEvent(eventType: string): boolean {
 
 function mapEventToStatus(eventType: string): PaymentIntentStatus | null {
   const t = eventType.toLowerCase();
-  // Refund events must NOT be treated as payment.succeeded (substring "success").
-  if (isRefundEvent(t)) return null;
+  if (isRefundEvent(t) || isStripeAuxiliaryEvent(t)) return null;
   if (/(succeeded|captured|paid|success)/.test(t)) return 'SUCCEEDED';
   if (/(failed|declined|failure)/.test(t)) return 'FAILED';
   if (/(cancel)/.test(t)) return 'CANCELLED';
@@ -39,8 +40,14 @@ export async function applyProviderWebhookToPaymentIntent(
     amountMinor?: string | null;
     currencyCode?: string | null;
     environment?: 'SANDBOX' | 'LIVE';
+    payload?: Record<string, unknown> | null;
   },
 ): Promise<{applied: boolean; reason: string; status?: string}> {
+  if (isStripeAuxiliaryEvent(input.eventType)) {
+    const aux = await applyStripeAuxiliaryWebhook(client, input);
+    return {...aux, status: undefined};
+  }
+
   if (!input.paymentIntentId || !input.organizationId) {
     return {applied: false, reason: 'missing_payment_or_org'};
   }

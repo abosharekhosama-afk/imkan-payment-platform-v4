@@ -97,6 +97,9 @@ const ICONS: Record<string, React.ReactNode> = {
   search: (
     <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm10 2-4.3-4.3" />
   ),
+  percent: (
+    <path d="M19 5 5 19M9 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm6 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+  ),
 };
 
 export function NavIcon({name}: {name?: string}) {

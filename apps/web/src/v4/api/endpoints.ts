@@ -345,6 +345,11 @@ export const v4 = {
       token,
     ),
   paymentFees: (token: Tok, id: string) => apiV1<any>(`/payments/${id}/fees`, withToken(token)),
+  feeSchedules: (token: Tok) => apiV1<any[]>('/fee-schedules', withToken(token)),
+  upsertFeeSchedule: (token: Tok, body: unknown, stepUpToken?: string) =>
+    apiV1<any>('/fee-schedules', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
+  previewFeeSchedule: (token: Tok, body: unknown) =>
+    apiV1<any>('/fee-schedules/preview', withToken(token, {method: 'POST', body})),
   createMerchantProviderAccount: (token: Tok, body: unknown, stepUpToken?: string) =>
     apiV1<any>('/merchant/provider-accounts', withToken(token, {method: 'POST', body, idempotent: true, stepUpToken})),
   ledgerAccounts: (token: Tok) => apiV1<any[]>('/ledger/accounts', withToken(token)),

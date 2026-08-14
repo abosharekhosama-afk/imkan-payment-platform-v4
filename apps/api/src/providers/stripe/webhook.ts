@@ -118,7 +118,12 @@ export async function verifyStripeWebhook(input: {
       paymentIntentId: normalized.paymentIntentId,
       organizationId: undefined,
       environment: input.environment,
-      payload: event as unknown as Record<string, unknown>,
+      payload: {
+        ...(event as unknown as Record<string, unknown>),
+        amount_minor: normalized.amountMinor,
+        currency_code: normalized.currencyCode,
+        stripe_object: event.data?.object || {},
+      },
     },
     nonce: event.id,
     timestamp: Math.floor(Date.now() / 1000),

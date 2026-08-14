@@ -44,6 +44,9 @@ STRIPE_LIVE_WEBHOOK_SECRET=whsec_...
 # Return URLs (Checkout success/cancel)
 STRIPE_SUCCESS_URL=https://your-app.example/checkout/return
 STRIPE_CANCEL_URL=https://your-app.example/checkout/return?status=cancelled
+
+# 3DS / Radar policy on card intents (automatic | any | challenge)
+STRIPE_REQUEST_3DS=automatic
 ```
 
 ### Enable live money (explicit)
@@ -63,7 +66,19 @@ Webhook endpoint (test and live should use separate Stripe webhook endpoints poi
 https://<public-api>/api/v1/webhooks/providers/stripe
 ```
 
-Events to enable: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`.
+Events to enable: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `radar.early_fraud_warning.created`, `payout.paid`, `payout.failed`.
+
+Register from the CLI (writes signing secret only on create):
+
+```bash
+STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_URL=https://<public-api>/api/v1/webhooks/providers/stripe npm run stripe:register-webhooks
+```
+
+Dispute and Radar events create IMKAN `disputes` / `risk_signals` rows. `payout.*` is recorded as an outbox notice only (IMKAN payouts remain dual-control; this is not Stripe Connect).
+
+Card PaymentIntents and Checkout Sessions request 3DS via `payment_method_options[card][request_three_d_secure]` (`STRIPE_REQUEST_3DS=automatic|any|challenge`, default `automatic`). Radar runs on the Stripe account; IMKAN stores early-fraud webhooks.
+
+Platform commission is tested from **Finance → Fee schedules** (SANDBOX `fee_schedules`). That is IMKAN’s fee, not Stripe `application_fee_amount` / Connect.
 
 ---
 
@@ -111,6 +126,7 @@ Simulate authorize / refund / webhook HMAC covered without network.
 ## Limits (honest)
 
 - Not a full Billing/Subscriptions Stripe integration.  
-- Disputes: webhook types normalize; evidence upload API not implemented.  
-- Settlement/payout: use Stripe Dashboard / reporting — not IMKAN Financial Core import yet.  
+- Disputes: webhook types create/update IMKAN dispute rows; evidence upload API not implemented.  
+- Radar early-fraud warnings become risk signals.  
+- Settlement/payout: Stripe `payout.*` notices are stored; money movement still uses IMKAN Financial Core / Dashboard — not Connect.  
 - Enabling Stripe does **not** auto-PASS `docs/ops/PRODUCTION_GATE.md`.

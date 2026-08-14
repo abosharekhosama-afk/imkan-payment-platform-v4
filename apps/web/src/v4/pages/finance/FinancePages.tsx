@@ -7,6 +7,7 @@ import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {CurrencySelect} from '../../design-system/CurrencySelect';
 import {useBusyAction} from '../../hooks/useBusyAction';
+import {obtainStepUp} from '../../rbac/stepUp';
 import {BALANCE_CHART_COLORS, DonutChart} from '../../components/FinanceCharts';
 
 export function RefundsPage() {
@@ -466,6 +467,170 @@ export function RiskPage() {
               ) : (
                 <tr>
                   <td colSpan={5}>{t('common.noRecords')}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FeeSchedulesPage() {
+  const {t} = useI18n();
+  const {token} = useAuth();
+  const {busy, run} = useBusyAction();
+  const [rows, setRows] = useState<any[]>([]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState<any>(null);
+  const [totp, setTotp] = useState('');
+  const [form, setForm] = useState({
+    name: 'Sandbox platform fee',
+    currency_code: 'USD',
+    environment: 'SANDBOX',
+    basis_points: '250',
+    fixed_minor: '0',
+    preview_gross: '10000',
+  });
+
+  const load = () => {
+    if (!token) return;
+    setLoading(true);
+    v4.feeSchedules(token)
+      .then(setRows)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [token]);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await run(async () => {
+        const step = totp ? await obtainStepUp(token, totp) : {stepUpToken: undefined as string | undefined};
+        await v4.upsertFeeSchedule(
+          token,
+          {
+            name: form.name,
+            currency_code: form.currency_code,
+            environment: form.environment,
+            basis_points: Number(form.basis_points),
+            fixed_minor: form.fixed_minor,
+            is_active: true,
+          },
+          step.stepUpToken,
+        );
+        setTotp('');
+        load();
+      });
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const doPreview = async () => {
+    setError('');
+    try {
+      const result = await v4.previewFeeSchedule(token, {
+        environment: form.environment,
+        currency_code: form.currency_code,
+        gross_minor: form.preview_gross,
+      });
+      setPreview(result);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div>
+      <PageHeader
+        title={t('finance.fees.title')}
+        description={t('finance.fees.description')}
+        crumbs={[{label: t('section.finance')}, {label: t('nav.fees')}]}
+      />
+      {error ? <Alert tone="danger">{error}</Alert> : null}
+      <Can anyOf={['settlements.manage', 'platform.finance', 'platform.admin']}>
+        <div className="v4-card" style={{marginBottom: '1rem'}}>
+          <form onSubmit={save}>
+            <Field label={t('finance.fees.name')}>
+              <input required value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
+            </Field>
+            <Field label={t('common.currency')}>
+              <CurrencySelect value={form.currency_code} onChange={(currency_code) => setForm({...form, currency_code})} />
+            </Field>
+            <Field label={t('finance.fees.bps')}>
+              <input
+                required
+                inputMode="numeric"
+                value={form.basis_points}
+                onChange={(e) => setForm({...form, basis_points: e.target.value})}
+              />
+            </Field>
+            <Field label={t('finance.fees.fixed')}>
+              <input
+                required
+                inputMode="numeric"
+                value={form.fixed_minor}
+                onChange={(e) => setForm({...form, fixed_minor: e.target.value})}
+              />
+            </Field>
+            <Field label={t('finance.fees.previewAmount')}>
+              <input
+                inputMode="numeric"
+                value={form.preview_gross}
+                onChange={(e) => setForm({...form, preview_gross: e.target.value})}
+              />
+            </Field>
+            <Field label={t('security.users.labelTotp')}>
+              <input value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" />
+            </Field>
+            <div className="v4-page-actions">
+              <Button type="button" onClick={() => void doPreview()}>
+                {t('finance.fees.preview')}
+              </Button>
+              <Button type="submit" busy={busy}>
+                {t('finance.fees.save')}
+              </Button>
+            </div>
+          </form>
+          {preview ? (
+            <p>
+              {t('finance.fees.previewResult')}: {formatMoney(preview.platform_fees_minor, preview.currency_code)} (
+              {preview.basis_points} bps)
+            </p>
+          ) : null}
+        </div>
+      </Can>
+      {loading ? (
+        <LoadingState />
+      ) : (
+        <div className="v4-table-wrap">
+          <table className="v4-table">
+            <thead>
+              <tr>
+                <th>{t('finance.fees.name')}</th>
+                <th>{t('common.currency')}</th>
+                <th>{t('finance.fees.bps')}</th>
+                <th>{t('finance.fees.fixed')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length ? (
+                rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.name}</td>
+                    <td>{r.currency_code}</td>
+                    <td>{r.basis_points}</td>
+                    <td>{r.fixed_minor}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4}>{t('finance.fees.empty')}</td>
                 </tr>
               )}
             </tbody>

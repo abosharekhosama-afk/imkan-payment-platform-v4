@@ -252,6 +252,7 @@ export const providerWebhookService = {
         amountMinor: event.payload?.amount_minor != null ? String(event.payload.amount_minor) : null,
         currencyCode: event.payload?.currency_code != null ? String(event.payload.currency_code) : null,
         environment,
+        payload: event.payload || null,
       });
 
       await emitOutboxEvent(
