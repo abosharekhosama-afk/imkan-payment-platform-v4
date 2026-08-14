@@ -92,7 +92,7 @@ export async function registerPhase2Routes(app: FastifyInstance) {
   app.post('/auth/mfa/step-up', async (request) => {
     const body = z
       .object({
-        totp: z.string().regex(/^\d{6}$/),
+        totp: z.string().regex(/^\d{6}$/, 'Authenticator code must be 6 digits.'),
         purpose: z.string().min(1).max(120).optional(),
       })
       .parse(request.body);

@@ -60,7 +60,82 @@ export function formatEventAction(code: string | null | undefined, locale: Local
   return lookup(`event.${key}`, locale) || titleCase(key);
 }
 
-/** Prefer display name, then email — never raw UUID for people. */
+/** Convert API / stored error text into a merchant-facing sentence. */
+export function formatErrorMessage(
+  message: string | null | undefined,
+  code?: string | null,
+  locale: Locale = 'en',
+): string {
+  const namedCode = code ? lookup(`error.${code}`, locale) : null;
+  const raw = String(message || '').trim();
+  if (!raw && namedCode) return namedCode;
+  if (/^[A-Z][A-Z0-9_]{2,}$/.test(raw)) {
+    return lookup(`error.${raw}`, locale) || namedCode || titleCase(raw);
+  }
+
+  const parts = raw
+    .split(/\s*\|\s*/)
+    .map((part) => humanizeErrorPart(part, locale))
+    .filter(Boolean);
+  const joined = parts.join(locale === 'ar' ? ' ' : ' ');
+  if (joined) return joined;
+  return namedCode || lookup('error.INTERNAL_ERROR', locale) || raw || '—';
+}
+
+export function formatErrorCode(code: string | null | undefined, locale: Locale = 'en'): string {
+  if (!code) return '—';
+  const key = String(code).trim();
+  if (/^\d+$/.test(key)) return key;
+  return lookup(`errorType.${key}`, locale) || lookup(`error.${key}`, locale) || titleCase(key);
+}
+
+function humanizeErrorPart(part: string, locale: Locale): string {
+  const text = part.trim();
+  if (!text) return '';
+  const looked = lookup(`error.${text}`, locale);
+  if (looked) return looked;
+  if (/authenticator code must be 6 digits/i.test(text)) {
+    return lookup('error.TOTP_FORMAT', locale) || text;
+  }
+  if (/something went wrong/i.test(text)) {
+    return lookup('error.INTERNAL_ERROR', locale) || text;
+  }
+  if (/some (details|fields) are invalid/i.test(text)) {
+    return lookup('error.VALIDATION_ERROR', locale) || text;
+  }
+
+  const fieldMatch = text.match(/^([a-zA-Z0-9_.]+):\s*(.*)$/);
+  const field = fieldMatch?.[1] || '';
+  const rest = fieldMatch?.[2] || text;
+  const fieldKey = field.split('.').pop() || field;
+  const fieldLabel = lookup(`errorField.${fieldKey}`, locale) || (fieldKey ? titleCase(fieldKey) : '');
+
+  if (/totp/i.test(field) || /totp/i.test(text)) {
+    return lookup('error.TOTP_FORMAT', locale) || text;
+  }
+  if (/must match pattern|regex|\\d\{6\}|\/\^/i.test(rest) || /must match pattern|regex|\\d\{6\}|\/\^/i.test(text)) {
+    return fieldLabel
+      ? locale === 'ar'
+        ? `${fieldLabel} بصيغة غير صحيحة.`
+        : `${fieldLabel} is not in the correct format.`
+      : lookup('error.INVALID_FORMAT', locale) || text;
+  }
+  if (/invalid uuid|uuid/i.test(rest)) {
+    return lookup('error.INVALID_ID', locale) || text;
+  }
+  if (/required|expected string|invalid_type/i.test(rest)) {
+    return fieldLabel
+      ? locale === 'ar'
+        ? `${fieldLabel} مطلوب.`
+        : `${fieldLabel} is required.`
+      : lookup('error.VALIDATION_ERROR', locale) || text;
+  }
+  if (/internal error|internal_error/i.test(text)) {
+    return lookup('error.INTERNAL_ERROR', locale) || text;
+  }
+  return text;
+}
+
 export function formatActor(
   row: {
     actor_name?: string | null;

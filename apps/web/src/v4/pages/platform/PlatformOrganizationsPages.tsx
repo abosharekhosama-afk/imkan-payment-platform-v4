@@ -13,7 +13,7 @@ import {
 } from '../../design-system/components';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
-import {formatActor, formatEventAction} from '../../i18n/humanize';
+import {formatActor, formatErrorCode, formatErrorMessage, formatEventAction} from '../../i18n/humanize';
 import {Can} from '../../rbac/Can';
 import {obtainStepUp} from '../../rbac/stepUp';
 import {useToast} from '../../hooks/useToast';
@@ -549,6 +549,7 @@ export function PlatformObservabilityPage() {
         <DataTable
           columns={[
             t('platform.obs.colOrg'),
+            t('security.errors.colMessage'),
             t('security.audit.colActor'),
             t('security.errors.colRoute'),
             t('security.errors.colCode'),
@@ -556,9 +557,10 @@ export function PlatformObservabilityPage() {
           ]}
           rows={rows.map((r) => [
             r.organization_name || shortId(r.organization_id),
+            formatErrorMessage(r.message, r.error_code, locale),
             formatActor(r),
-            `${r.method || ''} ${r.route || ''}`.trim() || r.message || '—',
-            r.error_code || r.status_code,
+            `${r.method || ''} ${r.route || ''}`.trim() || '—',
+            formatErrorCode(r.error_code, locale),
             formatDate(r.created_at),
           ])}
           empty={<p>{t('platform.obs.empty')}</p>}

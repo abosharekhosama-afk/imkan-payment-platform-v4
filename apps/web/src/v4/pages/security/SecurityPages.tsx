@@ -18,7 +18,15 @@ import {useI18n} from '../../i18n/I18nProvider';
 import type {Locale} from '../../i18n/index';
 import type {ThemeMode} from '../../theme';
 import {formatDate, shortId} from '../../utils/money';
-import {formatActor, formatEventAction, formatPermission, formatRole, formatRoles} from '../../i18n/humanize';
+import {
+  formatActor,
+  formatErrorCode,
+  formatErrorMessage,
+  formatEventAction,
+  formatPermission,
+  formatRole,
+  formatRoles,
+} from '../../i18n/humanize';
 
 export function UsersPage() {
   const {t, locale} = useI18n();
@@ -466,7 +474,7 @@ function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
   const columns =
     kind === 'errors'
       ? [
-          t('security.audit.colAction'),
+          t('security.errors.colMessage'),
           t('security.audit.colActor'),
           t('security.errors.colRoute'),
           t('security.errors.colCode'),
@@ -484,10 +492,10 @@ function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
   const tableRows =
     kind === 'errors'
       ? rows.map((r) => [
-          r.message || formatEventAction(r.error_code, locale) || '—',
+          formatErrorMessage(r.message, r.error_code, locale),
           formatActor(r),
           `${r.method || ''} ${r.route || ''}`.trim() || '—',
-          r.error_code || r.status_code || '—',
+          formatErrorCode(r.error_code, locale),
           formatDate(r.created_at),
         ])
       : kind === 'security'

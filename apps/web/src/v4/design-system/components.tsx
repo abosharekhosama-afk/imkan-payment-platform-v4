@@ -1,7 +1,7 @@
 import React from 'react';
 import {Link} from 'react-router-dom';
 import {useI18n} from '../i18n/I18nProvider';
-import {formatStatus} from '../i18n/humanize';
+import {formatErrorMessage, formatStatus} from '../i18n/humanize';
 
 export function PageHeader({
   title,
@@ -99,7 +99,12 @@ export function Alert({
   children: React.ReactNode;
   tone?: 'info' | 'warning' | 'danger' | 'success';
 }) {
-  return <div className={`v4-alert ${tone === 'info' ? '' : tone}`}>{children}</div>;
+  const {locale} = useI18n();
+  const content =
+    tone === 'danger' && typeof children === 'string'
+      ? formatErrorMessage(children, undefined, locale)
+      : children;
+  return <div className={`v4-alert ${tone === 'info' ? '' : tone}`}>{content}</div>;
 }
 
 export function EmptyState({title, description}: {title: string; description?: string}) {

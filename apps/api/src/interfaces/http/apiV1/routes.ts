@@ -5,6 +5,7 @@ import {apiV1AuthHook, requireOrganizationContext, requirePermission} from '../.
 import {identityService} from '../../../foundation/identity-service.js';
 import {created, ok, parsePaging} from '../../../foundation/http.js';
 import {AppError, forbidden, notFound} from '../../../foundation/errors.js';
+import {humanizeErrorCode, humanizeZodIssues} from '../../../foundation/humanize-error.js';
 import {config} from '../../../config.js';
 import {redact} from '../../../foundation/redact.js';
 import {writeAuditEvent, writeSecurityEvent} from '../../../foundation/audit.js';
@@ -66,11 +67,20 @@ export async function apiV1Routes(app: FastifyInstance) {
     const isZod = (error as any)?.name === 'ZodError' || Array.isArray((error as any)?.issues);
     const finalStatus = isZod ? 400 : status;
     const finalCode = isZod ? 'VALIDATION_ERROR' : String(code);
-    const message = isZod
-      ? ((error as any).issues || []).map((i: any) => `${(i.path || []).join('.') || 'request'}: ${i.message}`).join(' | ')
+    const rawMessage = isZod
+      ? humanizeZodIssues((error as any).issues || [])
       : error instanceof Error
         ? error.message
         : 'Unexpected error';
+    const looksLikeCode = !rawMessage || rawMessage === finalCode || /^[A-Z][A-Z0-9_]{2,}$/.test(rawMessage);
+    const message =
+      finalCode === 'INTERNAL_ERROR' || finalStatus >= 500
+        ? config.isProduction || looksLikeCode
+          ? humanizeErrorCode('INTERNAL_ERROR')
+          : rawMessage
+        : looksLikeCode
+          ? humanizeErrorCode(finalCode)
+          : rawMessage;
     request.log.error({err: error, request_id: request.id}, 'api v1 error');
     try {
       await pgQuery(
@@ -102,7 +112,10 @@ export async function apiV1Routes(app: FastifyInstance) {
     reply.code(finalStatus).send({
       error: {
         code: finalCode,
-        message: config.isProduction && finalStatus >= 500 ? 'Internal server error' : message,
+        message:
+          config.isProduction && finalStatus >= 500
+            ? 'Something went wrong. Please try again.'
+            : message,
         request_id: request.id,
         ...(error instanceof AppError && error.details ? {details: error.details} : {}),
       },
@@ -228,7 +241,7 @@ export async function apiV1Routes(app: FastifyInstance) {
     const body = z
       .object({
         mfa_token: z.string().min(10),
-        totp: z.string().regex(/^\d{6}$/),
+        totp: z.string().regex(/^\d{6}$/, 'Authenticator code must be 6 digits.'),
         organization_id: z.string().uuid().optional(),
       })
       .parse(request.body);

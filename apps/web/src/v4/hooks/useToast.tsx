@@ -1,4 +1,6 @@
 import React, {createContext, useCallback, useContext, useMemo, useState} from 'react';
+import {useI18n} from '../i18n/I18nProvider';
+import {formatErrorMessage} from '../i18n/humanize';
 
 type Toast = {id: string; message: string};
 
@@ -8,12 +10,17 @@ const ToastContext = createContext<{
 } | null>(null);
 
 export function ToastProvider({children}: {children: React.ReactNode}) {
+  const {locale} = useI18n();
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const push = useCallback((message: string) => {
-    const id = crypto.randomUUID();
-    setToasts((t) => [...t, {id, message}]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
-  }, []);
+  const push = useCallback(
+    (message: string) => {
+      const id = crypto.randomUUID();
+      const text = formatErrorMessage(message, undefined, locale);
+      setToasts((t) => [...t, {id, message: text}]);
+      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
+    },
+    [locale],
+  );
   const value = useMemo(() => ({push, toasts}), [push, toasts]);
   return (
     <ToastContext.Provider value={value}>
