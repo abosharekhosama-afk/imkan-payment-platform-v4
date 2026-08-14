@@ -6,6 +6,7 @@ import {Alert, Button, LoadingState, PageHeader} from '../../design-system/compo
 import {Select} from '../../design-system/Select';
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatMoney} from '../../utils/money';
+import {BALANCE_CHART_COLORS, BarMixChart, DonutChart} from '../../components/FinanceCharts';
 
 export function WalletPage() {
   const {t} = useI18n();
@@ -83,19 +84,46 @@ export function WalletPage() {
             </div>
           </div>
           {balances ? (
-            <div className="v4-stat-grid" style={{marginTop: 16}}>
-              {[
-                [t('finance.balances.available'), formatMoney(balances.available_minor, balances.currency_code || currency)],
-                [t('finance.balances.pending'), formatMoney(balances.pending_minor, balances.currency_code || currency)],
-                [t('finance.balances.reserved'), formatMoney(balances.reserved_minor, balances.currency_code || currency)],
-                [t('finance.balances.settled'), formatMoney(balances.settled_minor, balances.currency_code || currency)],
-              ].map(([label, value]) => (
-                <div className="v4-stat" key={String(label)}>
-                  <span>{label}</span>
-                  <strong>{value}</strong>
+            <>
+              <div className="v4-stat-grid" style={{marginTop: 16}}>
+                {[
+                  [t('finance.balances.available'), formatMoney(balances.available_minor, balances.currency_code || currency)],
+                  [t('finance.balances.pending'), formatMoney(balances.pending_minor, balances.currency_code || currency)],
+                  [t('finance.balances.reserved'), formatMoney(balances.reserved_minor, balances.currency_code || currency)],
+                  [t('finance.balances.settled'), formatMoney(balances.settled_minor, balances.currency_code || currency)],
+                ].map(([label, value]) => (
+                  <div className="v4-stat" key={String(label)}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="v4-chart-grid">
+                <div className="v4-card v4-chart-card">
+                  <h3>{t('wallet.mixTitle')}</h3>
+                  <DonutChart
+                    centerLabel={currency}
+                    slices={[
+                      {id: 'available', label: t('finance.balances.available'), value: Number(balances.available_minor || 0), color: BALANCE_CHART_COLORS.available},
+                      {id: 'pending', label: t('finance.balances.pending'), value: Number(balances.pending_minor || 0), color: BALANCE_CHART_COLORS.pending},
+                      {id: 'reserved', label: t('finance.balances.reserved'), value: Number(balances.reserved_minor || 0), color: BALANCE_CHART_COLORS.reserved},
+                      {id: 'settled', label: t('finance.balances.settled'), value: Number(balances.settled_minor || 0), color: BALANCE_CHART_COLORS.settled},
+                    ]}
+                  />
                 </div>
-              ))}
-            </div>
+                <div className="v4-card v4-chart-card">
+                  <h3>{t('wallet.statementMix')}</h3>
+                  <BarMixChart
+                    slices={[
+                      {id: 'gross', label: t('wallet.gross'), value: Number(totals.gross_minor || 0), color: BALANCE_CHART_COLORS.gross},
+                      {id: 'platform', label: t('wallet.platformFees'), value: Number(totals.platform_fees_minor || 0), color: BALANCE_CHART_COLORS.platform},
+                      {id: 'provider', label: t('wallet.providerFees'), value: Number(totals.provider_fees_minor || 0), color: BALANCE_CHART_COLORS.provider},
+                      {id: 'net', label: t('wallet.netAvailable'), value: Number(totals.net_to_merchant_minor || 0), color: BALANCE_CHART_COLORS.net},
+                    ]}
+                  />
+                </div>
+              </div>
+            </>
           ) : null}
           <p style={{marginTop: 16}}>
             <Link to="/reports">{t('wallet.openReports')}</Link>

@@ -12,8 +12,10 @@ export function ImkanLoader({label, size = 'md', overlay}: Props) {
   const text = label ?? t('common.loading');
   const inner = (
     <div className={`v4-imkan-loader v4-imkan-loader--${size}`} role="status" aria-live="polite">
-      <div className="v4-imkan-loader-orbit" aria-hidden="true">
-        <div className="v4-imkan-loader-mark">IMK</div>
+      <div className="v4-loader-ring" aria-hidden="true">
+        <span />
+        <span />
+        <span />
       </div>
       <span className="v4-imkan-loader-label">{text}</span>
     </div>

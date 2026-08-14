@@ -398,11 +398,17 @@ export class IdentityPhase2Service {
   async deactivateUser(organizationId: string, targetUserId: string, actorUserId: string) {
     if (targetUserId === actorUserId) throw conflict('Cannot deactivate yourself', 'CANNOT_DEACTIVATE_SELF');
     return withPgTransaction(async (client) => {
-      const membership = await client.query(
-        `SELECT 1 FROM organization_users WHERE organization_id=$1 AND user_id=$2`,
+      const membership = await client.query<{status: string}>(
+        `SELECT status FROM organization_users WHERE organization_id=$1 AND user_id=$2`,
         [organizationId, targetUserId],
       );
       if (!membership.rows[0]) throw notFound('Member not found', 'MEMBER_NOT_FOUND');
+      if (membership.rows[0].status === 'REMOVED') {
+        throw conflict('Member was already removed', 'MEMBER_ALREADY_REMOVED');
+      }
+      if (membership.rows[0].status === 'DISABLED') {
+        return {user_id: targetUserId, status: 'DISABLED'};
+      }
 
       const targetOwner = await client.query(
         `SELECT 1 FROM user_roles ur
@@ -448,14 +454,66 @@ export class IdentityPhase2Service {
     });
   }
 
+  async reactivateUser(organizationId: string, targetUserId: string, actorUserId: string) {
+    if (targetUserId === actorUserId) throw conflict('Cannot change your own membership this way', 'CANNOT_REACTIVATE_SELF');
+    return withPgTransaction(async (client) => {
+      const membership = await client.query<{status: string}>(
+        `SELECT status FROM organization_users WHERE organization_id=$1 AND user_id=$2`,
+        [organizationId, targetUserId],
+      );
+      const row = membership.rows[0];
+      if (!row) throw notFound('Member not found', 'MEMBER_NOT_FOUND');
+      if (row.status === 'REMOVED') {
+        throw conflict('Closed memberships cannot be restored here — send a new invitation', 'MEMBER_REMOVED');
+      }
+      if (row.status === 'ACTIVE') {
+        return {user_id: targetUserId, status: 'ACTIVE'};
+      }
+
+      const targetOwner = await client.query(
+        `SELECT 1 FROM user_roles ur
+         JOIN roles r ON r.id = ur.role_id
+         WHERE ur.user_id=$1 AND ur.organization_id=$2 AND r.code='MERCHANT_OWNER'`,
+        [targetUserId, organizationId],
+      );
+      if (targetOwner.rows[0]) {
+        throw forbidden('Cannot change the company owner membership this way', 'CANNOT_REACTIVATE_OWNER');
+      }
+
+      await client.query(
+        `UPDATE organization_users SET status='ACTIVE', updated_at=NOW()
+         WHERE organization_id=$1 AND user_id=$2`,
+        [organizationId, targetUserId],
+      );
+      await writeAuditEvent(
+        {
+          organizationId,
+          actorUserId,
+          action: 'user.reactivated',
+          resourceType: 'user',
+          resourceId: targetUserId,
+        },
+        client,
+      );
+      await writeSecurityEvent(
+        {organizationId, userId: actorUserId, eventType: 'user.reactivated', metadata: {target_user_id: targetUserId}},
+        client,
+      );
+      return {user_id: targetUserId, status: 'ACTIVE'};
+    });
+  }
+
   async removeMember(organizationId: string, targetUserId: string, actorUserId: string) {
     if (targetUserId === actorUserId) throw conflict('Cannot remove yourself', 'CANNOT_REMOVE_SELF');
     return withPgTransaction(async (client) => {
-      const membership = await client.query(
-        `SELECT 1 FROM organization_users WHERE organization_id=$1 AND user_id=$2`,
+      const membership = await client.query<{status: string}>(
+        `SELECT status FROM organization_users WHERE organization_id=$1 AND user_id=$2`,
         [organizationId, targetUserId],
       );
       if (!membership.rows[0]) throw notFound('Member not found', 'MEMBER_NOT_FOUND');
+      if (membership.rows[0].status === 'REMOVED') {
+        return {user_id: targetUserId, status: 'REMOVED'};
+      }
 
       const targetOwner = await client.query(
         `SELECT 1 FROM user_roles ur
@@ -471,10 +529,11 @@ export class IdentityPhase2Service {
         targetUserId,
         organizationId,
       ]);
-      await client.query(`DELETE FROM organization_users WHERE organization_id=$1 AND user_id=$2`, [
-        organizationId,
-        targetUserId,
-      ]);
+      await client.query(
+        `UPDATE organization_users SET status='REMOVED', updated_at=NOW()
+         WHERE organization_id=$1 AND user_id=$2`,
+        [organizationId, targetUserId],
+      );
       await client.query(
         `UPDATE sessions SET revoked_at=NOW()
          WHERE user_id=$1 AND organization_id=$2 AND revoked_at IS NULL`,

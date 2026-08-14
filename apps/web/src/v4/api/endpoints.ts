@@ -258,6 +258,11 @@ export const v4 = {
       `/organizations/${orgId}/users/${userId}/deactivate`,
       withToken(token, {method: 'POST', body: {}, stepUpToken}),
     ),
+  reactivateMember: (token: Tok, orgId: string, userId: string, stepUpToken?: string) =>
+    apiV1<any>(
+      `/organizations/${orgId}/users/${userId}/reactivate`,
+      withToken(token, {method: 'POST', body: {}, stepUpToken}),
+    ),
   removeMember: (token: Tok, orgId: string, userId: string, stepUpToken?: string) =>
     apiV1<any>(
       `/organizations/${orgId}/users/${userId}/remove`,

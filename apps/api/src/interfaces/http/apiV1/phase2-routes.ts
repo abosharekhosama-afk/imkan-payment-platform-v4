@@ -226,6 +226,25 @@ export async function registerPhase2Routes(app: FastifyInstance) {
   );
 
   app.post(
+    '/organizations/:organizationId/users/:userId/reactivate',
+    {
+      preHandler: [
+        requireMerchantOwnerOrPlatformAdmin(),
+        requirePermission('users.deactivate', 'users.manage', 'platform.admin'),
+        requireStepUp(),
+      ],
+    },
+    async (request) => {
+      const params = z.object({organizationId: z.string().uuid(), userId: z.string().uuid()}).parse(request.params);
+      assertOrgAccess(request.auth!, params.organizationId);
+      return ok(
+        request,
+        await identityPhase2.reactivateUser(params.organizationId, params.userId, request.auth!.userId),
+      );
+    },
+  );
+
+  app.post(
     '/organizations/:organizationId/users/:userId/remove',
     {
       preHandler: [

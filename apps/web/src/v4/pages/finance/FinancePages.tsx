@@ -7,6 +7,7 @@ import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, formatMoney, shortId} from '../../utils/money';
 import {CurrencySelect} from '../../design-system/CurrencySelect';
 import {useBusyAction} from '../../hooks/useBusyAction';
+import {BALANCE_CHART_COLORS, DonutChart} from '../../components/FinanceCharts';
 
 export function RefundsPage() {
   const {t} = useI18n();
@@ -161,19 +162,33 @@ export function BalancesPage() {
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {!data && !error ? <LoadingState /> : null}
       {data ? (
-        <div className="v4-stat-grid">
-          {[
-            [t('finance.balances.available'), formatMoney(data.available_minor, data.currency_code)],
-            [t('finance.balances.pending'), formatMoney(data.pending_minor, data.currency_code)],
-            [t('finance.balances.reserved'), formatMoney(data.reserved_minor, data.currency_code)],
-            [t('finance.balances.settled'), formatMoney(data.settled_minor, data.currency_code)],
-          ].map(([label, value]) => (
-            <div className="v4-stat" key={String(label)}>
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="v4-stat-grid">
+            {[
+              [t('finance.balances.available'), formatMoney(data.available_minor, data.currency_code)],
+              [t('finance.balances.pending'), formatMoney(data.pending_minor, data.currency_code)],
+              [t('finance.balances.reserved'), formatMoney(data.reserved_minor, data.currency_code)],
+              [t('finance.balances.settled'), formatMoney(data.settled_minor, data.currency_code)],
+            ].map(([label, value]) => (
+              <div className="v4-stat" key={String(label)}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="v4-card v4-chart-card">
+            <h3>{t('wallet.mixTitle')}</h3>
+            <DonutChart
+              centerLabel={data.currency_code}
+              slices={[
+                {id: 'available', label: t('finance.balances.available'), value: Number(data.available_minor || 0), color: BALANCE_CHART_COLORS.available},
+                {id: 'pending', label: t('finance.balances.pending'), value: Number(data.pending_minor || 0), color: BALANCE_CHART_COLORS.pending},
+                {id: 'reserved', label: t('finance.balances.reserved'), value: Number(data.reserved_minor || 0), color: BALANCE_CHART_COLORS.reserved},
+                {id: 'settled', label: t('finance.balances.settled'), value: Number(data.settled_minor || 0), color: BALANCE_CHART_COLORS.settled},
+              ]}
+            />
+          </div>
+        </>
       ) : null}
       {data?.phase ? (
         <Alert tone="info">

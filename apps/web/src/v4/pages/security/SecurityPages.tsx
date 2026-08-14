@@ -37,9 +37,9 @@ export function UsersPage() {
   const canManageMembers =
     hasRole('MERCHANT_OWNER', 'PLATFORM_OWNER') || hasPermission('platform.admin');
 
-  const load = () => {
+  const load = (quiet = false) => {
     if (!token || !organizationId) return;
-    setLoading(true);
+    if (!quiet) setLoading(true);
     Promise.all([
       v4.members(token, organizationId),
       v4.invitations(token, organizationId).catch(() => []),
@@ -76,7 +76,7 @@ export function UsersPage() {
           await v4.createInvitation(token, organizationId, {email, role_code: roleCode}, stepUpToken);
           push(t('toast.invitationCreated'));
           setEmail('');
-          load();
+          load(true);
         });
       } catch (err: any) {
         setError(err.message);
@@ -92,7 +92,7 @@ export function UsersPage() {
         await withStepUp(async (stepUpToken) => {
           await v4.revokeInvitation(token, organizationId, invitationId, stepUpToken);
           push(t('toast.invitationRevoked'));
-          load();
+          load(true);
         });
       } catch (err: any) {
         setError(err.message);
@@ -108,12 +108,28 @@ export function UsersPage() {
         await withStepUp(async (stepUpToken) => {
           await v4.deactivateMember(token, organizationId, memberId, stepUpToken);
           push(t('toast.memberDeactivated'));
-          load();
+          load(true);
         });
       } catch (err: any) {
         setError(err.message);
       }
     }, `deactivate:${memberId}`);
+  };
+
+  const reactivateMember = async (memberId: string) => {
+    if (!organizationId) return;
+    setError('');
+    await run(async () => {
+      try {
+        await withStepUp(async (stepUpToken) => {
+          await v4.reactivateMember(token, organizationId, memberId, stepUpToken);
+          push(t('toast.memberReactivated'));
+          load(true);
+        });
+      } catch (err: any) {
+        setError(err.message);
+      }
+    }, `reactivate:${memberId}`);
   };
 
   const removeMember = async (memberId: string) => {
@@ -124,7 +140,7 @@ export function UsersPage() {
         await withStepUp(async (stepUpToken) => {
           await v4.removeMember(token, organizationId, memberId, stepUpToken);
           push(t('toast.memberRemoved'));
-          load();
+          load(true);
         });
       } catch (err: any) {
         setError(err.message);
@@ -177,23 +193,39 @@ export function UsersPage() {
               rows={rows.map((r) => {
                 const memberId = r.id || r.user_id;
                 const self = memberId === user?.id;
+                const membershipStatus = String(r.membership_status || r.status || 'ACTIVE').toUpperCase();
+                const removed = membershipStatus === 'REMOVED';
+                const restricted = membershipStatus === 'DISABLED';
                 return [
                   r.name || formatActor(r),
                   r.email,
                   Array.isArray(r.roles) ? formatRoles(r.roles, locale) : formatRole(r.role_code, locale),
-                  <StatusBadge status={r.status || r.membership_status} />,
-                  canManageMembers && !self && !isOwnerRole(r) ? (
+                  <StatusBadge status={restricted ? 'RESTRICTED' : membershipStatus} />,
+                  canManageMembers && !self && !isOwnerRole(r) && !removed ? (
                     <span className="v4-row-actions">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        busy={busyKey === `deactivate:${memberId}`}
-                        disabled={busy || !totp}
-                        onClick={() => void deactivateMember(memberId)}
-                      >
-                        {t('security.users.deactivate')}
-                      </Button>
+                      {restricted ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          busy={busyKey === `reactivate:${memberId}`}
+                          disabled={busy || !totp}
+                          onClick={() => void reactivateMember(memberId)}
+                        >
+                          {t('security.users.reactivate')}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          busy={busyKey === `deactivate:${memberId}`}
+                          disabled={busy || !totp}
+                          onClick={() => void deactivateMember(memberId)}
+                        >
+                          {t('security.users.deactivate')}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="danger"
