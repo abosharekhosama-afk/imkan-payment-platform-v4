@@ -13,15 +13,19 @@ export function AppShell() {
   const [open, setOpen] = useState(false);
 
   const isVisibleForAccount = (to: string) =>
-    !isPlatform || to.startsWith('/platform') || to.startsWith('/settings');
+    !isPlatform || to.startsWith('/platform') || to === '/settings/appearance';
 
   const visibleSections = useMemo(
     () =>
       NAV_SECTIONS.map((section) => ({
         ...section,
-        items: section.items.filter(
-          (item) => isVisibleForAccount(item.to) && (!item.anyOf || hasPermission(...item.anyOf)),
-        ),
+        items: section.items
+          .map((item) =>
+            isPlatform && item.to === '/settings/organization'
+              ? {...item, to: '/settings/appearance', anyOf: undefined}
+              : item,
+          )
+          .filter((item) => isVisibleForAccount(item.to) && (!item.anyOf || hasPermission(...item.anyOf))),
       })).filter((section) => section.items.length > 0),
     [hasPermission, isPlatform],
   );

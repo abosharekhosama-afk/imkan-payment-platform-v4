@@ -605,6 +605,8 @@ textarea {
   margin-top: 0.35rem;
   font-size: 1.35rem;
   font-variant-numeric: tabular-nums;
+  text-align: start;
+  unicode-bidi: isolate;
 }
 
 .v4-btn,
@@ -682,11 +684,24 @@ textarea {
 .input-ui {
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0 0.75rem;
-  height: 32px;
+  padding-block: 0;
+  padding-inline-start: 0.75rem;
+  padding-inline-end: 0.75rem;
+  min-height: 36px;
+  height: 36px;
+  line-height: 1.45;
   background: var(--surface);
   color: var(--text);
   width: 100%;
+}
+.v4-field select,
+select.input-ui,
+select.v4-select {
+  height: auto;
+  min-height: 36px;
+  padding-inline-end: 2.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .v4-field textarea,
 textarea.input-ui {
@@ -703,7 +718,12 @@ textarea.input-ui {
 .v4-pref-select {
   border: 1px solid var(--v4-border-strong);
   border-radius: var(--v4-radius-sm);
-  padding: 0.35rem 0.5rem;
+  appearance: none;
+  padding-block: 0.4rem;
+  padding-inline-start: 0.65rem;
+  padding-inline-end: 1.75rem;
+  min-height: 36px;
+  line-height: 1.45;
   background: var(--v4-bg-elevated);
   color: var(--v4-text);
   font-size: 0.85rem;
@@ -725,11 +745,24 @@ textarea.input-ui {
 }
 
 .v4-table th,
-.v4-table td {
+.v4-table td,
+.zoho-table th,
+.zoho-table td {
   text-align: start;
   padding: 0.75rem 0.9rem;
-  border-bottom: 1px solid var(--v4-border);
+  border-bottom: 1px solid var(--border);
   font-size: 0.92rem;
+  vertical-align: middle;
+  unicode-bidi: isolate;
+}
+
+.v4-cell-ltr {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.v4-cell-ltr .v4-mono-ltr {
+  display: inline;
 }
 
 .v4-table th {
@@ -858,6 +891,11 @@ textarea.input-ui {
   gap: var(--v4-space-3);
   margin-bottom: var(--v4-space-4);
   align-items: center;
+}
+
+.v4-toolbar .v4-select-wrap {
+  min-width: 12.5rem;
+  max-width: 20rem;
 }
 
 .v4-toolbar .spacer {
@@ -1316,18 +1354,25 @@ textarea.input-ui {
 .v4-select,
 .v4-toolbar .v4-select {
   width: 100%;
-  min-width: 160px;
+  min-width: 0;
   appearance: none;
-  border: 1px solid var(--v4-border-strong);
-  border-radius: var(--v4-radius-sm);
-  padding: 0.6rem 2rem 0.6rem 0.75rem;
-  background: var(--v4-bg-elevated);
-  color: var(--v4-text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding-block: 0.45rem;
+  padding-inline-start: 0.75rem;
+  padding-inline-end: 2.25rem;
+  min-height: 36px;
+  line-height: 1.45;
+  background: var(--surface);
+  color: var(--text);
   font: inherit;
 }
 
-[dir='rtl'] .v4-select {
-  padding: 0.6rem 0.75rem 0.6rem 2rem;
+[dir='rtl'] .v4-select,
+[dir='rtl'] .v4-field select,
+[dir='rtl'] select.input-ui {
+  padding-inline-start: 0.75rem;
+  padding-inline-end: 2.25rem;
 }
 
 .v4-field .v4-select,
@@ -1681,7 +1726,10 @@ textarea.input-ui {
 .v4-mono-ltr {
   direction: ltr;
   unicode-bidi: isolate;
-  display: inline-block;
+}
+
+[dir='rtl'] .v4-stat strong {
+  text-align: start;
 }
 
 .v4-wallet-hero {

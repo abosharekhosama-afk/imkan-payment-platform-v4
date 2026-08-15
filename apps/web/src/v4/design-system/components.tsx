@@ -65,12 +65,13 @@ export function Button(
 
 export function Field({label, children, hint, fullWidth}: {label: string; children: React.ReactNode; hint?: string; fullWidth?: boolean}) {
   const id = React.useId();
+  const isNativeSelect = React.isValidElement(children) && (children as React.ReactElement<any>).type === 'select';
   const child = React.isValidElement(children)
     ? React.cloneElement(children as React.ReactElement<any>, {
         id: (children as React.ReactElement<any>).props?.id || id,
         className: [
           (children as React.ReactElement<any>).props?.className,
-          (children as React.ReactElement<any>).type === 'select' ? 'v4-select input-ui' : '',
+          isNativeSelect ? 'v4-select input-ui' : '',
           (children as React.ReactElement<any>).type === 'textarea' ? 'v4-textarea input-ui' : '',
           (children as React.ReactElement<any>).type === 'input' ? 'input-ui' : '',
         ]
@@ -81,7 +82,7 @@ export function Field({label, children, hint, fullWidth}: {label: string; childr
   return (
     <div className={`v4-field${fullWidth ? ' v4-field--full' : ''}`}>
       <label htmlFor={(child as any)?.props?.id || id}>{label}</label>
-      {child}
+      {isNativeSelect ? <div className="v4-select-wrap">{child}</div> : child}
       {hint ? <small style={{color: 'var(--text-muted)'}}>{hint}</small> : null}
     </div>
   );
@@ -185,6 +186,12 @@ export function ErrorState({message}: {message: string}) {
   );
 }
 
+function isLtrTechnicalCell(cell: React.ReactNode): boolean {
+  if (typeof cell !== 'string') return false;
+  if (!cell || cell === '—') return false;
+  return /[0-9A-Fa-f]{6,}|…|\d{1,2}[/.\-]\d|\d{4}|SAR|USD|EUR|GBP|ILS|AED|\u2068/.test(cell);
+}
+
 export function DataTable({
   columns,
   rows,
@@ -201,17 +208,22 @@ export function DataTable({
       <table className="v4-table zoho-table">
         <thead>
           <tr>
-            {columns.map((c) => (
-              <th key={c}>{c}</th>
+            {columns.map((c, i) => (
+              <th key={`${c}-${i}`}>{c}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
             <tr key={i}>
-              {row.map((cell, j) => (
-        <td key={j} dir={typeof cell === 'string' && /^\d/.test(cell) ? 'ltr' : undefined}>{cell}</td>
-              ))}
+              {row.map((cell, j) => {
+                const ltr = isLtrTechnicalCell(cell);
+                return (
+                  <td key={j} className={ltr ? 'v4-cell-ltr' : undefined}>
+                    {ltr ? <span className="v4-mono-ltr">{cell}</span> : cell}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

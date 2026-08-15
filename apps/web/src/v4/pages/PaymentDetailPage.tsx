@@ -122,7 +122,9 @@ export function PaymentDetailPage() {
         </div>
         <div className="v4-stat">
           <span>{t('common.created')}</span>
-          <strong style={{fontSize: '1rem'}}>{formatDate(intent.created_at)}</strong>
+          <strong style={{fontSize: '1rem'}}>
+            <span className="v4-mono-ltr">{formatDate(intent.created_at)}</span>
+          </strong>
         </div>
       </div>
       <div className="v4-card v4-fee-breakdown" style={{marginBottom: 16}}>

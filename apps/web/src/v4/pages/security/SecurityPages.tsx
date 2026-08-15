@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import {Navigate, Outlet} from 'react-router-dom';
 import {useAuth} from '../../auth/AuthProvider';
 import {v4} from '../../api/endpoints';
 import {
@@ -7,6 +8,7 @@ import {
   DataTable,
   Field,
   LoadingState,
+  ModuleTabs,
   PageHeader,
   StatusBadge,
 } from '../../design-system/components';
@@ -435,30 +437,42 @@ export function RolesPage() {
   );
 }
 
+export function SecurityLogsHubPage() {
+  const {t} = useI18n();
+  const {hasPermission} = useAuth();
+  const items = [
+    hasPermission('audit.read') ? {to: '/security/logs/audit', label: t('nav.audit')} : null,
+    hasPermission('security.read') ? {to: '/security/logs/events', label: t('nav.securityEvents')} : null,
+    hasPermission('errors.read') ? {to: '/security/logs/errors', label: t('nav.errors')} : null,
+  ].filter((item): item is {to: string; label: string} => Boolean(item));
+
+  return (
+    <div>
+      <PageHeader
+        title={t('security.logs.title')}
+        description={t('security.logs.description')}
+        crumbs={[{label: t('section.settings')}, {label: t('nav.securityLogs')}]}
+      />
+      {items.length > 1 ? <ModuleTabs items={items} /> : null}
+      <Outlet />
+    </div>
+  );
+}
+
+export function SecurityLogsIndex() {
+  const {hasPermission} = useAuth();
+  if (hasPermission('audit.read')) return <Navigate to="audit" replace />;
+  if (hasPermission('security.read')) return <Navigate to="events" replace />;
+  if (hasPermission('errors.read')) return <Navigate to="errors" replace />;
+  return <Navigate to="/forbidden" replace />;
+}
+
 function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
   const {t, locale} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-
-  const meta = {
-    audit: {
-      title: t('security.audit.title'),
-      description: t('security.audit.description'),
-      crumb: t('nav.audit'),
-    },
-    security: {
-      title: t('security.events.title'),
-      description: t('security.events.description'),
-      crumb: t('nav.securityEvents'),
-    },
-    errors: {
-      title: t('security.errors.title'),
-      description: t('security.errors.description'),
-      crumb: t('nav.errors'),
-    },
-  }[kind];
 
   useEffect(() => {
     if (!token) return;
@@ -513,11 +527,6 @@ function EventListPage({kind}: {kind: 'audit' | 'security' | 'errors'}) {
 
   return (
     <div>
-      <PageHeader
-        title={meta.title}
-        description={meta.description}
-        crumbs={[{label: t('section.security')}, {label: meta.crumb}]}
-      />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (
         <LoadingState />
@@ -660,11 +669,6 @@ export function AppearancePage() {
 
   return (
     <div>
-      <PageHeader
-        title={t('settings.appearance.title')}
-        description={t('settings.appearance.description')}
-        crumbs={[{label: t('section.settings')}, {label: t('nav.appearance')}]}
-      />
       <div className="v4-card" style={{maxWidth: 420, marginBottom: 16}}>
         <Field label={t('settings.appearance.theme')}>
           <select value={theme} onChange={(e) => setTheme(e.target.value as ThemeMode)}>

@@ -43,6 +43,8 @@ import {
   OrganizationPage,
   RolesPage,
   SecurityEventsPage,
+  SecurityLogsHubPage,
+  SecurityLogsIndex,
   UsersPage,
 } from '../pages/security/SecurityPages';
 import {
@@ -83,6 +85,17 @@ function RequireAuth({children}: {children: React.ReactNode}) {
 
 function RP({anyOf, children}: {anyOf: string[]; children: React.ReactNode}) {
   return <RequirePermission anyOf={anyOf}>{children}</RequirePermission>;
+}
+
+function MerchantOnly({children}: {children: React.ReactNode}) {
+  const {isPlatform} = useAuth();
+  if (isPlatform) return <Navigate to="/settings/appearance" replace />;
+  return <>{children}</>;
+}
+
+function SettingsIndex() {
+  const {isPlatform} = useAuth();
+  return <Navigate to={isPlatform ? 'appearance' : 'organization'} replace />;
 }
 
 /** Home ('/') sends platform team accounts to the platform workspace; merchants see the dashboard. */
@@ -159,15 +172,55 @@ export function AppRoutes() {
         <Route path="developers/outbound-webhooks" element={<Navigate to="/settings/webhooks" replace />} />
         <Route path="security/users" element={<RP anyOf={['users.read']}><UsersPage /></RP>} />
         <Route path="security/roles" element={<RP anyOf={['roles.read']}><RolesPage /></RP>} />
-        <Route path="security/audit" element={<RP anyOf={['audit.read']}><AuditPage /></RP>} />
-        <Route path="security/events" element={<RP anyOf={['security.read']}><SecurityEventsPage /></RP>} />
-        <Route path="security/errors" element={<RP anyOf={['errors.read']}><ErrorsPage /></RP>} />
+        <Route path="security/audit" element={<Navigate to="/security/logs/audit" replace />} />
+        <Route path="security/events" element={<Navigate to="/security/logs/events" replace />} />
+        <Route path="security/errors" element={<Navigate to="/security/logs/errors" replace />} />
+        <Route
+          path="security/logs"
+          element={
+            <RP anyOf={['audit.read', 'security.read', 'errors.read']}>
+              <SecurityLogsHubPage />
+            </RP>
+          }
+        >
+          <Route index element={<SecurityLogsIndex />} />
+          <Route path="audit" element={<RP anyOf={['audit.read']}><AuditPage /></RP>} />
+          <Route path="events" element={<RP anyOf={['security.read']}><SecurityEventsPage /></RP>} />
+          <Route path="errors" element={<RP anyOf={['errors.read']}><ErrorsPage /></RP>} />
+        </Route>
         <Route path="settings" element={<SettingsHubPage />}>
-          <Route index element={<Navigate to="organization" replace />} />
-          <Route path="organization" element={<RP anyOf={['org.read', 'settings.read']}><OrganizationPage /></RP>} />
-          <Route path="payments" element={<RP anyOf={['payment_config.read']}><PaymentConfigPage /></RP>} />
+          <Route index element={<SettingsIndex />} />
+          <Route
+            path="organization"
+            element={
+              <MerchantOnly>
+                <RP anyOf={['org.read', 'settings.read']}>
+                  <OrganizationPage />
+                </RP>
+              </MerchantOnly>
+            }
+          />
+          <Route
+            path="payments"
+            element={
+              <MerchantOnly>
+                <RP anyOf={['payment_config.read']}>
+                  <PaymentConfigPage />
+                </RP>
+              </MerchantOnly>
+            }
+          />
           <Route path="appearance" element={<AppearancePage />} />
-          <Route path="webhooks" element={<RP anyOf={['webhooks.read', 'webhooks.manage', 'events.read', 'developer.read']}><UnifiedWebhooksPage /></RP>} />
+          <Route
+            path="webhooks"
+            element={
+              <MerchantOnly>
+                <RP anyOf={['webhooks.read', 'webhooks.manage', 'events.read', 'developer.read']}>
+                  <UnifiedWebhooksPage />
+                </RP>
+              </MerchantOnly>
+            }
+          />
         </Route>
         <Route path="refunds" element={<RP anyOf={['payments.refund', 'payments.manage']}><RefundsPage /></RP>} />
         <Route path="wallet" element={<RP anyOf={['balances.read', 'reports.read', 'settlements.read']}><WalletPage /></RP>} />
