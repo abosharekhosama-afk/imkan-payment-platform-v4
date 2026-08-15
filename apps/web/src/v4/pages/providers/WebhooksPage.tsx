@@ -5,7 +5,7 @@ import {Alert, DataTable, LoadingState, PageHeader, StatusBadge} from '../../des
 import {useI18n} from '../../i18n/I18nProvider';
 import {formatDate, shortId} from '../../utils/money';
 
-export function WebhooksPage() {
+export function WebhooksPage({embedded}: {embedded?: boolean}) {
   const {t} = useI18n();
   const {token} = useAuth();
   const [rows, setRows] = useState<any[]>([]);
@@ -22,11 +22,13 @@ export function WebhooksPage() {
 
   return (
     <div>
+      {embedded ? null : (
       <PageHeader
         title={t('providers.webhooks.title')}
         description={t('providers.webhooks.description')}
         crumbs={[{label: t('section.providers')}, {label: t('nav.webhooks')}]}
       />
+      )}
       <Alert tone="info">{t('providers.webhooks.infoLong')}</Alert>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {loading ? (

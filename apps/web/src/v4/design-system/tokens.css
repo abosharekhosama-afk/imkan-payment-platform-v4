@@ -1,8 +1,8 @@
 :root {
-  --v4-font-sans: "Plus Jakarta Sans", "Segoe UI", sans-serif;
-  --v4-font-arabic: "IBM Plex Sans Arabic", "Plus Jakarta Sans", "Segoe UI", sans-serif;
-  --v4-font-display: "Plus Jakarta Sans", "Segoe UI", sans-serif;
-  --v4-font-mono: "IBM Plex Mono", "Consolas", monospace;
+  --v4-font-sans: "Zoho Puvi", Lato, Verdana, Arial, sans-serif;
+  --v4-font-arabic: "IBM Plex Sans Arabic", Lato, Verdana, Arial, sans-serif;
+  --v4-font-display: "Zoho Puvi", Lato, Verdana, Arial, sans-serif;
+  --v4-font-mono: "Geist Mono", "IBM Plex Mono", ui-monospace, Consolas, monospace;
 
   --v4-bg: #f4f6f9;
   --v4-bg-elevated: #ffffff;
@@ -26,6 +26,7 @@
   --v4-info: #175cd3;
   --v4-info-soft: #e8f1ff;
   --v4-focus: #1a9b7a;
+  --v4-success: #067647;
 
   --v4-status-active: #1a9b7a;
   --v4-status-pending: #b54708;
@@ -40,18 +41,34 @@
   --v4-status-live: #027a48;
   --v4-status-disabled: #98a2b3;
 
-  --v4-radius-sm: 8px;
-  --v4-radius: 12px;
-  --v4-radius-lg: 18px;
-  --v4-shadow: 0 1px 2px rgba(11, 20, 38, 0.05), 0 12px 32px rgba(11, 20, 38, 0.08);
+  --v4-radius-sm: 6px;
+  --v4-radius: 8px;
+  --v4-radius-lg: 12px;
+  --v4-shadow: 0 1px 2px rgba(11, 20, 38, 0.06);
   --v4-space-1: 4px;
   --v4-space-2: 8px;
   --v4-space-3: 12px;
   --v4-space-4: 16px;
   --v4-space-5: 24px;
   --v4-space-6: 32px;
-  --v4-sidebar-width: 272px;
-  --v4-topbar-height: 60px;
+  --v4-sidebar-width: 240px;
+  --v4-sidebar-collapsed: 64px;
+  --v4-topbar-height: 44px;
+
+  --primary: var(--v4-accent);
+  --primary-hover: var(--v4-accent-hover);
+  --primary-soft: var(--v4-accent-soft);
+  --page-bg: var(--v4-bg);
+  --dash-page-bg: var(--v4-bg);
+  --surface: var(--v4-bg-elevated);
+  --border: var(--v4-border);
+  --border-light: var(--v4-border);
+  --text: var(--v4-text);
+  --text-secondary: var(--v4-text-muted);
+  --text-muted: var(--v4-text-muted);
+  --success: var(--v4-success);
+  --warning: var(--v4-warning);
+  --danger: var(--v4-danger);
 }
 
 [data-theme='dark'] {
@@ -77,7 +94,8 @@
   --v4-info: #528bff;
   --v4-info-soft: #142a4d;
   --v4-focus: #3dd4a8;
-  --v4-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.28);
+  --v4-success: #32d583;
+  --v4-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 
   --v4-status-succeeded: #32d583;
   --v4-status-failed: #f97066;
@@ -86,4 +104,18 @@
   --v4-status-pastdue: #f79009;
   --v4-status-sandbox: #b692f6;
   --v4-status-live: #32d583;
+
+  --primary: var(--v4-accent);
+  --primary-hover: var(--v4-accent-hover);
+  --primary-soft: var(--v4-accent-soft);
+  --page-bg: var(--v4-bg);
+  --dash-page-bg: var(--v4-bg);
+  --surface: var(--v4-bg-elevated);
+  --border: var(--v4-border);
+  --text: var(--v4-text);
+  --text-secondary: var(--v4-text-muted);
+  --text-muted: var(--v4-text-muted);
+  --success: var(--v4-success);
+  --warning: var(--v4-warning);
+  --danger: var(--v4-danger);
 }

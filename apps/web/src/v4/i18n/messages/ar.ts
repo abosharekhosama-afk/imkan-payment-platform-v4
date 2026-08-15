@@ -1,7 +1,7 @@
 /** Arabic message catalog — mirrors en.ts keys. */
 export const ar: Record<string, string> = {
-  'app.name': 'إمكان للمدفوعات',
-  'app.console': 'لوحة تحكم التاجر',
+  'app.name': 'إمكان ون',
+  'app.console': 'المدفوعات',
   'app.consoleShort': 'لوحة V4',
   'app.menu': 'القائمة',
   'app.logout': 'تسجيل الخروج',
@@ -12,6 +12,8 @@ export const ar: Record<string, string> = {
   'env.sandbox': 'بيئة تجريبية',
   'env.live': 'بيئة مباشرة',
 
+  'section.workspace': 'مساحة العمل',
+  'section.business': 'الأعمال',
   'section.overview': 'نظرة عامة',
   'section.payments': 'المدفوعات',
   'section.billing': 'الفوترة',
@@ -26,6 +28,9 @@ export const ar: Record<string, string> = {
   'section.later': 'مراحل لاحقة',
 
   'nav.dashboard': 'لوحة القيادة',
+  'nav.settings': 'الإعدادات',
+  'nav.onboardingKyb': 'التأهيل / KYB',
+  'nav.commissions': 'العمولات',
   'nav.payments': 'المدفوعات',
   'nav.transactions': 'المعاملات',
   'nav.paymentLinks': 'روابط الدفع',
@@ -211,6 +216,14 @@ export const ar: Record<string, string> = {
   'settings.appearance.language': 'اللغة',
   'settings.appearance.langEn': 'English',
   'settings.appearance.langAr': 'العربية',
+  'settings.hub.title': 'الإعدادات',
+  'settings.hub.description': 'المنظمة والمدفوعات والمظهر والويب هوك في مكان واحد.',
+  'merchant.hub.title': 'تأهيل النشاط',
+  'merchant.hub.description': 'المعلومات القانونية وملف النشاط والمستندات وKYB في مسار واحد.',
+  'webhooks.hub.title': 'ويب هوك',
+  'webhooks.hub.description': 'نقاط التسليم الصادرة وأحداث المزودين الواردة.',
+  'webhooks.hub.outbound': 'صادر',
+  'webhooks.hub.inbound': 'أحداث واردة',
   'settings.organization.title': 'المنظمة',
   'settings.organization.description': 'ملف المؤسسة المستخدم في المدفوعات وصلاحيات الفريق.',
   'settings.organization.name': 'اسم المؤسسة',

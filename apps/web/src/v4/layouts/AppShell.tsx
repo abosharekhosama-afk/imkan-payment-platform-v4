@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Link, NavLink, Outlet, useLocation} from 'react-router-dom';
+import {NavLink, Outlet, useLocation} from 'react-router-dom';
 import {useAuth} from '../auth/AuthProvider';
 import {NAV_SECTIONS} from './nav';
 import {NavIcon} from './NavIcon';
@@ -13,15 +13,16 @@ export function AppShell() {
   const [open, setOpen] = useState(false);
 
   const isVisibleForAccount = (to: string) =>
-    !isPlatform || to.startsWith('/platform') || to === '/settings/appearance';
+    !isPlatform || to.startsWith('/platform') || to.startsWith('/settings');
 
-  const visibleItems = useMemo(
+  const visibleSections = useMemo(
     () =>
-      NAV_SECTIONS.flatMap((section) =>
-        section.items.filter(
+      NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.filter(
           (item) => isVisibleForAccount(item.to) && (!item.anyOf || hasPermission(...item.anyOf)),
         ),
-      ),
+      })).filter((section) => section.items.length > 0),
     [hasPermission, isPlatform],
   );
 
@@ -58,7 +59,10 @@ export function AppShell() {
           </div>
         </div>
         <nav className="v4-sidebar-nav">
-          {visibleItems.map((item) => (
+          {visibleSections.map((section) => (
+            <div key={section.labelKey}>
+              <div className="v4-nav-section-label">{t(section.labelKey)}</div>
+              {section.items.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -69,13 +73,11 @@ export function AppShell() {
               <NavIcon name={item.icon} />
               <span>{t(item.labelKey)}</span>
             </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="v4-sidebar-footer">
-          <Link to="/settings/appearance" className="v4-nav-link v4-nav-link-quiet" onClick={() => setOpen(false)}>
-            <NavIcon name="palette" />
-            <span>{t('nav.appearance')}</span>
-          </Link>
           <div className="v4-sidebar-user">
             <div className="v4-avatar" aria-hidden="true">
               {initials}

@@ -183,7 +183,20 @@ describe('P15.1-A financial model (pg)', () => {
         fixed_minor: '150',
       },
     });
-    expect(created.statusCode).toBe(201);
+    expect(created.statusCode).toBe(403);
+
+    await pgQuery(
+      `INSERT INTO fee_schedules(organization_id, environment, currency_code, fee_type_code, name, is_active)
+       VALUES ($1,'SANDBOX','SAR','PROCESSING','Standard 3% + 150', TRUE)
+       RETURNING id`,
+      [a.orgId],
+    ).then(async (r) => {
+      await pgQuery(
+        `INSERT INTO fee_schedule_lines(fee_schedule_id, organization_id, basis_points, fixed_minor)
+         VALUES ($1,$2,300,'150')`,
+        [r.rows[0].id, a.orgId],
+      );
+    });
 
     const preview = await app.inject({
       method: 'POST',

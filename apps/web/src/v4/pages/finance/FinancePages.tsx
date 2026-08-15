@@ -548,7 +548,7 @@ export function FeeSchedulesPage() {
   return (
     <div>
       <PageHeader
-        title={t('finance.fees.title')}
+        title={t('nav.commissions')}
         description={t('finance.fees.description')}
         crumbs={[{label: t('section.finance')}, {label: t('nav.fees')}]}
       />

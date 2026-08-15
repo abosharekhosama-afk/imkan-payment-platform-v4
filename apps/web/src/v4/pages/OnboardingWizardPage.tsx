@@ -71,8 +71,8 @@ export function OnboardingWizardPage() {
   const canEnterConsole = ['SUBMITTED', 'IN_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(status);
 
   return (
-    <div className="v4-login" style={{alignItems: 'flex-start', paddingTop: '2rem'}}>
-      <div className="v4-card" style={{width: 'min(720px, 100%)', margin: '0 auto'}}>
+    <div className="v4-onboarding-shell">
+      <div className="zoho-panel" style={{width: 'min(720px, 100%)', margin: '0 auto'}}>
         <PageHeader title={t('onboarding.title')} description={t('onboarding.description')} />
         {error ? <Alert tone="danger">{error}</Alert> : null}
         {!kyb && !error ? <LoadingState label={t('onboarding.loading')} /> : null}
@@ -113,13 +113,13 @@ export function OnboardingWizardPage() {
 
             {!canEnterConsole ? <Alert tone="info">{t('onboarding.fillStepsUnlock')}</Alert> : null}
 
-            <ol style={{paddingLeft: '1.25rem', lineHeight: 1.8}}>
+            <ol className="v4-onboarding-steps">
               {STEPS.map((step, i) => (
                 <li key={step.key} style={{marginBottom: '0.75rem'}}>
                   <strong>
                     {i + 1}. {step.label}
                   </strong>
-                  <div style={{color: 'var(--v4-text-muted)', fontSize: '0.9rem'}}>{step.hint}</div>
+                  <div className="v4-onboarding-hint">{step.hint}</div>
                   <Link to={step.to}>{t('onboarding.openStep')}</Link>
                 </li>
               ))}

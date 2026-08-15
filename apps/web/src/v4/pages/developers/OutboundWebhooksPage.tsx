@@ -18,7 +18,7 @@ import {useBusyAction} from '../../hooks/useBusyAction';
 
 const DEFAULT_EVENTS = ['payment.succeeded', 'payment.failed', 'refund.succeeded'];
 
-export function OutboundWebhooksPage() {
+export function OutboundWebhooksPage({embedded}: {embedded?: boolean} = {}) {
   const {t} = useI18n();
   const {token} = useAuth();
   const {push} = useToast();
@@ -105,6 +105,15 @@ export function OutboundWebhooksPage() {
 
   return (
     <div>
+      {embedded ? (
+        <div className="v4-page-actions" style={{marginBottom: '1rem'}}>
+          <Can anyOf={['webhooks.manage']}>
+            <Button type="button" onClick={() => setOpen(true)}>
+              {t('outboundWebhooks.create')}
+            </Button>
+          </Can>
+        </div>
+      ) : (
       <PageHeader
         title={t('outboundWebhooks.title')}
         description={t('outboundWebhooks.description')}
@@ -117,6 +126,7 @@ export function OutboundWebhooksPage() {
           </Can>
         }
       />
+      )}
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {secretOnce ? (
         <Alert tone="warning">

@@ -1,5 +1,5 @@
 import React from 'react';
-import {Link} from 'react-router-dom';
+import {Link, NavLink} from 'react-router-dom';
 import {useI18n} from '../i18n/I18nProvider';
 import {formatErrorMessage, formatStatus} from '../i18n/humanize';
 
@@ -53,7 +53,7 @@ export function Button(
   const v = variant === 'primary' ? '' : variant;
   return (
     <button
-      className={`v4-btn ${v} ${size === 'sm' ? 'v4-btn--sm' : ''} ${className}`.trim()}
+      className={`v4-btn zoho-btn-${variant === 'danger' ? 'primary' : variant === 'secondary' ? 'secondary' : variant === 'ghost' ? 'ghost' : 'primary'} ${v} ${size === 'sm' ? 'v4-btn--sm' : ''} ${className}`.trim()}
       disabled={Boolean(disabled || busy)}
       aria-busy={busy || undefined}
       {...rest}
@@ -70,8 +70,9 @@ export function Field({label, children, hint, fullWidth}: {label: string; childr
         id: (children as React.ReactElement<any>).props?.id || id,
         className: [
           (children as React.ReactElement<any>).props?.className,
-          (children as React.ReactElement<any>).type === 'select' ? 'v4-select' : '',
-          (children as React.ReactElement<any>).type === 'textarea' ? 'v4-textarea' : '',
+          (children as React.ReactElement<any>).type === 'select' ? 'v4-select input-ui' : '',
+          (children as React.ReactElement<any>).type === 'textarea' ? 'v4-textarea input-ui' : '',
+          (children as React.ReactElement<any>).type === 'input' ? 'input-ui' : '',
         ]
           .filter(Boolean)
           .join(' '),
@@ -81,7 +82,7 @@ export function Field({label, children, hint, fullWidth}: {label: string; childr
     <div className={`v4-field${fullWidth ? ' v4-field--full' : ''}`}>
       <label htmlFor={(child as any)?.props?.id || id}>{label}</label>
       {child}
-      {hint ? <small style={{color: 'var(--v4-text-muted)'}}>{hint}</small> : null}
+      {hint ? <small style={{color: 'var(--text-muted)'}}>{hint}</small> : null}
     </div>
   );
 }
@@ -109,7 +110,7 @@ export function Alert({
 
 export function EmptyState({title, description}: {title: string; description?: string}) {
   return (
-    <div className="v4-empty v4-card">
+    <div className="v4-empty v4-card zoho-panel">
       <strong>{title}</strong>
       {description ? <p>{description}</p> : null}
     </div>
@@ -196,8 +197,8 @@ export function DataTable({
   const {t} = useI18n();
   if (!rows.length) return <>{empty || <EmptyState title={t('common.noRecords')} />}</>;
   return (
-    <div className="v4-table-wrap">
-      <table className="v4-table">
+    <div className="v4-table-wrap zoho-table-wrap">
+      <table className="v4-table zoho-table">
         <thead>
           <tr>
             {columns.map((c) => (
@@ -209,7 +210,7 @@ export function DataTable({
           {rows.map((row, i) => (
             <tr key={i}>
               {row.map((cell, j) => (
-                <td key={j}>{cell}</td>
+        <td key={j} dir={typeof cell === 'string' && /^\d/.test(cell) ? 'ltr' : undefined}>{cell}</td>
               ))}
             </tr>
           ))}
@@ -311,5 +312,21 @@ export function ComingSoon({feature, reason}: {feature: string; reason: string})
       <Alert tone="warning">{t('comingSoon.alert', {feature, reason})}</Alert>
       <EmptyState title={t('comingSoon.title')} description={t('comingSoon.subtitle')} />
     </div>
+  );
+}
+
+export function ModuleTabs({
+  items,
+}: {
+  items: {to: string; label: string; end?: boolean}[];
+}) {
+  return (
+    <nav className="v4-module-tabs" aria-label="Module">
+      {items.map((item) => (
+        <NavLink key={item.to} to={item.to} end={item.end} className={({isActive}) => (isActive ? 'active' : '')}>
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
   );
 }

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Lato:wght@400;700&display=swap');
 @import './tokens.css';
 
 *,
@@ -16,12 +16,10 @@ body,
 body {
   margin: 0;
   font-family: var(--v4-font-sans);
-  color: var(--v4-text);
-  background:
-    linear-gradient(180deg, rgba(11, 20, 38, 0.02) 0%, transparent 240px),
-    radial-gradient(900px 420px at 100% -5%, rgba(26, 155, 122, 0.07), transparent 55%),
-    radial-gradient(700px 320px at 0% 100%, rgba(201, 162, 39, 0.05), transparent 50%),
-    var(--v4-bg);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--page-bg);
 }
 
 [lang='ar'] body,
@@ -32,10 +30,7 @@ body {
 }
 
 [data-theme='dark'] body {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 240px),
-    radial-gradient(900px 420px at 100% -5%, rgba(45, 212, 168, 0.05), transparent 55%),
-    var(--v4-bg);
+  background: var(--page-bg);
 }
 
 a {
@@ -66,7 +61,7 @@ textarea {
 }
 
 .v4-sidebar {
-  background: linear-gradient(195deg, var(--v4-bg-sidebar) 0%, #101d32 55%, #0a1524 100%);
+  background: var(--v4-bg-sidebar);
   color: var(--v4-text-inverse);
   padding: var(--v4-space-5) var(--v4-space-4);
   display: flex;
@@ -434,14 +429,13 @@ textarea {
 }
 
 .v4-topbar {
-  height: 56px;
+  height: var(--v4-topbar-height);
   display: flex;
   align-items: center;
   gap: var(--v4-space-3);
   padding: 0 var(--v4-space-5);
-  border-bottom: 1px solid var(--v4-border);
-  background: var(--v4-topbar-bg, rgba(255, 255, 255, 0.86));
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -577,9 +571,9 @@ textarea {
 }
 
 .v4-card {
-  background: var(--v4-bg-elevated);
-  border: 1px solid var(--v4-border);
-  border-radius: var(--v4-radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--v4-radius);
   box-shadow: var(--v4-shadow);
   padding: var(--v4-space-5);
 }
@@ -613,19 +607,23 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
-.v4-btn {
+.v4-btn,
+.zoho-btn-primary {
   appearance: none;
   border: 1px solid transparent;
-  border-radius: var(--v4-radius-sm);
-  padding: 0.55rem 0.9rem;
-  background: var(--v4-accent);
-  color: #fff;
-  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  min-height: 32px;
+  background: var(--primary);
+  color: var(--v4-text-inverse);
+  font-weight: 500;
+  font-size: 13px;
   cursor: pointer;
 }
 
-.v4-btn:hover:not(:disabled) {
-  background: var(--v4-accent-hover);
+.v4-btn:hover:not(:disabled),
+.zoho-btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
 }
 
 .v4-btn:disabled {
@@ -648,19 +646,21 @@ textarea {
   max-width: 220px;
 }
 
-.v4-btn.secondary {
-  background: var(--v4-bg-elevated);
-  color: var(--v4-text);
-  border-color: var(--v4-border-strong);
+.v4-btn.secondary,
+.zoho-btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
 }
 
 .v4-btn.danger {
   background: var(--v4-danger);
 }
 
-.v4-btn.ghost {
+.v4-btn.ghost,
+.zoho-btn-ghost {
   background: transparent;
-  color: var(--v4-text);
+  color: var(--text);
   border-color: transparent;
 }
 
@@ -678,13 +678,21 @@ textarea {
 
 .v4-field input,
 .v4-field select,
-.v4-field textarea {
-  border: 1px solid var(--v4-border-strong);
-  border-radius: var(--v4-radius-sm);
-  padding: 0.6rem 0.75rem;
-  background: var(--v4-input-bg, var(--v4-bg-elevated));
-  color: var(--v4-text);
+.v4-field textarea,
+.input-ui {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 0.75rem;
+  height: 32px;
+  background: var(--surface);
+  color: var(--text);
   width: 100%;
+}
+.v4-field textarea,
+textarea.input-ui {
+  height: auto;
+  min-height: 72px;
+  padding: 0.5rem 0.75rem;
 }
 
 .v4-textarea {
@@ -701,14 +709,16 @@ textarea {
   font-size: 0.85rem;
 }
 
-.v4-table-wrap {
+.v4-table-wrap,
+.zoho-table-wrap {
   overflow: auto;
-  border: 1px solid var(--v4-border);
+  border: 1px solid var(--border);
   border-radius: var(--v4-radius);
-  background: var(--v4-bg-elevated);
+  background: var(--surface);
 }
 
-.v4-table {
+.v4-table,
+.zoho-table {
   width: 100%;
   border-collapse: collapse;
   min-width: 640px;
@@ -723,9 +733,24 @@ textarea {
 }
 
 .v4-table th {
-  color: var(--v4-text-muted);
-  font-weight: 600;
+  color: var(--text-muted);
+  font-weight: 500;
   background: var(--v4-bg-muted);
+}
+
+.v4-table tbody tr:hover td,
+.zoho-table tbody tr:hover td {
+  background: var(--primary-soft);
+}
+
+.v4-table td:first-child,
+.zoho-table td:first-child,
+.v4-table th:first-child,
+.zoho-table th:first-child {
+  position: sticky;
+  inset-inline-start: 0;
+  background: var(--surface);
+  z-index: 1;
 }
 
 .v4-badge {
@@ -1744,18 +1769,89 @@ textarea {
 }
 
 .v4-region-badge[data-region='PS'] {
-  background: #e8f5e9;
-  color: #1b5e20;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 .v4-region-badge[data-region='GCC'] {
-  background: #fff3e0;
-  color: #e65100;
+  background: var(--v4-warning-soft);
+  color: var(--warning);
 }
 
 .v4-region-badge[data-region='INTL'] {
-  background: #e3f2fd;
-  color: #0d47a1;
+  background: var(--v4-info-soft);
+  color: var(--v4-info);
+}
+
+.zoho-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--v4-radius);
+  padding: var(--v4-space-4);
+}
+
+.v4-module-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v4-space-2);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--v4-space-4);
+  padding-bottom: var(--v4-space-2);
+}
+
+.v4-module-tabs a,
+.v4-module-tabs button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.v4-module-tabs a.active,
+.v4-module-tabs button.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.v4-table tbody tr:hover td,
+.zoho-table tbody tr:hover td {
+  background: var(--primary-soft);
+}
+
+.v4-nav-section-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v4-text-muted);
+  padding: 0.5rem 0.75rem 0.15rem;
+}
+
+.v4-onboarding-steps {
+  padding-inline-start: 1.25rem;
+  line-height: 1.8;
+}
+.v4-onboarding-hint {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.v4-module-tabs button {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.v4-module-tabs button.active {
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 @media (max-width: 840px) {

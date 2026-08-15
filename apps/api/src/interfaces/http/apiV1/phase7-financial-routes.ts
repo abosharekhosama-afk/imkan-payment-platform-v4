@@ -177,7 +177,7 @@ export async function registerPhase7FinancialRoutes(app: FastifyInstance) {
     {
       preHandler: [
         requireOrganizationContext(),
-        requirePermission('settlements.read', 'settlements.manage', 'platform.admin', 'platform.finance'),
+        requirePermission('settlements.read', 'platform.admin', 'platform.finance'),
       ],
     },
     async (request) => ok(request, await feeScheduleService.list(request.auth!.organizationId!)),
@@ -188,8 +188,8 @@ export async function registerPhase7FinancialRoutes(app: FastifyInstance) {
     {
       preHandler: [
         requireOrganizationContext(),
-        requirePermission('settlements.manage', 'platform.admin', 'platform.finance'),
-        requireStepUp('settlements.manage'),
+        requirePermission('platform.admin', 'platform.finance'),
+        requireStepUp(),
         idempotencyPreHandler('fee_schedules.upsert'),
       ],
     },
@@ -241,7 +241,7 @@ export async function registerPhase7FinancialRoutes(app: FastifyInstance) {
     {
       preHandler: [
         requireOrganizationContext(),
-        requirePermission('settlements.read', 'settlements.manage', 'platform.admin', 'platform.finance'),
+        requirePermission('settlements.read', 'platform.admin', 'platform.finance'),
       ],
     },
     async (request) => {

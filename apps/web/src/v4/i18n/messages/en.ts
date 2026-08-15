@@ -1,7 +1,7 @@
 /** English message catalog — all V4 UI copy. */
 export const en = {
-  'app.name': 'IMKAN Payments',
-  'app.console': 'Merchant Console',
+  'app.name': 'IMKAN One',
+  'app.console': 'Payments',
   'app.consoleShort': 'V4 Console',
   'app.menu': 'Menu',
   'app.logout': 'Log out',
@@ -12,6 +12,8 @@ export const en = {
   'env.sandbox': 'Sandbox rail',
   'env.live': 'Live rail',
 
+  'section.workspace': 'Workspace',
+  'section.business': 'Business',
   'section.overview': 'Overview',
   'section.payments': 'Payments',
   'section.billing': 'Billing',
@@ -26,6 +28,9 @@ export const en = {
   'section.later': 'Later phases',
 
   'nav.dashboard': 'Dashboard',
+  'nav.settings': 'Settings',
+  'nav.onboardingKyb': 'Onboarding / KYB',
+  'nav.commissions': 'Commissions',
   'nav.payments': 'Payments',
   'nav.transactions': 'Transactions',
   'nav.paymentLinks': 'Payment Links',
@@ -211,6 +216,14 @@ export const en = {
   'settings.appearance.language': 'Language',
   'settings.appearance.langEn': 'English',
   'settings.appearance.langAr': 'Arabic',
+  'settings.hub.title': 'Settings',
+  'settings.hub.description': 'Organization, payments, appearance, and webhooks in one place.',
+  'merchant.hub.title': 'Business onboarding',
+  'merchant.hub.description': 'Legal information, business profile, documents, and KYB in one flow.',
+  'webhooks.hub.title': 'Webhooks',
+  'webhooks.hub.description': 'Outbound endpoints and inbound provider events.',
+  'webhooks.hub.outbound': 'Outbound',
+  'webhooks.hub.inbound': 'Inbound events',
   'settings.organization.title': 'Organization',
   'settings.organization.description': 'Organization profile used across payments and team access.',
   'settings.organization.name': 'Organization name',
