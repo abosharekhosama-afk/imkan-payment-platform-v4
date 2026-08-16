@@ -44,16 +44,11 @@ npm run seed:stripe-routes
 - Web: http://localhost:5173
 - صحة الخدمة: http://localhost:3000/api/v1/health/ready
 
-## حسابات التجربة (محلي فقط)
+## تسجيل الدخول
 
-إدارة المنصة بعد `seed:platform-owner`:
-
-- البريد: `owner@platform.local`
-- كلمة المرور: `PlatformOwner123!`
+بعد التشغيل استخدم حساباً موجوداً أو `/signup`. الدخول يتطلب MFA: كود سري طويل يصل إلى بريد الحساب يُضاف إلى Google Authenticator أو إضافة المصادقة في المتصفح، ثم يُدخل الرمز السداسي الذي يتغير دورياً. التفاصيل في [README.md](./README.md).
 
 شركة جديدة: `/signup`.
-
-لا تستخدم هذه كلمات المرور على Render أو أي بيئة مشتركة دون تغييرها.
 
 ## مسار MySQL القديم (اختياري)
 
