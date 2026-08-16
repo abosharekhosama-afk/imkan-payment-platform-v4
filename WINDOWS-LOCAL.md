@@ -1,28 +1,40 @@
-# تشغيل Payment Platform V3.4 على Windows بدون Docker
+# التشغيل المحلي على Windows — IMKAN One V4
+
+المسار الأساسي هو **PostgreSQL** وواجهة V4. لا تعتمد على MySQL إلا إذا كنت تختبر المسار القديم صراحة.
 
 ## المتطلبات
+
 - Windows 10/11
-- Node.js 20+ (لديك Node 24 مناسب)
-- MySQL Server 8.x
-- لا تحتاج Redis في وضع الاختبار المحلي؛ `REDIS_URL` يكون فارغًا.
+- Node.js 20+
+- PostgreSQL 16 (محلي أو اتصال Neon في `DATABASE_URL_PG`)
 
-## 1. تثبيت MySQL
-ثبّت MySQL Server 8.x. أثناء التثبيت احفظ كلمة مرور root.
-بعدها تأكد أن خدمة MySQL تعمل من `services.msc`.
+Redis غير مطلوب للاختبار المحلي الخفيف؛ اترك `REDIS_URL` فارغاً في `.env` إن لزم.
 
-## 2. من PowerShell داخل مجلد المشروع V3.4
+## الإعداد (V4)
+
+من جذر المشروع:
+
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\windows\setup.ps1
+copy .env.example .env
 ```
-السكريبت يقوم بتثبيت npm packages، إنشاء `payment_platform`، إنشاء المستخدم `payment` بكلمة مرور `payment`، تشغيل migrations ثم seed.
 
-## 3. التشغيل
-الطريقة الأسهل:
+عدّل `DATABASE_URL_PG` ليشير إلى قاعدتك. ثم:
+
+```powershell
+npm install
+npm run db:migrate:pg
+npm run seed:platform-owner
+npm run seed:stripe-routes
+```
+
+## التشغيل
+
 ```powershell
 .\scripts\windows\start-all.ps1
 ```
-أو في نافذتين منفصلتين:
+
+أو نافذتين:
+
 ```powershell
 .\scripts\windows\start-api.ps1
 .\scripts\windows\start-web.ps1
@@ -30,17 +42,23 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 - API: http://localhost:3000
 - Web: http://localhost:5173
-- Health: http://localhost:3000/health/ready
+- صحة الخدمة: http://localhost:3000/api/v1/health/ready
 
-## بيانات الاختبار
-- Email: `admin@example.test`
-- Password: `ChangeMe!123`
+## حسابات التجربة (محلي فقط)
 
-غيّر كلمة المرور قبل أي استخدام حقيقي.
+إدارة المنصة بعد `seed:platform-owner`:
 
-## ملاحظة Redis
-Redis غير مطلوب لاختبار Windows الحالي لأن التطبيق يتعامل معه كخدمة اختيارية. إذا أردت اختبار Redis لاحقًا، ثبّت Redis-compatible service على Windows وضع:
-`REDIS_URL=redis://127.0.0.1:6379`
+- البريد: `owner@platform.local`
+- كلمة المرور: `PlatformOwner123!`
+
+شركة جديدة: `/signup`.
+
+لا تستخدم هذه كلمات المرور على Render أو أي بيئة مشتركة دون تغييرها.
+
+## مسار MySQL القديم (اختياري)
+
+`.\scripts\windows\setup.ps1` ينشئ قاعدة MySQL `payment_platform` ويشغّل ترحيلات V1. ذلك **ليس** نظام IMKAN One المعروض على Render. أبقِ `ENABLE_LEGACY_V1` كما في `.env.example` فقط إذا احتجت ذلك المسار.
 
 ## إيقاف التشغيل
-أغلق نافذتي PowerShell الخاصة بـ API وWeb.
+
+أغلق نوافذ PowerShell الخاصة بالـ API والواجهة.

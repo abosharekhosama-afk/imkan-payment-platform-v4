@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-Write-Host "=== Payment Platform V3.2 - Windows setup (no Docker) ===" -ForegroundColor Cyan
+Write-Host "=== IMKAN One V4 — optional legacy MySQL setup (not the V4 PostgreSQL path) ===" -ForegroundColor Cyan
 
 function Require-Command($name, $hint) {
   if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
